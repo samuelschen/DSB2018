@@ -71,7 +71,7 @@ def main(args):
             print('Grand new training ...')
 
     print('Training started...')
-    for epoch in range(start_epoch, config.n_epoch + start_epoch):
+    for epoch in range(start_epoch, args.epoch + start_epoch):
         train(dataloader, model, cost, optimizer, epoch)
 
         # save checkpoint per 10 epoch
@@ -136,8 +136,8 @@ if __name__ == '__main__':
     parser.add_argument('--no-resume', dest='resume', action='store_false')
     parser.add_argument('--cuda', dest='cuda', action='store_true')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false')
-    parser.set_defaults(resume=True)
-    parser.set_defaults(cuda=config.cuda)
+    parser.add_argument('--epoch', type=int, help='run number of epoch')
+    parser.set_defaults(resume=True, cuda=config.cuda, epoch=config.n_epoch)
     args = parser.parse_args()
 
     # final check whether cuda is avaiable
