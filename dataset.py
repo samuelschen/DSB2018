@@ -15,7 +15,7 @@ import config
 class KaggleDataset(Dataset):
     """Kaggle dataset."""
 
-    def __init__(self, root, transform=None):
+    def __init__(self, root, transform=None, cache=None):
         """
         Args:
             root_dir (string): Directory of data (train or test).
@@ -24,14 +24,14 @@ class KaggleDataset(Dataset):
         self.root = root
         self.transform = transform
         self.ids = next(os.walk(root))[1]
-        self.cache = {} # only if dataloader do not fork subprocess (num_workers=0)
+        self.cache = cache
 
     def __len__(self):
         return len(self.ids)
 
     def __getitem__(self, idx):
         uid = self.ids[idx]
-        if uid in self.cache:
+        if self.cache is not None and uid in self.cache:
             sample = self.cache[uid]
         else:
             img_name = os.path.join(self.root, uid, 'images', uid + '.png')
@@ -48,7 +48,8 @@ class KaggleDataset(Dataset):
             label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
             #label = label.convert('1') # convert to 1-bit pixels, black and white 
             sample = {'image': image, 'label': label}
-            self.cache[uid] = sample
+            if self.cache is not None:
+                self.cache[uid] = sample
         if self.transform:
             sample = self.transform(sample)
         return sample

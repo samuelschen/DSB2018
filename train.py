@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 import config
 from model import Model
 from dataset import KaggleDataset, Compose
+from multiprocessing import Manager
 
 def train():
     net = Model()
@@ -19,12 +20,17 @@ def train():
     cost = nn.BCELoss()
     optimizer = torch.optim.Adam(net.parameters(), lr=config.learn_rate, weight_decay=1e-6)
 
+    # dataloader workers are forked process thus we need a IPC manager to keep cache in same memory space
+    manager = Manager()
+    cache = manager.dict()
+    # prepare dataset and loader
     compose = Compose(128)
-    dataset = KaggleDataset('data/stage1_train', transform=compose)
+    dataset = KaggleDataset('data/stage1_train', transform=compose, cache=cache)
     dataloader = DataLoader(
         dataset, shuffle=True,
         batch_size=config.n_batch,
-        num_workers=config.n_worker)
+        num_workers=config.n_worker,
+        pin_memory=config.cuda)
 
     print('Training started...')
     for epoch in range(config.n_epoch):
