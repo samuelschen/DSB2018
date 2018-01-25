@@ -1,4 +1,7 @@
+import os
+import json
 import numpy as np
+import torch
 from skimage.morphology import label
 
 # copy from https://github.com/pytorch/examples/blob/master/imagenet/main.py#L139
@@ -73,7 +76,7 @@ def iou_metric(y_true_in, y_pred_in, print_table=False):
         print("AP\t-\t-\t-\t{:1.3f}".format(np.mean(prec)))
     return np.mean(prec)
 
-def iou_metric_batch(y_true_in, y_pred_in):
+def iou_mean(y_true_in, y_pred_in):
     y_true_in = y_true_in.data.cpu().numpy()
     y_pred_in = y_pred_in.data.cpu().numpy()
     batch_size = y_true_in.shape[0]
@@ -82,3 +85,43 @@ def iou_metric_batch(y_true_in, y_pred_in):
         value = iou_metric(y_true_in[batch], y_pred_in[batch])
         metric.append(value)
     return np.mean(metric)
+
+# checkpoint handling
+def ckpt_path(epoch=None):
+    checkpoint_dir = os.path.join('.', 'checkpoint')
+    current_path = os.path.join('.', 'checkpoint', 'current.json')
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
+    if epoch is None:
+        if os.path.exists(current_path):
+            with open(current_path) as infile:
+                data = json.load(infile)
+                epoch = data['epoch']
+        else:
+            return ''
+    else:
+        with open(current_path, 'w') as outfile:
+            json.dump({
+                'epoch': epoch
+            }, outfile)
+    return os.path.join(checkpoint_dir, 'ckpt-{}.pkl'.format(epoch))
+
+def save_ckpt(model, optimizer, epoch):
+    ckpt = ckpt_path(epoch)
+    torch.save({
+        'epoch': epoch,
+        'model': model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+    }, ckpt)
+
+def load_ckpt(model, optimizer=None):
+    ckpt = ckpt_path()
+    epoch = 0
+    if os.path.isfile(ckpt):
+        print("Loading checkpoint '{}'".format(ckpt))
+        checkpoint = torch.load(ckpt)
+        epoch = checkpoint['epoch']
+        model.load_state_dict(checkpoint['model'])
+        if optimizer:
+            optimizer.load_state_dict(checkpoint['optimizer'])
+    return epoch

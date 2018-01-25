@@ -1,6 +1,4 @@
 # python built-in library
-import os
-import json
 import argparse
 import time
 from multiprocessing import Manager
@@ -8,33 +6,14 @@ from multiprocessing import Manager
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 # own code
 import config
 from model import Model
 from dataset import KaggleDataset, Compose
-from helper import AverageMeter, iou_metric_batch
+from helper import AverageMeter, iou_mean, save_ckpt, load_ckpt
 
-def ckpt_path(epoch=None):
-    checkpoint_dir = os.path.join('.', 'checkpoint')
-    current_path = os.path.join('.', 'checkpoint', 'current.json')
-    if not os.path.exists(checkpoint_dir):
-        os.makedirs(checkpoint_dir)
-    if epoch is None:
-        if os.path.exists(current_path):
-            with open(current_path) as infile:
-                data = json.load(infile)
-                epoch = data['epoch']
-        else:
-            return ''
-    else:
-        with open(current_path, 'w') as outfile:
-            json.dump({
-                'epoch': epoch
-            }, outfile)
-    return os.path.join(checkpoint_dir, 'ckpt-{}.pkl'.format(epoch))
 
 def main(args):
     model = Model()
@@ -57,18 +36,13 @@ def main(args):
         num_workers=config.n_worker,
         pin_memory=config.cuda)
 
-    # validate checkpoint
-    start_epoch = 1
+    # resume checkpoint
+    start_epoch = 0
     if args.resume:
-        ckpt = ckpt_path()
-        if os.path.isfile(ckpt):
-            print("Loading checkpoint '{}'".format(ckpt))
-            checkpoint = torch.load(ckpt)
-            start_epoch = checkpoint['epoch'] + 1
-            model.load_state_dict(checkpoint['model'])
-            optimizer.load_state_dict(checkpoint['optimizer'])
-        else:
-            print('Grand new training ...')
+        start_epoch = load_ckpt(model, optimizer)
+    if start_epoch == 0:
+        print('Grand new training ...')
+    start_epoch += 1
 
     print('Training started...')
     for epoch in range(start_epoch, args.epoch + start_epoch):
@@ -76,13 +50,7 @@ def main(args):
 
         # save checkpoint per 10 epoch
         if epoch % 10 == 0:
-            ckpt = ckpt_path(epoch)
-            torch.save({
-                'epoch': epoch,
-                'model': model.state_dict(),
-                'optimizer': optimizer.state_dict(),
-            }, ckpt)
-
+            save_ckpt(model, optimizer, epoch)
     print('Training finished...')
 
 
@@ -98,8 +66,7 @@ def train(loader, model, cost, optimizer, epoch):
         # measure data loading time
         data_time.update(time.time() - end)
         # get the inputs
-        inputs = data['image']
-        labels = data['label']
+        inputs, labels = data['image'], data['label']
         if config.cuda:
             inputs, labels = inputs.cuda(async=True), labels.cuda(async=True)
         # wrap them in Variable
@@ -110,8 +77,8 @@ def train(loader, model, cost, optimizer, epoch):
         outputs = model(inputs)
         loss = cost(outputs, labels)
         # measure accuracy and record loss
-        iou_mean = iou_metric_batch(outputs, labels)
-        iou.update(iou_mean, inputs.size(0))
+        batch_iou = iou_mean(outputs, labels)
+        iou.update(batch_iou, inputs.size(0))
         losses.update(loss.data[0], inputs.size(0))
         # compute gradient and do backward step
         loss.backward()
@@ -124,7 +91,7 @@ def train(loader, model, cost, optimizer, epoch):
                 'Epoch: [{0}][{1}/{2}]\t'
                 'Time: {batch_time.avg:.3f} (io: {data_time.avg:.3f})\t\t'
                 'Loss: {loss.val:.4f} ({loss.avg:.4f})\t'
-                'IoU: {iou.val:.3f} ({iou.avg:.3})\t'.format(
+                'IoU: {iou.val:.3f} ({iou.avg:.3f})\t'.format(
                     epoch, i, len(loader), batch_time=batch_time,
                     data_time=data_time, loss=losses, iou=iou
                 )
