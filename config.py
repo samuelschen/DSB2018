@@ -9,3 +9,4 @@ learn_rate = 0.001
 cv_ratio = 0.1
 width = 128 # model input size
 cuda = True
+threshold = 0.5 # possibility gating threshold

@@ -3,6 +3,7 @@ import json
 import numpy as np
 import torch
 from skimage.morphology import label
+import config
 
 # copy from https://github.com/pytorch/examples/blob/master/imagenet/main.py#L139
 class AverageMeter():
@@ -24,8 +25,8 @@ class AverageMeter():
 
 # copy from https://www.kaggle.com/aglotero/another-iou-metric
 def iou_metric(y_true_in, y_pred_in, print_table=False):
-    labels = label(y_true_in > 0.5)
-    y_pred = label(y_pred_in > 0.5)
+    labels = label(y_true_in > config.threshold)
+    y_pred = label(y_pred_in > config.threshold)
 
     true_objects = len(np.unique(labels))
     pred_objects = len(np.unique(y_pred))
