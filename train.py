@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 import config
 from model import Model
 from dataset import KaggleDataset, Compose
-from helper import AverageMeter
+from helper import AverageMeter, iou_metric_batch
 
 def ckpt_path(epoch=None):
     checkpoint_dir = os.path.join('.', 'checkpoint')
@@ -90,6 +90,7 @@ def train(loader, model, cost, optimizer, epoch):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
+    iou = AverageMeter()
     # Sets the module in training mode.
     model.train()
     end = time.time()
@@ -109,6 +110,8 @@ def train(loader, model, cost, optimizer, epoch):
         outputs = model(inputs)
         loss = cost(outputs, labels)
         # measure accuracy and record loss
+        iou_mean = iou_metric_batch(outputs, labels)
+        iou.update(iou_mean, inputs.size(0))
         losses.update(loss.data[0], inputs.size(0))
         # compute gradient and do backward step
         loss.backward()
@@ -119,11 +122,11 @@ def train(loader, model, cost, optimizer, epoch):
         if i % config.print_freq == 0:
             print(
                 'Epoch: [{0}][{1}/{2}]\t'
-                'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(
+                'Time: {batch_time.avg:.3f} (io: {data_time.avg:.3f})\t\t'
+                'Loss: {loss.val:.4f} ({loss.avg:.4f})\t'
+                'IoU: {iou.val:.3f} ({iou.avg:.3})\t'.format(
                     epoch, i, len(loader), batch_time=batch_time,
-                    data_time=data_time, loss=losses
+                    data_time=data_time, loss=losses, iou=iou
                 )
             )
 
