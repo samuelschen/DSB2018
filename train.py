@@ -49,7 +49,7 @@ def main(args):
     manager = Manager()
     cache = manager.dict()
     # prepare dataset and loader
-    compose = Compose(128)
+    compose = Compose(config.width)
     dataset = KaggleDataset('data/stage1_train', transform=compose, cache=cache)
     dataloader = DataLoader(
         dataset, shuffle=True,

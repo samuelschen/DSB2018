@@ -7,4 +7,5 @@ n_worker = 4
 print_freq = 10
 learn_rate = 0.001
 cv_ratio = 0.1
+width = 128 # model input size
 cuda = True

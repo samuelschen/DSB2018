@@ -77,6 +77,11 @@ class Compose():
             image = tx.hflip(image)
             label = tx.hflip(label)
 
+        # perform RandomVerticalFlip()
+        if random.random() > 0.5:
+            image = tx.vflip(image)
+            label = tx.vflip(label)
+
         # Due to resize algorithm may introduce anti-alias edge, aka. non binary value, 
         # thereafter map every pixel back to 0 and 255
         if self.toBinary:
