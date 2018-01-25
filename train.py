@@ -1,19 +1,21 @@
+# python built-in library
 import os
 import json
 import argparse
-
+import time
+from multiprocessing import Manager
+# 3rd party library
 import numpy as np
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-
+# own code
 import config
 from model import Model
 from dataset import KaggleDataset, Compose
-from multiprocessing import Manager
+from helper import AverageMeter
 
 def ckpt_path(epoch=None):
     checkpoint_dir = os.path.join('.', 'checkpoint')
@@ -85,30 +87,45 @@ def main(args):
 
 
 def train(loader, model, cost, optimizer, epoch):
-    model.train() # Sets the module in training mode.
-    running_loss = 0.0
-    counter = 0
+    batch_time = AverageMeter()
+    data_time = AverageMeter()
+    losses = AverageMeter()
+    # Sets the module in training mode.
+    model.train()
+    end = time.time()
     for i, data in enumerate(loader):
+        # measure data loading time
+        data_time.update(time.time() - end)
         # get the inputs
         inputs = data['image']
         labels = data['label']
         if config.cuda:
-            inputs, labels = inputs.cuda(), labels.cuda()
+            inputs, labels = inputs.cuda(async=True), labels.cuda(async=True)
         # wrap them in Variable
         inputs, labels = Variable(inputs), Variable(labels)
         # zero the parameter gradients
         optimizer.zero_grad()
-        # forward + backward + optimize
+        # forward step
         outputs = model(inputs)
         loss = cost(outputs, labels)
+        # measure accuracy and record loss
+        losses.update(loss.data[0], inputs.size(0))
+        # compute gradient and do backward step
         loss.backward()
         optimizer.step()
-        # print statistics
-        running_loss += loss.data[0]
-        counter += 1
-        # print every num_step mini-batches
-    print('[%d, %3d] loss: %.3f' %
-        (epoch, i + 1, running_loss / counter))
+        # measure elapsed time
+        batch_time.update(time.time() - end)
+        end = time.time()
+        if i % config.print_freq == 0:
+            print(
+                'Epoch: [{0}][{1}/{2}]\t'
+                'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(
+                    epoch, i, len(loader), batch_time=batch_time,
+                    data_time=data_time, loss=losses
+                )
+            )
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
