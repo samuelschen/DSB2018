@@ -131,7 +131,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--resume', dest='resume', action='store_true')
     parser.add_argument('--no-resume', dest='resume', action='store_false')
+    parser.add_argument('--cuda', dest='cuda', action='store_true')
+    parser.add_argument('--no-cuda', dest='cuda', action='store_false')
     parser.set_defaults(resume=True)
+    parser.set_defaults(cuda=config.cuda)
     args = parser.parse_args()
+
+    # final check whether cuda is avaiable
+    config.cuda = torch.cuda.is_available() and args.cuda
 
     main(args)
