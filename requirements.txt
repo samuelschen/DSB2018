@@ -1,0 +1,8 @@
+numpy >= 1.14
+matplotlib >= 2.1
+Scipy >= 0.19
+scikit-image >= 0.13
+pandas >= 0.20
+Pillow >= 5.0
+tensorboardX >= 1.0
+tensorflow-tensorboard >= 0.4
