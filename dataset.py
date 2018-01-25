@@ -36,9 +36,12 @@ class KaggleDataset(Dataset):
         else:
             img_name = os.path.join(self.root, uid, 'images', uid + '.png')
             image = Image.open(img_name)
+            # several test set files are not 4 channel (RGBA)
+            if image.mode != 'RGBA':
+                image = image.convert('RGBA')
             # overlay masks to single mask
             w, h = image.size
-            label = np.zeros((h, w), dtype=np.uint8) 
+            label = np.zeros((h, w), dtype=np.uint8)
             mask_dir = os.path.join(self.root, uid, 'masks')
             if os.path.isdir(mask_dir):
                 for fn in next(os.walk(mask_dir))[2]:
@@ -46,7 +49,7 @@ class KaggleDataset(Dataset):
                     m = imread(fp)
                     label = np.maximum(label, m) # merge mask
             label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
-            #label = label.convert('1') # convert to 1-bit pixels, black and white 
+            #label = label.convert('1') # convert to 1-bit pixels, black and white
             sample = {'image': image, 'label': label}
             if self.cache is not None:
                 self.cache[uid] = sample
@@ -55,10 +58,10 @@ class KaggleDataset(Dataset):
         return sample
 
 class Compose():
-    def __init__(self, size, mean=config.mean, std=config.std, tensor=True, binary=True):
-        self.size = (size, size)
-        self.mean = mean
-        self.std = std
+    def __init__(self, tensor=True, binary=True):
+        self.size = (config.width, config.width)
+        self.mean = config.mean
+        self.std = config.std
         self.toTensor = tensor
         self.toBinary = binary
 
@@ -66,12 +69,14 @@ class Compose():
         image, label = sample['image'], sample['label']
 
         # perform RandomResizedCrop(), use default parameter
-        i, j, h, w = transforms.RandomResizedCrop.get_params(image, 
-                                                             scale=(0.08, 1.0), 
-                                                             ratio=(3. / 4., 4. / 3.))
+        i, j, h, w = transforms.RandomResizedCrop.get_params(
+            image,
+            scale=(0.08, 1.0),
+            ratio=(3. / 4., 4. / 3.)
+        )
         image = tx.resized_crop(image, i, j, h, w, self.size)
         label = tx.resized_crop(label, i, j, h, w, self.size)
-        
+
         # perform RandomHorizontalFlip()
         if random.random() > 0.5:
             image = tx.hflip(image)
@@ -82,20 +87,20 @@ class Compose():
             image = tx.vflip(image)
             label = tx.vflip(label)
 
-        # Due to resize algorithm may introduce anti-alias edge, aka. non binary value, 
+        # Due to resize algorithm may introduce anti-alias edge, aka. non binary value,
         # thereafter map every pixel back to 0 and 255
         if self.toBinary:
-            label = label.point(lambda p, threhold=100: 255 if p > threhold else 0)             
+            label = label.point(lambda p, threhold=100: 255 if p > threhold else 0)
 
         # perform ToTensor()
         if self.toTensor:
             image = tx.to_tensor(image)
             label = tx.to_tensor(label)
-        
+
         # perform Normalize()
         if self.toTensor:
             image = tx.normalize(image, self.mean, self.std)
-        
+
         return {'image': image, 'label': label}
 
     def denorm(self, tensor):
@@ -115,7 +120,7 @@ class Compose():
         image = self.denorm(image)
         image = self.pil(image)
         image.show()
-        
+
         label = sample['label']
         if label.dim == 4:
             # only dislay first sample
@@ -124,7 +129,7 @@ class Compose():
         label.show()
 
 if __name__ == '__main__':
-    compose = Compose(128)
+    compose = Compose()
     train = KaggleDataset('data/stage1_train')
     idx = random.randint(0, len(train))
     sample = train[idx]

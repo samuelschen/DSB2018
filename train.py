@@ -28,8 +28,7 @@ def main(args):
     manager = Manager()
     cache = manager.dict()
     # prepare dataset and loader
-    compose = Compose(config.width)
-    dataset = KaggleDataset('data/stage1_train', transform=compose, cache=cache)
+    dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache)
     dataloader = DataLoader(
         dataset, shuffle=True,
         batch_size=config.n_batch,
