@@ -50,7 +50,7 @@ class KaggleDataset(Dataset):
                     label = np.maximum(label, m) # merge mask
             label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
             #label = label.convert('1') # convert to 1-bit pixels, black and white
-            sample = {'image': image, 'label': label}
+            sample = {'image': image, 'label': label, 'uid': uid}
             if self.cache is not None:
                 self.cache[uid] = sample
         if self.transform:
@@ -66,7 +66,7 @@ class Compose():
         self.toBinary = binary
 
     def __call__(self, sample):
-        image, label = sample['image'], sample['label']
+        image, label, uid = sample['image'], sample['label'], sample['uid']
 
         # perform RandomResizedCrop(), use default parameter
         i, j, h, w = transforms.RandomResizedCrop.get_params(
@@ -101,7 +101,7 @@ class Compose():
         if self.toTensor:
             image = tx.normalize(image, self.mean, self.std)
 
-        return {'image': image, 'label': label}
+        return {'image': image, 'label': label, 'uid': uid}
 
     def denorm(self, tensor):
         tensor = tensor.clone()

@@ -87,6 +87,22 @@ def iou_mean(y_true_in, y_pred_in):
         metric.append(value)
     return np.mean(metric)
 
+# Run-length encoding stolen from https://www.kaggle.com/rakhlin/fast-run-length-encoding-python
+def rle_encoding(y):
+    dots = np.where(y.T.flatten() == 1)[0]
+    run_lengths = []
+    prev = -2
+    for b in dots:
+        if (b>prev+1): run_lengths.extend((b + 1, 0))
+        run_lengths[-1] += 1
+        prev = b
+    return run_lengths
+
+def prob_to_rles(y):
+    lab_img = label(y > config.threshold)
+    for i in range(1, lab_img.max() + 1):
+        yield rle_encoding(lab_img == i)
+
 # checkpoint handling
 def ckpt_path(epoch=None):
     checkpoint_dir = os.path.join('.', 'checkpoint')

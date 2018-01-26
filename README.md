@@ -24,10 +24,11 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Random aspect resize
   - [ ] Random rotate
   - [ ] Random color adjustment
-* Preprocess
+* Pre and post-process 
   - [x] Input normalization
   - [x] Binarize label
   - [ ] Cross-validation split
+  - [ ] Arbitrary image size handling
 * Computation performance
   - [x] CPU
   - [x] GPU 
@@ -39,8 +40,8 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Mini-batch IOU
   - [x] Visualize prediction result
   - [x] Visualize log summary in TensorBoard
+  - [x] Running length output
   - [ ] Graph visualization
-  - [ ] Running length output
 
 ## Setup development environment
 
@@ -103,6 +104,11 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 * Evaluate test dataset, will show side-by-side images on screen
     ```
     $ python3 valid.py
+    ```
+
+* Generate running length encoding of test dataset
+    ```
+    $ python3 valid.py --csv
     ```
 
 ## Known Issues
