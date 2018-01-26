@@ -38,7 +38,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Mini-batch loss
   - [x] Mini-batch IOU
   - [x] Visualize prediction result
-  - [ ] Visualize log summary in TensorBoard
+  - [x] Visualize log summary in TensorBoard
   - [ ] Graph visualization
   - [ ] Running length output
 
@@ -87,7 +87,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 
         Grand new training ...
         Training started...
-        // Iteration        Mini-batch elapsed time     Mini-batch loss         Mini-batch IoU 
+        // [epoch #][step #] CPU second (io second)     Avg.  batch  (epoch)    Avg. batch (epoch)
         Epoch: [1][0/67]    Time: 0.928 (io: 0.374)	    Loss: 0.6101 (0.6101)   IoU: 0.000 (0.000)	
         Epoch: [1][10/67]   Time: 0.140 (io: 0.051)	    Loss: 0.4851 (0.5816)   IoU: 0.000 (0.000)
         ...

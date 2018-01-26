@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
+from tensorboardX import SummaryWriter
 # own code
 import config
 from model import Model
@@ -43,17 +44,23 @@ def main(args):
         print('Grand new training ...')
     start_epoch += 1
 
-    print('Training started...')
-    for epoch in range(start_epoch, args.epoch + start_epoch):
-        train(dataloader, model, cost, optimizer, epoch)
+    # append to log directory name
+    comment = '-lr_{}'.format(
+        config.learn_rate,
+    )
 
-        # save checkpoint per 10 epoch
-        if epoch % 10 == 0:
-            save_ckpt(model, optimizer, epoch)
-    print('Training finished...')
+    with SummaryWriter(comment=comment) as writer:
+        print('Training started...')
+        for epoch in range(start_epoch, args.epoch + start_epoch):
+            train(dataloader, model, cost, optimizer, epoch, writer)
+
+            # save checkpoint per 10 epoch
+            if epoch % 10 == 0:
+                save_ckpt(model, optimizer, epoch)
+        print('Training finished...')
 
 
-def train(loader, model, cost, optimizer, epoch):
+def train(loader, model, cost, optimizer, epoch, writer):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -61,6 +68,7 @@ def train(loader, model, cost, optimizer, epoch):
     # Sets the module in training mode.
     model.train()
     end = time.time()
+    n_batch = len(loader)
     for i, data in enumerate(loader):
         # measure data loading time
         data_time.update(time.time() - end)
@@ -85,13 +93,19 @@ def train(loader, model, cost, optimizer, epoch):
         # measure elapsed time
         batch_time.update(time.time() - end)
         end = time.time()
+        # log to summary
+        step = i + epoch * n_batch
+        writer.add_scalar('training/loss', loss.data[0], step)
+        writer.add_scalar('training/batch_elapse', batch_time.val, step)
+        writer.add_scalar('training/batch_iou', iou.val, step)
+        writer.add_scalar('training/epoch_iou', iou.avg, step)
         if i % config.print_freq == 0:
             print(
                 'Epoch: [{0}][{1}/{2}]\t'
                 'Time: {batch_time.avg:.3f} (io: {data_time.avg:.3f})\t\t'
                 'Loss: {loss.val:.4f} ({loss.avg:.4f})\t'
                 'IoU: {iou.val:.3f} ({iou.avg:.3f})\t'.format(
-                    epoch, i, len(loader), batch_time=batch_time,
+                    epoch, i, n_batch, batch_time=batch_time,
                     data_time=data_time, loss=losses, iou=iou
                 )
             )
