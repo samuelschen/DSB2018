@@ -1,4 +1,5 @@
 # python built-in library
+import os
 import argparse
 import time
 from multiprocessing import Manager
@@ -42,21 +43,26 @@ def main(args):
         start_epoch = load_ckpt(model, optimizer)
     if start_epoch == 0:
         print('Grand new training ...')
-    start_epoch += 1
 
-    # append to log directory name
-    comment = '-lr_{}'.format(
-        config.learn_rate,
+    # decide log directory name
+    log_dir = os.path.join(
+        'logs', config.model_name, '{}'.format(config.width),
+        'ep_{},{}-lr_{}'.format(
+            start_epoch,
+            args.epoch + start_epoch,
+            args.learn_rate,
+        )
     )
 
-    with SummaryWriter(comment=comment) as writer:
+    with SummaryWriter(log_dir) as writer:
         print('Training started...')
         for epoch in range(start_epoch, args.epoch + start_epoch):
             train(dataloader, model, cost, optimizer, epoch, writer)
 
-            # save checkpoint per 10 epoch
-            if epoch % 10 == 0:
-                save_ckpt(model, optimizer, epoch)
+            # save checkpoint per n epoch
+            n_ckpt_epoch = 10
+            if epoch % n_ckpt_epoch == n_ckpt_epoch - 1:
+                save_ckpt(model, optimizer, epoch+1)
         print('Training finished...')
 
 
