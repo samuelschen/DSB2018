@@ -23,7 +23,7 @@ def main(args):
         #model = torch.nn.DataParallel(model).cuda()
 
     cost = nn.BCELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.learn_rate, weight_decay=1e-6)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.learn_rate, weight_decay=1e-6)
 
     # dataloader workers are forked process thus we need a IPC manager to keep cache in same memory space
     manager = Manager()
@@ -117,7 +117,10 @@ if __name__ == '__main__':
     parser.add_argument('--cuda', dest='cuda', action='store_true')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false')
     parser.add_argument('--epoch', type=int, help='run number of epoch')
-    parser.set_defaults(resume=True, cuda=config.cuda, epoch=config.n_epoch)
+    parser.add_argument('--lr', type=float, dest='learn_rate', help='learning rate')
+    parser.set_defaults(
+        resume=True, cuda=config.cuda, epoch=config.n_epoch,
+        learn_rate=config.learn_rate)
     args = parser.parse_args()
 
     # final check whether cuda is avaiable
