@@ -50,7 +50,7 @@ class KaggleDataset(Dataset):
                     label = np.maximum(label, m) # merge mask
             label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
             #label = label.convert('1') # convert to 1-bit pixels, black and white
-            sample = {'image': image, 'label': label, 'uid': uid}
+            sample = {'image': image, 'label': label, 'uid': uid, 'size': image.size}
             if self.cache is not None:
                 self.cache[uid] = sample
         if self.transform:
@@ -58,34 +58,39 @@ class KaggleDataset(Dataset):
         return sample
 
 class Compose():
-    def __init__(self, tensor=True, binary=True):
+    def __init__(self, argument=True, tensor=True, binary=True):
         self.size = (config.width, config.width)
         self.mean = config.mean
         self.std = config.std
         self.toTensor = tensor
         self.toBinary = binary
+        self.toArgument = argument
 
     def __call__(self, sample):
-        image, label, uid = sample['image'], sample['label'], sample['uid']
+        image, label, uid, size = sample['image'], sample['label'], sample['uid'], sample['size']
 
-        # perform RandomResizedCrop(), use default parameter
-        i, j, h, w = transforms.RandomResizedCrop.get_params(
-            image,
-            scale=(0.08, 1.0),
-            ratio=(3. / 4., 4. / 3.)
-        )
-        image = tx.resized_crop(image, i, j, h, w, self.size)
-        label = tx.resized_crop(label, i, j, h, w, self.size)
+        if self.toArgument:
+            # perform RandomResizedCrop(), use default parameter
+            i, j, h, w = transforms.RandomResizedCrop.get_params(
+                image,
+                scale=(0.08, 1.0),
+                ratio=(3. / 4., 4. / 3.)
+            )
+            image = tx.resized_crop(image, i, j, h, w, self.size)
+            label = tx.resized_crop(label, i, j, h, w, self.size)
 
-        # perform RandomHorizontalFlip()
-        if random.random() > 0.5:
-            image = tx.hflip(image)
-            label = tx.hflip(label)
+            # perform RandomHorizontalFlip()
+            if random.random() > 0.5:
+                image = tx.hflip(image)
+                label = tx.hflip(label)
 
-        # perform RandomVerticalFlip()
-        if random.random() > 0.5:
-            image = tx.vflip(image)
-            label = tx.vflip(label)
+            # perform RandomVerticalFlip()
+            if random.random() > 0.5:
+                image = tx.vflip(image)
+                label = tx.vflip(label)
+        else:
+            image = tx.resize(image, self.size)
+            label = tx.resize(label, self.size)
 
         # Due to resize algorithm may introduce anti-alias edge, aka. non binary value,
         # thereafter map every pixel back to 0 and 255
@@ -101,7 +106,7 @@ class Compose():
         if self.toTensor:
             image = tx.normalize(image, self.mean, self.std)
 
-        return {'image': image, 'label': label, 'uid': uid}
+        return {'image': image, 'label': label, 'uid': uid, 'size': size}
 
     def denorm(self, tensor):
         tensor = tensor.clone()

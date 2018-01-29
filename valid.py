@@ -10,6 +10,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
+from skimage.transform import resize
 # own code
 import config
 from model import Model
@@ -31,7 +32,7 @@ def main(args):
     # prepare dataset
     compose = Compose(binary=False)
     dataset = KaggleDataset('data/stage1_test', transform=compose)
-    iter = predict(model, dataset, compose)
+    iter = predict(model, dataset, compose, regrowth=args.csv)
 
     if args.csv:
         with open('result.csv', 'w') as csvfile:
@@ -44,7 +45,7 @@ def main(args):
         for x, y, _ in iter:
             show(x, y)
 
-def predict(model, dataset, compose):
+def predict(model, dataset, compose, regrowth=False):
     ''' iterate dataset and yield ndarray result tuple per sample '''
     for data in dataset:
         # get prediction
@@ -55,16 +56,20 @@ def predict(model, dataset, compose):
             inputs = inputs.cuda()
         inputs = Variable(inputs)
         outputs = model(inputs)
-        # show image
+        # convert image to numpy array
         x = compose.denorm(x)
         x = compose.pil(x)
         x = np.asarray(x)
-        # show predict
+        if regrowth:
+            x = resize(x, data['size'][::-1], mode='constant', preserve_range=True)
+        # convert predict to numpy array
         if config.cuda:
             outputs = outputs.cpu()
         y = outputs.data.numpy()[0]
         y = np.transpose(y, (1, 2, 0))
         y = np.squeeze(y)
+        if regrowth:
+            y = resize(y, data['size'][::-1], mode='constant', preserve_range=True)
         # yield result
         yield x, y, uid
 
