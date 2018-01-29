@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 class ConvBlock(nn.Module):
-    def __init__(self, in_size, out_size, kernel_size=3, dropout_rate=0.1, activation=F.relu):
+    def __init__(self, in_size, out_size, kernel_size=3, dropout_rate=0.2, activation=F.relu):
         super().__init__()
         self.conv1 = nn.Conv2d(in_size,  out_size, kernel_size, padding=1)
         self.norm1 = nn.BatchNorm2d(out_size)
@@ -16,13 +16,13 @@ class ConvBlock(nn.Module):
     def forward(self, x):
         x = self.activation(self.conv1(x))
         x = self.norm1(x)
-        x = self.drop(x)
         x = self.activation(self.conv2(x))
         x = self.norm2(x)
+        x = self.drop(x)
         return x
 
 class ConvUpBlock(nn.Module):
-    def __init__(self, in_size, out_size, kernel_size=3, dropout_rate=0.1, activation=F.relu):
+    def __init__(self, in_size, out_size, kernel_size=3, dropout_rate=0.2, activation=F.relu):
         super().__init__()
         self.up = nn.ConvTranspose2d(in_size, out_size, 2, stride=2)
         self.conv1 = nn.Conv2d(in_size, out_size, kernel_size, padding=1)
@@ -37,9 +37,9 @@ class ConvUpBlock(nn.Module):
         x = torch.cat([x, bridge], 1)
         x = self.activation(self.conv1(x))
         x = self.norm1(x)
-        x = self.drop(x)
         x = self.activation(self.conv2(x))
         x = self.norm2(x)
+        x = self.drop(x)
         return x
     
 class Model(nn.Module):

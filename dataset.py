@@ -70,10 +70,10 @@ class Compose():
         image, label, uid, size = sample['image'], sample['label'], sample['uid'], sample['size']
 
         if self.toArgument:
-            # perform RandomResizedCrop(), use default parameter
+            # perform RandomResizedCrop()
             i, j, h, w = transforms.RandomResizedCrop.get_params(
                 image,
-                scale=(0.08, 1.0),
+                scale=(0.5, 1.0),
                 ratio=(3. / 4., 4. / 3.)
             )
             image = tx.resized_crop(image, i, j, h, w, self.size)

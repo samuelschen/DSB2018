@@ -94,7 +94,7 @@ if __name__ == '__main__':
     parser.add_argument('--csv', dest='csv', action='store_true')
     parser.add_argument('--show', dest='csv', action='store_false')
     parser.add_argument('--width', type=int, help='width of image to evaluate')
-    parser.set_defaults(cuda=config.cuda, width=512, csv=False)
+    parser.set_defaults(cuda=config.cuda, width=config.width, csv=False)
     args = parser.parse_args()
 
     config.width = args.width
