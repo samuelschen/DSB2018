@@ -7,7 +7,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
 import torchvision.transforms.functional as tx
 
-from PIL import Image
+from PIL import Image, ImageOps
 from skimage.io import imread
 
 import config
@@ -88,6 +88,18 @@ class Compose():
             if random.random() > 0.5:
                 image = tx.vflip(image)
                 label = tx.vflip(label)
+
+            # perform random color invert
+            if random.random() > 0.5:
+                r,g,b,a = image.split()
+                rgb_image = Image.merge('RGB', (r,g,b))
+                inverted_image = ImageOps.invert(rgb_image)
+                r2,g2,b2 = inverted_image.split()
+                image = Image.merge('RGBA', (r2,g2,b2,a))
+
+            # perform ColorJitter()
+            color = transforms.ColorJitter.get_params(0.5, 0.5, 0.5, 0.25)
+            image = color(image)
         else:
             image = tx.resize(image, self.size)
             label = tx.resize(label, self.size)

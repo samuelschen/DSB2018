@@ -22,8 +22,9 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Random crop
   - [x] Random horizontal and vertical flip
   - [x] Random aspect resize
+  - [x] Random color adjustment
+  - [x] Random color invert
   - [ ] Random rotate
-  - [ ] Random color adjustment
 * Pre and post-process 
   - [x] Input normalization
   - [x] Binarize label
