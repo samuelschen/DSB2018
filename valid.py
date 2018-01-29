@@ -16,6 +16,7 @@ import config
 from model import Model
 from dataset import KaggleDataset, Compose
 from helper import load_ckpt, prob_to_rles
+from skimage.morphology import label
 
 def main(args):
     model = Model()
@@ -30,9 +31,9 @@ def main(args):
         return
 
     # prepare dataset
-    compose = Compose(binary=False)
+    compose = Compose(argument=False)
     dataset = KaggleDataset('data/stage1_test', transform=compose)
-    iter = predict(model, dataset, compose, regrowth=args.csv)
+    iter = predict(model, dataset, compose)
 
     if args.csv:
         with open('result.csv', 'w') as csvfile:
@@ -45,7 +46,7 @@ def main(args):
         for x, y, _ in iter:
             show(x, y)
 
-def predict(model, dataset, compose, regrowth=False):
+def predict(model, dataset, compose, regrowth=True):
     ''' iterate dataset and yield ndarray result tuple per sample '''
     for data in dataset:
         # get prediction
@@ -59,9 +60,9 @@ def predict(model, dataset, compose, regrowth=False):
         # convert image to numpy array
         x = compose.denorm(x)
         x = compose.pil(x)
-        x = np.asarray(x)
         if regrowth:
-            x = resize(x, data['size'][::-1], mode='constant', preserve_range=True)
+            x = x.resize(data['size'])
+        x = np.asarray(x)
         # convert predict to numpy array
         if config.cuda:
             outputs = outputs.cpu()
@@ -74,12 +75,16 @@ def predict(model, dataset, compose, regrowth=False):
         yield x, y, uid
 
 def show(x, y):
-    fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True, figsize=(10, 6))
     ax1.set_title('Image')
-    ax2.set_title('Predict')
+    ax2.set_title('Predict, P > {}'.format(config.threshold))
+    ax3.set_title('Region, P > {}'.format(config.threshold))
     ax1.imshow(x)
     y = y > config.threshold
     ax2.imshow(y, cmap='gray')
+    y = label(y)
+    ax3.imshow(y, cmap='Set3')
+    plt.tight_layout()
     plt.show()
 
 if __name__ == '__main__':
