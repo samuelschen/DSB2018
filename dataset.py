@@ -57,6 +57,20 @@ class KaggleDataset(Dataset):
             sample = self.transform(sample)
         return sample
 
+    def split(self):
+        # get list of dataset index
+        n = len(self.ids)
+        indices = list(range(n))
+        # random shuffle the list
+        s = random.getstate()
+        random.seed(config.cv_seed)
+        random.shuffle(indices)
+        random.setstate(s)
+        # return splitted lists
+        split = int(np.floor(config.cv_ratio * n))
+        return indices[split:], indices[:split]
+
+
 class Compose():
     def __init__(self, argument=True, tensor=True, binary=True):
         self.size = (config.width, config.width)

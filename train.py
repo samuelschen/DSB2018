@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
+from torch.utils.data.sampler import SubsetRandomSampler
 from tensorboardX import SummaryWriter
 # own code
 import config
@@ -31,11 +32,16 @@ def main(args):
     cache = manager.dict()
     # prepare dataset and loader
     dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache)
-    dataloader = DataLoader(
-        dataset, shuffle=True,
+    train_idx, valid_idx = dataset.split()
+    train_loader = DataLoader(
+        dataset, sampler=SubsetRandomSampler(train_idx),
         batch_size=config.n_batch,
         num_workers=config.n_worker,
         pin_memory=config.cuda)
+    valid_loader = DataLoader(
+        dataset, sampler=SubsetRandomSampler(valid_idx),
+        batch_size=config.n_batch,
+        num_workers=config.n_worker)
 
     # resume checkpoint
     start_epoch = 0
@@ -57,8 +63,9 @@ def main(args):
     with SummaryWriter(log_dir) as writer:
         print('Training started...')
         for epoch in range(start_epoch, args.epoch + start_epoch):
-            train(dataloader, model, cost, optimizer, epoch, writer)
-
+            train(train_loader, model, cost, optimizer, epoch, writer)
+            if epoch % 3 == 2:
+                valid(valid_loader, model, cost, epoch, writer, len(train_loader))
             # save checkpoint per n epoch
             n_ckpt_epoch = 10
             if epoch % n_ckpt_epoch == n_ckpt_epoch - 1:
@@ -74,7 +81,7 @@ def train(loader, model, cost, optimizer, epoch, writer):
     # Sets the module in training mode.
     model.train()
     end = time.time()
-    n_batch = len(loader)
+    n_step = len(loader)
     for i, data in enumerate(loader):
         # measure data loading time
         data_time.update(time.time() - end)
@@ -100,7 +107,7 @@ def train(loader, model, cost, optimizer, epoch, writer):
         batch_time.update(time.time() - end)
         end = time.time()
         # log to summary
-        step = i + epoch * n_batch
+        step = i + epoch * n_step
         writer.add_scalar('training/loss', loss.data[0], step)
         writer.add_scalar('training/batch_elapse', batch_time.val, step)
         writer.add_scalar('training/batch_iou', iou.val, step)
@@ -111,10 +118,42 @@ def train(loader, model, cost, optimizer, epoch, writer):
                 'Time: {batch_time.avg:.3f} (io: {data_time.avg:.3f})\t\t'
                 'Loss: {loss.val:.4f} ({loss.avg:.4f})\t'
                 'IoU: {iou.val:.3f} ({iou.avg:.3f})\t'.format(
-                    epoch, i, n_batch, batch_time=batch_time,
+                    epoch, i, n_step, batch_time=batch_time,
                     data_time=data_time, loss=losses, iou=iou
                 )
             )
+
+
+def valid(loader, model, cost, epoch, writer, n_step):
+    losses = AverageMeter()
+    iou = AverageMeter()
+    # Sets the model in evaluation mode.
+    model.eval()
+    for i, data in enumerate(loader):
+        # get the inputs
+        inputs, labels = data['image'], data['label']
+        if config.cuda:
+            inputs, labels = inputs.cuda(), labels.cuda()
+        # wrap them in Variable
+        inputs, labels = Variable(inputs), Variable(labels)
+        # forward step
+        outputs = model(inputs)
+        loss = cost(outputs, labels)
+        # measure accuracy and record loss
+        batch_iou = iou_mean(outputs, labels)
+        iou.update(batch_iou, inputs.size(0))
+        losses.update(loss.data[0], inputs.size(0))
+    # log to summary
+    step = epoch * n_step
+    writer.add_scalar('CV/loss', losses.avg, step)
+    writer.add_scalar('CV/epoch_iou', iou.avg, step)
+    print(
+        'Epoch: [{0}]\t\tcross-validation\t\t'
+        'Loss: N/A    ({loss.avg:.4f})\t'
+        'IoU: N/A   ({iou.avg:.3f})\t'.format(
+            epoch, loss=losses, iou=iou
+        )
+    )
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

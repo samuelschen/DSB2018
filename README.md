@@ -28,8 +28,8 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 * Pre and post-process 
   - [x] Input normalization
   - [x] Binarize label
-  - [ ] Cross-validation split
-  - [ ] Arbitrary image size handling
+  - [x] Cross-validation split
+  - [ ] Arbitrary image size handling, eg. brige & up-sample size alignment
 * Computation performance
   - [x] CPU
   - [x] GPU 

@@ -7,6 +7,7 @@ n_worker = 4
 print_freq = 10
 learn_rate = 0.001
 cv_ratio = 0.1
+cv_seed = 666 # change it if different shuffle cv required 
 width = 128 # model input size
 cuda = True
 threshold = 0.5 # possibility gating threshold

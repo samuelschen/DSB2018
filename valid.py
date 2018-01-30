@@ -22,7 +22,7 @@ def main(args):
     model = Model()
     if config.cuda:
         model = model.cuda()
-    # Sets the module in evaluation mode.
+    # Sets the model in evaluation mode.
     model.eval()
 
     epoch = load_ckpt(model)
