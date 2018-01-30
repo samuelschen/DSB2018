@@ -72,12 +72,14 @@ class KaggleDataset(Dataset):
 
 
 class Compose():
-    def __init__(self, argument=True, tensor=True, binary=True):
+    def __init__(self, argument=True, tensor=True):
         self.size = (config.width, config.width)
         self.mean = config.mean
         self.std = config.std
+        self.toBinary = config.label_to_binary
+        self.toInvert = config.color_invert
+        self.toJitter = config.color_jitter
         self.toTensor = tensor
-        self.toBinary = binary
         self.toArgument = argument
 
     def __call__(self, sample):
@@ -104,7 +106,7 @@ class Compose():
                 label = tx.vflip(label)
 
             # perform random color invert
-            if random.random() > 0.5:
+            if self.toInvert and random.random() > 0.5:
                 r,g,b,a = image.split()
                 rgb_image = Image.merge('RGB', (r,g,b))
                 inverted_image = ImageOps.invert(rgb_image)
@@ -112,8 +114,9 @@ class Compose():
                 image = Image.merge('RGBA', (r2,g2,b2,a))
 
             # perform ColorJitter()
-            color = transforms.ColorJitter.get_params(0.5, 0.5, 0.5, 0.25)
-            image = color(image)
+            if self.toJitter:
+                color = transforms.ColorJitter.get_params(0.5, 0.5, 0.5, 0.25)
+                image = color(image)
         else:
             image = tx.resize(image, self.size)
             label = tx.resize(label, self.size)
