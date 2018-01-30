@@ -18,7 +18,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [ ] Input size
   - [ ] Confidence level threshold
   - [ ] ...
-* Data argument
+* Data augmentation
   - [x] Random crop
   - [x] Random horizontal and vertical flip
   - [x] Random aspect resize

@@ -72,7 +72,7 @@ class KaggleDataset(Dataset):
 
 
 class Compose():
-    def __init__(self, argument=True, tensor=True):
+    def __init__(self, augment=True, tensor=True):
         self.size = (config.width, config.width)
         self.mean = config.mean
         self.std = config.std
@@ -80,12 +80,12 @@ class Compose():
         self.toInvert = config.color_invert
         self.toJitter = config.color_jitter
         self.toTensor = tensor
-        self.toArgument = argument
+        self.toAugment = augment
 
     def __call__(self, sample):
         image, label, uid, size = sample['image'], sample['label'], sample['uid'], sample['size']
 
-        if self.toArgument:
+        if self.toAugment:
             # perform RandomResizedCrop()
             i, j, h, w = transforms.RandomResizedCrop.get_params(
                 image,

@@ -10,7 +10,7 @@ width = 128 # model input size
 cuda = True
 threshold = 0.5 # possibility gating threshold
 model_name = 'unet' # a name for log description
-# data argumentation config
+# data augmentation config
 mean = [0.5, 0.5, 0.5, 0.5] # per RGBA channels
 std  = [0.5, 0.5, 0.5, 0.5]
 label_to_binary = True

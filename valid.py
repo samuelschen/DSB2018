@@ -31,7 +31,7 @@ def main(args):
         return
 
     # prepare dataset
-    compose = Compose(argument=False)
+    compose = Compose(augment=False)
     dataset = KaggleDataset('data/stage1_test', transform=compose)
     iter = predict(model, dataset, compose)
 
