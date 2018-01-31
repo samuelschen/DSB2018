@@ -16,3 +16,4 @@ std  = [0.5, 0.5, 0.5, 0.5]
 label_to_binary = True
 color_invert = False
 color_jitter = True
+elastic_distortion = True

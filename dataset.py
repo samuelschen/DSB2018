@@ -9,6 +9,8 @@ import torchvision.transforms.functional as tx
 
 from PIL import Image, ImageOps
 from skimage.io import imread
+from scipy.ndimage.interpolation import map_coordinates
+from scipy.ndimage.filters import gaussian_filter
 
 import config
 
@@ -79,6 +81,7 @@ class Compose():
         self.toBinary = config.label_to_binary
         self.toInvert = config.color_invert
         self.toJitter = config.color_jitter
+        self.toDistortion = config.elastic_distortion
         self.toTensor = tensor
         self.toAugment = augment
 
@@ -104,6 +107,12 @@ class Compose():
             if random.random() > 0.5:
                 image = tx.vflip(image)
                 label = tx.vflip(label)
+
+            # perform Elastic Distortion
+            if self.toDistortion:
+                indices = ElasticDistortion.get_params(image)
+                image = ElasticDistortion.transform(image, indices)
+                label = ElasticDistortion.transform(label, indices)
 
             # perform random color invert
             if self.toInvert and random.random() > 0.5:
@@ -161,6 +170,51 @@ class Compose():
             label = label[0]
         label = self.pil(label)
         label.show()
+
+class ElasticDistortion():
+    """Elastic deformation of image as described in [Simard2003]_.
+    .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
+       Convolutional Neural Networks applied to Visual Document Analysis", in
+       Proc. of the International Conference on Document Analysis and
+       Recognition, 2003.
+    """
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def get_params(img, alpha=1000, sigma=30):
+        w, h = img.size
+        dx = gaussian_filter((np.random.rand(*(h, w)) * 2 - 1),
+                            sigma, mode="constant", cval=0) * alpha
+        dy = gaussian_filter((np.random.rand(*(h, w)) * 2 - 1),
+                            sigma, mode="constant", cval=0) * alpha
+        x, y = np.meshgrid(np.arange(h), np.arange(w), indexing='ij')
+        indices = [np.reshape(x + dx, (-1, 1)), np.reshape(y + dy, (-1, 1))]
+        return indices
+
+    @staticmethod
+    def transform(img, indices, spline_order=1, mode='nearest'):
+        x = np.asarray(img)
+        if x.ndim == 2:
+            x = np.expand_dims(x, -1)
+        shape = x.shape[:2]
+        result = np.empty_like(x)
+        for i in range(x.shape[2]):
+            result[:, :, i] = map_coordinates(
+                x[:, :, i], indices, order=spline_order, mode=mode).reshape(shape)
+        if result.shape[-1] == 1:
+            result = np.squeeze(result)
+        return Image.fromarray(result, mode=img.mode)
+
+    def __call__(self, img, spline_order=1, mode='nearest'):
+        """
+        Args:
+            img (PIL Image): Image to be transformed.
+        Returns:
+            PIL Image: Randomly distorted image.
+        """
+        indices = self.get_params(img)
+        return self.transform(img, indices)
 
 if __name__ == '__main__':
     compose = Compose()

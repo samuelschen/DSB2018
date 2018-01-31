@@ -24,6 +24,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Random aspect resize
   - [x] Random color adjustment
   - [x] Random color invert
+  - [x] Random elastic distortion
   - [ ] Random rotate
 * Pre and post-process 
   - [x] Input normalization
@@ -121,3 +122,18 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     Workaround: Ignore and issue command again
     ```
 
+## Transform effect demo
+
+* Random elastic distortion  
+
+    ![elastic_distortion](../../../docs/img/tranform/elastic_distortion.jpeg) 
+
+* Random color invert  
+
+    ![color_invert](../../../docs/img/tranform/color_invert.jpeg) 
+
+* Random color jitter  
+
+    ![color_jitter](../../../docs/img/tranform/color_jitter.jpeg) 
+
+* 
