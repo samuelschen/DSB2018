@@ -13,11 +13,13 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Dropout
   - [x] Batch normalization
   - [ ] Transfer learning
+  - [ ] Cost function
+  - [ ] Score function
 * Hyper-parameter tunning
   - [ ] Learning rate
   - [ ] Input size
   - [ ] Confidence level threshold
-  - [ ] ...
+  - [ ] Evaluate performance of mean and std of channels  
 * Data augmentation
   - [x] Random crop
   - [x] Random horizontal and vertical flip
@@ -26,6 +28,8 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Random color invert
   - [x] Random elastic distortion
   - [ ] Random rotate
+* Public dataset extension
+  - [ ] ... 
 * Pre and post-process 
   - [x] Input normalization
   - [x] Binarize label
@@ -47,6 +51,10 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Visualize log summary in TensorBoard
   - [x] Running length output
   - [ ] Graph visualization
+  - [ ] Enhance preduction color map to distinguish color of different nucleis
+  - [ ] Visualize overlapping of original and prediction nucleis
+  - [ ] Statistics of per channel data distribution, particular toward alpha
+ 
 
 ## Setup development environment
 
