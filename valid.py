@@ -83,7 +83,10 @@ def show(x, y):
     y = y > config.threshold
     ax2.imshow(y, cmap='gray')
     y = label(y)
-    ax3.imshow(y, cmap='Set3')
+    y[y > 0] += 1 # workaround: matplotlib cmap mistreat vmin(1) as background(0) sometimes
+    cmap = plt.get_cmap('prism') # prism for high frequence color bands 
+    cmap.set_under('w') # map background(0) as white 
+    ax3.imshow(y, cmap=cmap, vmin=1) # limit min as 1
     plt.tight_layout()
     plt.show()
 
