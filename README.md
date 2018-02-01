@@ -50,7 +50,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Visualize prediction result
   - [x] Visualize log summary in TensorBoard
   - [x] Running length output
-  - [ ] Graph visualization
+  - [x] Graph visualization
   - [ ] Enhance preduction color map to distinguish color of different nucleis
   - [ ] Visualize overlapping of original and prediction nucleis
   - [ ] Statistics of per channel data distribution, particular toward alpha

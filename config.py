@@ -1,5 +1,6 @@
 # configure hyperparameters
 n_epoch = 10
+n_ckpt_epoch = 10
 n_batch = 10
 n_worker = 4
 print_freq = 10
