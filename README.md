@@ -30,6 +30,9 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Input normalization
   - [x] Binarize label
   - [x] Cross-validation split
+  - [ ] Use [color map algorithm](https://stackoverflow.com/questions/42863543/applying-the-4-color-theorem-to-list-of-neighbor-polygons-stocked-in-a-graph-arr) to generate ground truth of limited label (4-), in order to prevent cross-talking 
+  - [ ] Verify training data whether png masks aligned with cvs mask. 
+  - [ ] Blacklist mechanism to filter noisy label(s)
   - [ ] Arbitrary image size handling, eg. brige & up-sample size alignment
 * Computation performance
   - [x] CPU
