@@ -43,8 +43,8 @@ def main(args):
                 for rle in prob_to_rles(y):
                     writer.writerow([uid, ' '.join([str(i) for i in rle])])
     else:
-        for x, y, _ in iter:
-            show(x, y)
+        for x, y, uid in iter:
+            show(x, y, uid)
 
 def predict(model, dataset, compose, regrowth=True):
     ''' iterate dataset and yield ndarray result tuple per sample '''
@@ -74,19 +74,24 @@ def predict(model, dataset, compose, regrowth=True):
         # yield result
         yield x, y, uid
 
-def show(x, y):
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True, figsize=(10, 6))
-    ax1.set_title('Image')
+def show(x, y, uid):
+    fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, sharey=True, figsize=(14, 6))
+    fig.suptitle(uid, y=1)
+    ax1.set_title('image')
     ax2.set_title('Predict, P > {}'.format(config.threshold))
     ax3.set_title('Region, P > {}'.format(config.threshold))
+    ax4.set_title('Overlay, P > {}'.format(config.threshold))
     ax1.imshow(x)
     y = y > config.threshold
     ax2.imshow(y, cmap='gray')
-    y = label(y)
-    y[y > 0] += 1 # workaround: matplotlib cmap mistreat vmin(1) as background(0) sometimes
+    y = label(y).astype(float)
+    y[y == 0] = np.nan # workaround: matplotlib cmap mistreat vmin(1) as background(0) sometimes
     cmap = plt.get_cmap('prism') # prism for high frequence color bands 
-    cmap.set_under('w') # map background(0) as white 
-    ax3.imshow(y, cmap=cmap, vmin=1) # limit min as 1
+    cmap.set_bad('w', alpha=0) # map background(0) as transparent/white 
+    ax3.imshow(y, cmap=cmap)
+    # alpha 
+    ax4.imshow(x)
+    ax4.imshow(y, cmap=cmap, alpha=0.3)
     plt.tight_layout()
     plt.show()
 
