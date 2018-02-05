@@ -48,7 +48,8 @@ class KaggleDataset(Dataset):
             if os.path.isdir(mask_dir):
                 for fn in next(os.walk(mask_dir))[2]:
                     fp = os.path.join(mask_dir, fn)
-                    m = imread(fp)
+                    # cast mask to [0, 255] grayscale
+                    m = (imread(fp2, as_grey=True) * 255).astype(np.uint8)
                     label = np.maximum(label, m) # merge mask
             label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
             #label = label.convert('1') # convert to 1-bit pixels, black and white
