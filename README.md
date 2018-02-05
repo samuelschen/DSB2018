@@ -53,7 +53,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Graph visualization
   - [x] Enhance preduction color map to distinguish color of different nucleis
   - [x] Visualize overlapping of original and prediction nucleis
-  - [ ] Statistics of per channel data distribution, particular toward alpha
+  - [x] Statistics of per channel data distribution, particular toward alpha
  
 
 ## Setup development environment
@@ -83,7 +83,6 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 ├── README.md
 ├── config.py
 ├── data
-    ├── noisy_label.txt
     ├── stage1_test
     │   ├── 0114f484a16c152baa2d82fdd43740880a762c93f436c8988ac461c5c9dbe7d5
     │   └── ...
@@ -137,14 +136,14 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 
 * Random elastic distortion  
 
-    ![elastic_distortion](../../../docs/img/tranform/elastic_distortion.jpeg) 
+    ![elastic_distortion](docs/elastic_distortion.jpeg) 
 
 * Random color invert  
 
-    ![color_invert](../../../docs/img/tranform/color_invert.jpeg) 
+    ![color_invert](docs/color_invert.jpeg) 
 
 * Random color jitter  
 
-    ![color_jitter](../../../docs/img/tranform/color_jitter.jpeg) 
+    ![color_jitter](docs/color_jitter.jpeg) 
 
 * 
