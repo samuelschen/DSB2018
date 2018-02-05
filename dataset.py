@@ -38,9 +38,9 @@ class KaggleDataset(Dataset):
         else:
             img_name = os.path.join(self.root, uid, 'images', uid + '.png')
             image = Image.open(img_name)
-            # several test set files are not 4 channel (RGBA)
-            if image.mode != 'RGBA':
-                image = image.convert('RGBA')
+            # ignore alpha channel if any, because they are constant in all training set
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
             # overlay masks to single mask
             w, h = image.size
             label = np.zeros((h, w), dtype=np.uint8)
@@ -114,13 +114,9 @@ class Compose():
                 image = ElasticDistortion.transform(image, indices)
                 label = ElasticDistortion.transform(label, indices)
 
-            # perform random color invert
+            # perform random color invert, assuming 3 channels (rgb) images
             if self.toInvert and random.random() > 0.5:
-                r,g,b,a = image.split()
-                rgb_image = Image.merge('RGB', (r,g,b))
-                inverted_image = ImageOps.invert(rgb_image)
-                r2,g2,b2 = inverted_image.split()
-                image = Image.merge('RGBA', (r2,g2,b2,a))
+                image = ImageOps.invert(image)
 
             # perform ColorJitter()
             if self.toJitter:

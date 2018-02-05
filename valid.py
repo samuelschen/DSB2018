@@ -13,13 +13,16 @@ import matplotlib.pyplot as plt
 from skimage.transform import resize
 # own code
 import config
-from model import Model
+from model import UNet, UNetVgg16
 from dataset import KaggleDataset, Compose
 from helper import load_ckpt, prob_to_rles
 from skimage.morphology import label
 
 def main(args):
-    model = Model()
+    if args.model == 'unet_vgg16':
+        model = UNetVgg16(3, 1, fixed_vgg=True)
+    else:
+        model = UNet()
     if config.cuda:
         model = model.cuda()
     # Sets the model in evaluation mode.
@@ -97,6 +100,7 @@ def show(x, y, uid):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--model', action='store', choices=['unet', 'unet_vgg16'], help='model name')
     parser.add_argument('--cuda', dest='cuda', action='store_true')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false')
     parser.add_argument('--csv', dest='csv', action='store_true')

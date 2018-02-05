@@ -13,19 +13,28 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from tensorboardX import SummaryWriter
 # own code
 import config
-from model import Model
+from model import UNet, UNetVgg16
 from dataset import KaggleDataset, Compose
 from helper import AverageMeter, iou_mean, save_ckpt, load_ckpt
+from loss import criterion
 
 
 def main(args):
-    model = Model()
+    if args.model == 'unet_vgg16':
+        model = UNetVgg16(3, 1, fixed_vgg=True)
+    else:
+        model = UNet()
+
     if config.cuda:
         model = model.cuda()
         #model = torch.nn.DataParallel(model).cuda()
 
-    cost = nn.BCELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.learn_rate, weight_decay=1e-6)
+    cost = criterion
+    optimizer = torch.optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=args.learn_rate,
+        weight_decay=1e-6
+        )
 
     # dataloader workers are forked process thus we need a IPC manager to keep cache in same memory space
     manager = Manager()
@@ -169,6 +178,7 @@ def valid(loader, model, cost, epoch, writer, n_step):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--model', action='store', choices=['unet', 'unet_vgg16'], help='model name')
     parser.add_argument('--resume', dest='resume', action='store_true')
     parser.add_argument('--no-resume', dest='resume', action='store_false')
     parser.add_argument('--cuda', dest='cuda', action='store_true')
