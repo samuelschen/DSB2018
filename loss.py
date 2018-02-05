@@ -9,20 +9,21 @@ class BinaryCrossEntropyLoss2d(nn.Module):
         return self.bce_loss(inputs, targets)
 
 # DICE = 2 * Sum(PiGi) / (Sum(Pi) + Sum(Gi))
+# Refer https://github.com/pytorch/pytorch/issues/1249 for Laplace/Additive smooth
 class SoftDiceLoss(nn.Module):
     def __init__(self, weight=None, size_average=True):
         super().__init__()
 
     def forward(self, inputs, targets):
-        smooth = 1
-        num = targets.size(0)
+        smooth = 1.
+        num = targets.size(0) # number of batches
         m1 = inputs.view(num, -1)
         m2 = targets.view(num, -1)
         intersection = (m1 * m2)
-        score = 2. * (intersection.sum(1) + smooth) / (m1.sum(1) + m2.sum(1) + smooth)
+        score = (2. * intersection.sum(1) + smooth) / (m1.sum(1) + m2.sum(1) + smooth)
         dice = score.sum() / num
-        # two kinds of loss formulas: (1) 1 - dice (2) -torch.log(dice)
-        return 1. - dice  
+        # three kinds of loss formulas: (1) 1 - dice (2) -dice (3) -torch.log(dice)
+        return 1. - dice
 
 
 # Jaccard/IoU = Sum(PiGi) / (Sum(Pi) + Sum(Gi) - Sum(PiGi)) 
@@ -31,14 +32,14 @@ class IoULoss(nn.Module):
         super().__init__()
 
     def forward(self, inputs, targets):
-        smooth = 1
-        num = targets.size(0)
+        smooth = 1.
+        num = targets.size(0) # number of batches
         m1 = inputs.view(num, -1)
         m2 = targets.view(num, -1)
         intersection = (m1 * m2)
         score = (intersection.sum(1) + smooth) / (m1.sum(1) + m2.sum(1) - intersection.sum(1) + smooth)
         iou = score.sum() / num
-        # two kinds of loss formulas: (1) 1 - iou (2) -torch.log(iou)        
+        # three kinds of loss formulas: (1) 1 - iou (2) -iou (3) -torch.log(iou)
         return 1. - iou
 
 def criterion(preds, labels):
