@@ -46,7 +46,7 @@ class ConvUpBlock(nn.Module):
 class UNet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.c1 = ConvBlock(4, 16)
+        self.c1 = ConvBlock(3, 16)
         self.p1 = nn.MaxPool2d(2)
         self.c2 = ConvBlock(16, 32)
         self.p2 = nn.MaxPool2d(2)

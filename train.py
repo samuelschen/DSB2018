@@ -187,7 +187,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, dest='learn_rate', help='learning rate')
     parser.set_defaults(
         resume=True, cuda=config.cuda, epoch=config.n_epoch,
-        learn_rate=config.learn_rate)
+        learn_rate=config.learn_rate, model='unet')
     args = parser.parse_args()
 
     # final check whether cuda is avaiable
