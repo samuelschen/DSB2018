@@ -76,7 +76,7 @@ def main(args):
         print('Training started...')
         for epoch in range(start_epoch, args.epoch + start_epoch):
             train(train_loader, model, cost, optimizer, epoch, writer)
-            if epoch % 3 == 2:
+            if config.cv_ratio > 0 and epoch % 3 == 2:
                 valid(valid_loader, model, cost, epoch, writer, len(train_loader))
             # save checkpoint per n epoch
             if epoch % config.n_ckpt_epoch == config.n_ckpt_epoch - 1:
