@@ -9,6 +9,7 @@ import torchvision.transforms.functional as tx
 
 from PIL import Image, ImageOps
 from skimage.io import imread
+from skimage import filters
 from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.filters import gaussian_filter
 
@@ -44,6 +45,7 @@ class KaggleDataset(Dataset):
             # overlay masks to single mask
             w, h = image.size
             label = np.zeros((h, w), dtype=np.uint8)
+            label_e = np.zeros((h, w), dtype=np.uint8) # edge labels
             mask_dir = os.path.join(self.root, uid, 'masks')
             if os.path.isdir(mask_dir):
                 for fn in next(os.walk(mask_dir))[2]:
@@ -52,9 +54,14 @@ class KaggleDataset(Dataset):
                     if (m.ndim > 2):
                         m = np.mean(m, -1).astype(np.uint8)
                     label = np.maximum(label, m) # merge mask
+                    edges = filters.scharr(m) # detect edges
+                    scharr_max = np.amax(abs(edges))
+                    edges = np.abs(edges) >= (scharr_max / 2.0)
+                    label_e = np.maximum(label_e, edges)
             label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
             #label = label.convert('1') # convert to 1-bit pixels, black and white
-            sample = {'image': image, 'label': label, 'uid': uid, 'size': image.size}
+            label_e = Image.fromarray(255*label_e, 'L') # specify it's grayscale 8-bit
+            sample = {'image': image, 'label': label, 'label_e': label_e, 'uid': uid, 'size': image.size}
             if self.cache is not None:
                 self.cache[uid] = sample
         if self.transform:
@@ -88,7 +95,7 @@ class Compose():
         self.toAugment = augment
 
     def __call__(self, sample):
-        image, label, uid, size = sample['image'], sample['label'], sample['uid'], sample['size']
+        image, label, label_e, uid, size = sample['image'], sample['label'], sample['label_e'], sample['uid'], sample['size']
 
         if self.toAugment:
             # perform RandomResizedCrop()
@@ -99,22 +106,26 @@ class Compose():
             )
             image = tx.resized_crop(image, i, j, h, w, self.size)
             label = tx.resized_crop(label, i, j, h, w, self.size)
+            label_e = tx.resized_crop(label_e, i, j, h, w, self.size)
 
             # perform RandomHorizontalFlip()
             if random.random() > 0.5:
                 image = tx.hflip(image)
                 label = tx.hflip(label)
+                label_e = tx.hflip(label_e)
 
             # perform RandomVerticalFlip()
             if random.random() > 0.5:
                 image = tx.vflip(image)
                 label = tx.vflip(label)
+                label_e = tx.vflip(label_e)
 
             # perform Elastic Distortion
             if self.toDistortion:
                 indices = ElasticDistortion.get_params(image)
                 image = ElasticDistortion.transform(image, indices)
                 label = ElasticDistortion.transform(label, indices)
+                label_e = ElasticDistortion.transform(label_e, indices)
 
             # perform random color invert, assuming 3 channels (rgb) images
             if self.toInvert and random.random() > 0.5:
@@ -127,22 +138,25 @@ class Compose():
         else:
             image = tx.resize(image, self.size)
             label = tx.resize(label, self.size)
+            label_e = tx.resize(label_e, self.size)
 
         # Due to resize algorithm may introduce anti-alias edge, aka. non binary value,
         # thereafter map every pixel back to 0 and 255
         if self.toBinary:
             label = label.point(lambda p, threhold=100: 255 if p > threhold else 0)
+            label_e = label_e.point(lambda p, threhold=100: 255 if p > threhold else 0)
 
         # perform ToTensor()
         if self.toTensor:
             image = tx.to_tensor(image)
             label = tx.to_tensor(label)
+            label_e = tx.to_tensor(label_e)
 
         # perform Normalize()
         if self.toTensor:
             image = tx.normalize(image, self.mean, self.std)
 
-        return {'image': image, 'label': label, 'uid': uid, 'size': size}
+        return {'image': image, 'label': label, 'label_e': label_e, 'uid': uid, 'size': size}
 
     def denorm(self, tensor):
         tensor = tensor.clone()
@@ -161,13 +175,19 @@ class Compose():
         image = self.denorm(image)
         image = self.pil(image)
         image.show()
-
         label = sample['label']
         if label.dim == 4:
             # only dislay first sample
             label = label[0]
         label = self.pil(label)
         label.show()
+        label_e = sample['label_e']
+        if label_e.dim == 4:
+            # only dislay first sample
+            label_e = label_e[0]
+        label_e = self.pil(label_e)
+        label_e.show()
+
 
 class ElasticDistortion():
     """Elastic deformation of image as described in [Simard2003]_.
@@ -222,6 +242,7 @@ if __name__ == '__main__':
     # display original image
     sample['image'].show()
     sample['label'].show()
+    sample['label_e'].show()
     # display composed image
     sample = compose(sample)
     compose.show(sample)
