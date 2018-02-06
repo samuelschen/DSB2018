@@ -146,4 +146,23 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 
     ![color_jitter](docs/color_jitter.jpeg) 
 
-* 
+
+## Benchmark 
+
+| Score | Width | Cost Fn. | Epoch | Learning Rate | CV Rate | Data augment  | Dataset
+| ----- | ----- | -------- | ----- | ------------- | -------- | ------------- | -------
+| 0.334 | 256   | BCE      | 600   | 1e-4 > 3e-5   | 10%      | Y, Y, N, Y, N | V1
+| 0.344 | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   | 10%      | Y, Y, N, Y, Y | V1
+| (TBA) | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0%      | Y, Y, N, Y, Y | V1
+| 0.326 | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0%      | N, N, N, N, N | V2
+| 0.348 | 256   | IOU+BCE  | 300   | 1e-4          | 10%      | Y, Y, N, Y, Y | V2
+| 0.361 | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0%      | Y, Y, N, Y, Y | V2
+
+Note:
+- Dataset (training): 
+    * V1: original kaggle
+    * V2: Feb 06, modified by Jimmy and Ryk
+- Score is public score on kaggle site
+- Data augment flags: Crop, Flip, Invert, Jitter, Distortion
+- Zero CV rate means all data were used for training, none reserved
+- Adjust learning rate per 300 epoch
