@@ -9,10 +9,15 @@ import torchvision.transforms.functional as tx
 
 from PIL import Image, ImageOps
 from skimage.io import imread
-from skimage import filters
+from skimage import filters, img_as_ubyte
 from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.morphology import binary_fill_holes
 from scipy.ndimage.filters import gaussian_filter
+from skimage.exposure import equalize_adapthist
+
+# Ignore skimage convertion warnings
+import warnings
+warnings.filterwarnings("ignore")
 
 import config
 
@@ -113,11 +118,15 @@ class Compose():
         self.toInvert = config.color_invert
         self.toJitter = config.color_jitter
         self.toDistortion = config.elastic_distortion
+        self.toEqualize = config.color_equalize
         self.toTensor = tensor
         self.toAugment = augment
 
     def __call__(self, sample):
         image, label, label_e, uid, size = sample['image'], sample['label'], sample['label_e'], sample['uid'], sample['size']
+
+        if self.toEqualize:
+            image = clahe(image)
 
         if self.toAugment:
             # perform RandomResizedCrop()
@@ -141,6 +150,7 @@ class Compose():
                 image = tx.vflip(image)
                 label = tx.vflip(label)
                 label_e = tx.vflip(label_e)
+
 
             # perform Elastic Distortion
             if self.toDistortion:
@@ -210,6 +220,11 @@ class Compose():
         label_e = self.pil(label_e)
         label_e.show()
 
+def clahe(img):
+    x = np.asarray(img, dtype=np.uint8)
+    x = equalize_adapthist(x)
+    x = img_as_ubyte(x)
+    return Image.fromarray(x)
 
 class ElasticDistortion():
     """Elastic deformation of image as described in [Simard2003]_.
