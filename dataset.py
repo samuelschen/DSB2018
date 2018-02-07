@@ -11,9 +11,29 @@ from PIL import Image, ImageOps
 from skimage.io import imread
 from skimage import filters
 from scipy.ndimage.interpolation import map_coordinates
+from scipy.ndimage.morphology import binary_fill_holes
 from scipy.ndimage.filters import gaussian_filter
 
 import config
+
+bright_field_list = [
+    '091944f1d2611c916b98c020bd066667e33f4639159b2a92407fe5a40788856d',
+    '1a11552569160f0b1ea10bedbd628ce6c14f29edec5092034c2309c556df833e',
+    '3594684b9ea0e16196f498815508f8d364d55fea2933a2e782122b6f00375d04',
+    '2a1a294e21d76efd0399e4eb321b45f44f7510911acd92c988480195c5b4c812',
+    '76a372bfd3fad3ea30cb163b560e52607a8281f5b042484c3a0fc6d0aa5a7450',
+    '54793624413c7d0e048173f7aeee85de3277f7e8d47c82e0a854fe43e879cd12',
+    '8f94a80b95a881d0efdec36affc915dca9609f4cba8134c4a91b219d418778aa',
+    '5e263abff938acba1c0cff698261c7c00c23d7376e3ceacc3d5d4a655216b16d',
+    '5d58600efa0c2667ec85595bf456a54e2bd6e6e9a5c0dff42d807bc9fe2b822e',
+    '8d05fb18ee0cda107d56735cafa6197a31884e0a5092dc6d41760fb92ae23ab4',
+    '1b44d22643830cd4f23c9deadb0bd499fb392fb2cd9526d81547d93077d983df',
+    '08275a5b1c2dfcd739e8c4888a5ee2d29f83eccfa75185404ced1dc0866ea992',
+    '7f38885521586fc6011bef1314a9fb2aa1e4935bd581b2991e1d963395eab770',
+    'c395870ad9f5a3ae651b50efab9b20c3e6b9aea15d4c731eb34c0cf9e3800a72',
+    '4217e25defac94ff465157d53f5a24b8a14045b763d8606ec4a97d71d99ee381',
+    '4e07a653352b30bb95b60ebc6c57afbc7215716224af731c51ff8d430788cd40'
+]
 
 class KaggleDataset(Dataset):
     """Kaggle dataset."""
@@ -53,10 +73,12 @@ class KaggleDataset(Dataset):
                     m = imread(fp)
                     if (m.ndim > 2):
                         m = np.mean(m, -1).astype(np.uint8)
+                    if config.fill_holes:
+                        m = binary_fill_holes(m).astype(np.uint8)*255
                     label = np.maximum(label, m) # merge mask
-                    edges = filters.scharr(m) # detect edges
-                    scharr_max = np.amax(abs(edges))
-                    edges = np.abs(edges) >= (scharr_max / 2.0)
+                    edges = filters.scharr(m) # detect possible edges
+                    scharr_threshold = 0. if uid in bright_field_list else (np.amax(abs(edges)) / 2.)
+                    edges = (np.abs(edges) > scharr_threshold).astype(np.uint8)*255
                     label_e = np.maximum(label_e, edges)
             label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
             #label = label.convert('1') # convert to 1-bit pixels, black and white

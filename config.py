@@ -18,3 +18,6 @@ label_to_binary = True
 color_invert = False
 color_jitter = True
 elastic_distortion = True
+
+# data cleanup
+fill_holes = True
