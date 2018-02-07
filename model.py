@@ -82,7 +82,7 @@ class UNet(nn.Module):
 
 # Transfer Learning VGG16_BatchNorm as Encoder part of UNet
 class DeConvBlk(nn.Module):
-    def __init__(self, in_ch, out_ch, dropout_ratio=0.1):
+    def __init__(self, in_ch, out_ch, dropout_ratio=0.2):
         super().__init__()
         self.upscaling = nn.ConvTranspose2d(in_ch, in_ch//2, 2, stride=2)
         self.convs = nn.Sequential(
@@ -191,10 +191,91 @@ class UNetVgg16(nn.Module):
         return t
 
 
+# Deep Contour Aware Network (DCAN)
+class dcanConv(nn.Module):
+    def __init__(self, in_ch, out_ch, dropout_ratio=0.2):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_ch, out_ch, 3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(out_ch),
+            nn.Dropout2d(p=dropout_ratio),
+        )
+
+    def forward(self, x):
+        x = self.conv(x)
+        return x
+
+class dcanDeConv(nn.Module):
+    def __init__(self, in_ch, out_ch, upscale_factor, dropout_ratio=0.2):
+        super().__init__()
+        self.upscaling = nn.ConvTranspose2d(
+            in_ch, out_ch, kernel_size=upscale_factor, stride=upscale_factor)
+        self.conv = dcanConv(out_ch, out_ch, dropout_ratio)
+
+    def forward(self, x):
+        x = self.upscaling(x)
+        x = self.conv(x)
+        return x
+
+class DCAN(nn.Module):
+    def __init__(self, n_channels, n_classes):
+        super().__init__()
+        self.maxpool = nn.MaxPool2d(2, 2)
+        self.conv1 = dcanConv(n_channels, 64)
+        self.conv2 = dcanConv(64, 128)
+        self.conv3 = dcanConv(128, 256)
+        self.conv4 = dcanConv(256, 512)
+        self.conv5 = dcanConv(512, 512)
+        self.conv6 = dcanConv(512, 1024)
+        self.deconv3s = dcanDeConv(512, n_classes, 8) # 8 = 2^3 (3 maxpooling)
+        self.deconv3c = dcanDeConv(512, n_classes, 8)
+        self.deconv2s = dcanDeConv(512, n_classes, 16) # 16 = 2^4 (4 maxpooling)
+        self.deconv2c = dcanDeConv(512, n_classes, 16)
+        self.deconv1s = dcanDeConv(1024, n_classes, 32) # 32 = 2^5 (5 maxpooling)
+        self.deconv1c = dcanDeConv(1024, n_classes, 32)
+
+    def forward(self, x):
+        c1 = self.conv1(x)
+        c2 = self.conv2(self.maxpool(c1))
+        c3 = self.conv3(self.maxpool(c2))
+        c4 = self.conv4(self.maxpool(c3))
+        # s for segment branch, c for contour branch
+        u3s = self.deconv3s(c4)
+        u3c = self.deconv3c(c4)
+        c5 = self.conv5(self.maxpool(c4))
+        u2s = self.deconv2s(c5)
+        u2c = self.deconv2c(c5)
+        c6 = self.conv6(self.maxpool(c5))
+        u1s = self.deconv1s(c6)
+        u1c = self.deconv1c(c6)
+        outs = F.sigmoid(u1s + u2s + u3s)
+        outc = F.sigmoid(u1c + u2c + u3c)
+        # print('x: ', x.size())
+        # print('c1: ', c1.size())
+        # print('c2: ', c2.size())
+        # print('c3: ', c3.size())
+        # print('c4: ', c4.size())
+        # print('c5: ', c5.size())
+        # print('c6: ', c6.size())
+        # print('u3s: ', u3s.size())
+        # print('u3c: ', u3c.size())
+        # print('u2s: ', u2s.size())
+        # print('u2c: ', u2c.size())
+        # print('u1s: ', u1s.size())
+        # print('u1c: ', u1c.size())
+        # print('outs: ', outs.size())
+        # print('outc: ', outc.size())
+        return outs, outc
+
+
 if __name__ == '__main__':
     net = UNet()
     print(net)
     del net
-    net = UNetVgg16()
+    net = UNetVgg16(3, 1)
+    print(net)
+    del net
+    net = DCAN(3, 1)
     print(net)
     del net

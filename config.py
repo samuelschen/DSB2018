@@ -21,3 +21,6 @@ elastic_distortion = True
 color_equalize = False
 # data cleanup
 fill_holes = True
+# dcan multitask threshold
+threshold_sgmt = 0.5
+threshold_edge = 0.5
