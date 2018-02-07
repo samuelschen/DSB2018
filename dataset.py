@@ -14,6 +14,7 @@ from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.morphology import binary_fill_holes
 from scipy.ndimage.filters import gaussian_filter
 from skimage.exposure import equalize_adapthist
+from skimage.filters import gaussian
 
 # Ignore skimage convertion warnings
 import warnings
@@ -86,7 +87,10 @@ class KaggleDataset(Dataset):
                     edges = (np.abs(edges) > scharr_threshold).astype(np.uint8)*255
                     label_e = np.maximum(label_e, edges)
             label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
-            #label = label.convert('1') # convert to 1-bit pixels, black and white
+            # label = label.convert('1') # convert to 1-bit pixels, black and white
+            # def sigmoid(x):
+            #     return 1 / (1 + np.exp(-x))
+            # edge_penalty = sigmoid(gaussian(edges, sigma=3)) * 2
             label_e = Image.fromarray(255*label_e, 'L') # specify it's grayscale 8-bit
             sample = {'image': image, 'label': label, 'label_e': label_e, 'uid': uid, 'size': image.size}
             if self.cache is not None:
@@ -123,7 +127,7 @@ class Compose():
         self.toAugment = augment
 
     def __call__(self, sample):
-        image, label, label_e, uid, size = sample['image'], sample['label'], sample['label_e'], sample['uid'], sample['size']
+        image, label, label_e = sample['image'], sample['label'], sample['label_e']
 
         if self.toEqualize:
             image = clahe(image)
@@ -188,7 +192,8 @@ class Compose():
         if self.toTensor:
             image = tx.normalize(image, self.mean, self.std)
 
-        return {'image': image, 'label': label, 'label_e': label_e, 'uid': uid, 'size': size}
+        sample['image'], sample['label'], sample['label_e'] = image, label, label_e
+        return sample
 
     def denorm(self, tensor):
         tensor = tensor.clone()
