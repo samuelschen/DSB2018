@@ -15,7 +15,7 @@ from scipy.ndimage.morphology import binary_fill_holes
 from scipy.ndimage.filters import gaussian_filter
 from skimage.exposure import equalize_adapthist
 from skimage.filters import gaussian
-
+import pandas as pd
 # Ignore skimage convertion warnings
 import warnings
 warnings.filterwarnings("ignore")
@@ -44,7 +44,7 @@ bright_field_list = [
 class KaggleDataset(Dataset):
     """Kaggle dataset."""
 
-    def __init__(self, root, transform=None, cache=None):
+    def __init__(self, root, transform=None, cache=None, category=None):
         """
         Args:
             root_dir (string): Directory of data (train or test).
@@ -52,8 +52,18 @@ class KaggleDataset(Dataset):
         """
         self.root = root
         self.transform = transform
-        self.ids = next(os.walk(root))[1]
-        self.ids.sort()
+        if os.path.isfile(root + '.csv'):
+            df = pd.read_csv(root + '.csv')
+            ok = df['Discard'] != 1
+            if category is not None:
+                # filter only sub-category
+                ok &= df['category'] == category
+            df = df[ok]
+            self.ids = df['image_id']
+            self.ids.sort_values()
+        else:
+            self.ids = next(os.walk(root))[1]
+            self.ids.sort()
         self.cache = cache
 
     def __len__(self):
@@ -284,7 +294,7 @@ class ElasticDistortion():
 
 if __name__ == '__main__':
     compose = Compose()
-    train = KaggleDataset('data/stage1_train')
+    train = KaggleDataset('data/stage1_train', category='Histology')
     idx = random.randint(0, len(train))
     sample = train[idx]
     # display original image
