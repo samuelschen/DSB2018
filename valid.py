@@ -15,7 +15,7 @@ from skimage.transform import resize
 import config
 from model import UNet, UNetVgg16
 from dataset import KaggleDataset, Compose
-from helper import load_ckpt, prob_to_rles
+from helper import load_ckpt, prob_to_rles, seg_ws
 from skimage.morphology import label
 
 def main(args):
@@ -87,7 +87,10 @@ def show(x, y, uid):
     ax1.imshow(x)
     y = y > config.threshold
     ax2.imshow(y, cmap='gray')
-    y = label(y).astype(float)
+    y = label(y)
+    if config.post_segmentation:
+        y = seg_ws(y)
+    y = y.astype(float)
     y[y == 0] = np.nan # workaround: matplotlib cmap mistreat vmin(1) as background(0) sometimes
     cmap = plt.get_cmap('prism') # prism for high frequence color bands 
     cmap.set_bad('w', alpha=0) # map background(0) as transparent/white 

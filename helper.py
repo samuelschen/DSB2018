@@ -2,7 +2,10 @@ import os
 import json
 import numpy as np
 import torch
-from skimage.morphology import label
+from scipy import ndimage as ndi
+from skimage.morphology import label, watershed
+from skimage.feature import peak_local_max
+from skimage.measure import regionprops
 import config
 
 # copy from https://github.com/pytorch/examples/blob/master/imagenet/main.py#L139
@@ -100,6 +103,8 @@ def rle_encoding(y):
 
 def prob_to_rles(y):
     lab_img = label(y > config.threshold)
+    if config.post_segmentation:
+        lab_img = seg_ws(lab_img)
     for i in range(1, lab_img.max() + 1):
         yield rle_encoding(lab_img == i)
 
@@ -142,3 +147,38 @@ def load_ckpt(model, optimizer=None):
         if optimizer:
             optimizer.load_state_dict(checkpoint['optimizer'])
     return epoch
+
+# Evaluate the average nucleus size.
+def evaluate_size(image, ratio):
+    label_image = label(image)
+    label_counts = len(np.unique(label_image))
+    #Sort Area sizes:
+    areas = [r.area for r in regionprops(label_image)]
+    areas.sort()
+    total_area = 0
+    #To avoild eval_count ==0
+    if int(label_counts * ratio)==0:
+        eval_count = 1
+    else:
+        eval_count = int(label_counts * ratio)
+    average_area = np.array(areas[:eval_count]).mean()
+    size_index = average_area ** 0.5
+    return size_index
+
+# Segment image with watershed algorithm.
+def seg_ws(image, size_scale=config.seg_scale, ratio=config.seg_ratio):
+    #Calculate the average size of the image.
+    size_index = evaluate_size(image, ratio)
+    """
+    Add noise to fix min_distance bug:
+    If multiple peaks in the specified region have identical intensities,
+    the coordinates of all such pixels are returned.
+    """
+    noise = np.random.randn(image.shape[0], image.shape[1]) * 0.1
+    distance = ndi.distance_transform_edt(image)+noise
+    #2*min_distance+1 is the minimum distance between two peaks.
+    local_maxi = peak_local_max(distance, min_distance=(size_index*size_scale), exclude_border=False, indices=False,
+                                labels=image)
+    markers = ndi.label(local_maxi)[0]
+    labels = watershed(-distance, markers, mask=image)
+    return labels

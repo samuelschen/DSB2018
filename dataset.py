@@ -53,6 +53,7 @@ class KaggleDataset(Dataset):
         self.root = root
         self.transform = transform
         self.ids = next(os.walk(root))[1]
+        self.ids.sort()
         self.cache = cache
 
     def __len__(self):
