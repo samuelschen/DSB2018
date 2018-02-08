@@ -31,7 +31,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [ ] Random rotate
 * Public dataset extension
   - [ ] ... 
-* Pre and post-process 
+* Pre-process 
   - [x] Input normalization
   - [x] Binarize label
   - [x] Cross-validation split
@@ -41,6 +41,10 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [ ] Convert input data to CIELAB color space instead of RGB
   - [ ] Arbitrary image size handling, eg. brige & up-sample size alignment
   - [ ] Use [color map algorithm](https://stackoverflow.com/questions/42863543/applying-the-4-color-theorem-to-list-of-neighbor-polygons-stocked-in-a-graph-arr) to generate ground truth of limited label (4-), in order to prevent cross-talking 
+* Post-process
+  - [x] Segmentation group by scipy watershed algorithm
+  - [ ] Fill hole inside each segment group
+  - [ ] ...
 * Computation performance
   - [x] CPU
   - [x] GPU 
@@ -155,23 +159,23 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 
 ## Benchmark 
 
-| Score | Width | Cost Fn. | Epoch | Learning Rate | CV Rate  | Data augment        | Dataset
-| ----- | ----- | -------- | ----- | ------------- | -------- | ------------------- | -------
-| 0.334 | 256   | BCE      | 600   | 1e-4 > 3e-5   | 10%      | Y, Y, N, Y, N, N, N | V1
-| 0.344 | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   | 10%      | Y, Y, N, Y, Y, N, N | V1
-| (TBA) | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0%      | Y, Y, N, Y, Y, N, N | V1
-| 0.326 | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0%      | N, N, N, N, N, N, N | V2
-| 0.348 | 256   | IOU+BCE  | 300   | 1e-4          | 10%      | Y, Y, N, Y, Y, N, N | V2
-| 0.361 | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0%      | Y, Y, N, Y, Y, N, N | V2
-| 0.355 | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0%      | Y, Y, N, Y, Y, Y, N | V2
-| 0.350 | 512   | IOU+BCE  | 1200  | 1e-4 >> 3e-6  |  0%      | Y, Y, N, Y, Y, N, N | V2
-| 0.353 | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0%      | Y, Y, N, Y, Y, Y, Y | V2
+| Score | Data | Width | Cost Fn. | Epoch | LR | CV  | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | Watershed
+| ----- | ---- | ----- | -------- | ----- | ------------- | --- | - | - | - | - | - | - | - | - | 
+| 0.334 | Orig | 256   | BCE      | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V |   |   |   |   |
+| 0.344 | Orig | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V | V |   |   |   |
+| (TBA) | Orig | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |
+| 0.326 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% |   |   |   |   |   |   |   |   |
+| 0.348 | v2   | 256   | IOU+BCE  | 300   | 1e-4          | 10% | V | V |   | V | V |   |   |   |
+| 0.361 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |
+| 0.355 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V | V |   |   |
+| 0.350 | v2   | 512   | IOU+BCE  | 1200  | 1e-4 >> 3e-6  |  0% | V | V |   | V | V |   |   |   |
+| 0.353 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   | V |   |
+| (TBA) | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   | V |
 
 Note:
 - Dataset (training): 
     * V1: original kaggle
     * V2: Feb 06, modified by Jimmy and Ryk
 - Score is public score on kaggle site
-- Data augment flags: Crop, Flip, Invert, Jitter, Distortion, Clahe, Edge Soft Label
 - Zero CV rate means all data were used for training, none reserved
 - Adjust learning rate per 300 epoch
