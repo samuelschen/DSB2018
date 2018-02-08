@@ -159,18 +159,18 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 
 ## Benchmark 
 
-| Score | Data | Width | Cost Fn. | Epoch | Learning Rate | CV  | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | Watershed
-| ----- | ---- | ----- | -------- | ----- | ------------- | --- | - | - | - | - | - | - | - | - | 
-| 0.334 | Orig | 256   | BCE      | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V |   |   |   |   |
-| 0.344 | Orig | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V | V |   |   |   |
-| (TBA) | Orig | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |
-| 0.326 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% |   |   |   |   |   |   |   |   |
-| 0.348 | v2   | 256   | IOU+BCE  | 300   | 1e-4          | 10% | V | V |   | V | V |   |   |   |
-| 0.361 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |
-| 0.355 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V | V |   |   |
-| 0.350 | v2   | 512   | IOU+BCE  | 1200  | 1e-4 >> 3e-6  |  0% | V | V |   | V | V |   |   |   |
-| 0.353 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   | V |   |
-| (TBA) | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   | V |
+| Score | Data | Width | Cost Fn. | Epoch | Learning Rate | CV  | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | Watershed | Fill hole | 
+| ----- | ---- | ----- | -------- | ----- | ------------- | --- | - | - | - | - | - | - | - | - | - |
+| 0.334 | Orig | 256   | BCE      | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V |   |   |   |   |   |
+| 0.344 | Orig | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V | V |   |   |   |   |
+| (TBA) | Orig | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |   |
+| 0.326 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% |   |   |   |   |   |   |   |   |   |
+| 0.348 | v2   | 256   | IOU+BCE  | 300   | 1e-4          | 10% | V | V |   | V | V |   |   |   |   |
+| 0.361 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |   |
+| 0.355 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V | V |   |   |   |
+| 0.350 | v2   | 512   | IOU+BCE  | 1200  | 1e-4 >> 3e-6  |  0% | V | V |   | V | V |   |   |   |   |
+| 0.353 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   | V |   |   |
+| 0.413 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   | V |   |
 
 Note:
 - Dataset (training): 
