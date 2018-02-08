@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from skimage.transform import resize
 # own code
 import config
-from model import UNet, UNetVgg16
+from model import UNet, UNetVgg16, DCAN
 from dataset import KaggleDataset, Compose
 from helper import load_ckpt, prob_to_rles, seg_ws
 from skimage.morphology import label
@@ -21,6 +21,8 @@ from skimage.morphology import label
 def main(args):
     if args.model == 'unet_vgg16':
         model = UNetVgg16(3, 1, fixed_vgg=True)
+    elif args.model == 'dcan':
+        model = DCAN(3, 1)
     else:
         model = UNet()
     if config.cuda:
@@ -59,7 +61,14 @@ def predict(model, dataset, compose, regrowth=True):
         if config.cuda:
             inputs = inputs.cuda()
         inputs = Variable(inputs)
-        outputs = model(inputs)
+        if isinstance(model, DCAN):
+            outputs_s, outputs_c = model(inputs)
+            # measure accuracy and record loss
+            cond1 = (outputs_s >= config.threshold_sgmt)
+            cond2 = (outputs_c < config.threshold_edge)
+            outputs = (cond1 * cond2)
+        else:
+            outputs = model(inputs)
         # convert image to numpy array
         x = compose.denorm(x)
         x = compose.pil(x)
@@ -103,7 +112,7 @@ def show(x, y, uid):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', action='store', choices=['unet', 'unet_vgg16'], help='model name')
+    parser.add_argument('--model', action='store', choices=['unet', 'unet_vgg16', 'dcan'], help='model name')
     parser.add_argument('--cuda', dest='cuda', action='store_true')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false')
     parser.add_argument('--csv', dest='csv', action='store_true')
