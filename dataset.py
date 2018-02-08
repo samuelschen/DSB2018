@@ -54,7 +54,7 @@ class KaggleDataset(Dataset):
         self.transform = transform
         if os.path.isfile(root + '.csv'):
             df = pd.read_csv(root + '.csv')
-            ok = df['Discard'] != 1
+            ok = df['discard'] != 1
             if category is not None:
                 # filter only sub-category
                 ok &= df['category'] == category
