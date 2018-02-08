@@ -91,7 +91,7 @@ class KaggleDataset(Dataset):
             # def sigmoid(x):
             #     return 1 / (1 + np.exp(-x))
             # edge_penalty = sigmoid(gaussian(edges, sigma=3)) * 2
-            label_e = Image.fromarray(255*label_e, 'L') # specify it's grayscale 8-bit
+            label_e = Image.fromarray(label_e, 'L') # specify it's grayscale 8-bit
             sample = {'image': image, 'label': label, 'label_e': label_e, 'uid': uid, 'size': image.size}
             if self.cache is not None:
                 self.cache[uid] = sample
