@@ -159,7 +159,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 
 ## Benchmark 
 
-| Score | Data | Width | Cost Fn. | Epoch | LR | CV  | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | Watershed
+| Score | Data | Width | Cost Fn. | Epoch | Learning Rate | CV  | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | Watershed
 | ----- | ---- | ----- | -------- | ----- | ------------- | --- | - | - | - | - | - | - | - | - | 
 | 0.334 | Orig | 256   | BCE      | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V |   |   |   |   |
 | 0.344 | Orig | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V | V |   |   |   |
