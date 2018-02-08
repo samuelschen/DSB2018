@@ -68,6 +68,10 @@ class KaggleDataset(Dataset):
             # ignore alpha channel if any, because they are constant in all training set
             if image.mode != 'RGB':
                 image = image.convert('RGB')
+            #srgb_profile = ImageCms.createProfile("sRGB")
+            #lab_profile  = ImageCms.createProfile("LAB")
+            #rgb2lab_transform = ImageCms.buildTransformFromOpenProfiles(srgb_profile, lab_profile, "RGB", "LAB")
+            #image = ImageCms.applyTransform(image, rgb2lab_transform) 
             # overlay masks to single mask
             w, h = image.size
             label = np.zeros((h, w), dtype=np.uint8)
@@ -86,6 +90,7 @@ class KaggleDataset(Dataset):
                     scharr_threshold = 0. if uid in bright_field_list else (np.amax(abs(edges)) / 2.)
                     edges = (np.abs(edges) > scharr_threshold).astype(np.uint8)*255
                     label_e = np.maximum(label_e, edges)
+            # label -= label_e // 2 # soft label edge
             label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
             # label = label.convert('1') # convert to 1-bit pixels, black and white
             # def sigmoid(x):
