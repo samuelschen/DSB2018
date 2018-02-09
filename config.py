@@ -25,6 +25,6 @@ fill_holes = True
 threshold_sgmt = 0.5
 threshold_edge = 0.5
 # post-process config
-post_segmentation = False
+post_segmentation = True
 seg_ratio = 0.5
 seg_scale = 0.55
