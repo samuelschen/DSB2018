@@ -38,6 +38,7 @@ def main(args):
     # prepare dataset
     compose = Compose(augment=False)
     dataset = KaggleDataset('data/stage1_test', transform=compose)
+    # dataset = KaggleDataset('data/stage1_test', transform=compose, category='Histology')
     iter = predict(model, dataset, compose)
 
     if args.csv:

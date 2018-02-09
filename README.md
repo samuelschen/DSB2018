@@ -83,7 +83,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 
 ## Prepare data
 
-[Download](https://www.kaggle.com/c/data-science-bowl-2018) and uncompress to `data` folder as below structure,
+* [Download](https://www.kaggle.com/c/data-science-bowl-2018) and uncompress to `data` folder as below structure,
 
 ```
 .
@@ -97,6 +97,36 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
         ├── 00071198d059ba7f5914a526d124d28e6d010c92466da21d4a04cd5413362552
         └── ...
 ```
+
+* (Optional) Experiment model per image category, eg. Histology
+    - Open [Test](https://docs.google.com/spreadsheets/d/11Ykxp7uW763WXvhNoK_LvhnDV7Q6yT7Hr0f-vDAd-mo/edit?usp=drive_web&ouid=111494078798053745646) and [Train](https://docs.google.com/spreadsheets/d/1Yw-x8T4p2oChaWlLem1yyE7qN6XU3tnedj6rCCqLg4M/edit#gid=537769059) Google sheet 
+    - Download CSV format (File > Download as > Common-separated values)
+    - Rename and copy to `data` folder as below
+        ```
+        .
+        ├── README.md
+        ├── config.py
+        ├── data
+            ├── stage1_test.csv <--- rename to this
+            ├── stage1_test
+            │   ├── 0114f484a16c152baa2d82fdd43740880a762c93f436c8988ac461c5c9dbe7d5
+            │   └── ...
+            ├── stage1_train.csv <--- rename to this
+            └── stage1_train
+                ├── 00071198d059ba7f5914a526d124d28e6d010c92466da21d4a04cd5413362552
+                └── ...
+        ```
+
+    - Uncomment below code in `train.py` and `valid.py`
+        ```Python
+        # train.py 
+        dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache)
+        # dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache, category='Histology')
+
+        # valid.py 
+        dataset = KaggleDataset('data/stage1_test', transform=compose)
+        # dataset = KaggleDataset('data/stage1_test', transform=compose, category='Histology')
+        ```
 
 ## Command line usage
 
@@ -130,6 +160,29 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     $ python3 valid.py --csv
     ```
 
+## Benchmark 
+
+| Score | Data | Width | Cost Fn. | Epoch | Learning Rate | CV  | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | Watershed | Fill hole | 
+| ----- | ---- | ----- | -------- | ----- | ------------- | --- | - | - | - | - | - | - | - | - | - |
+| 0.334 | Orig | 256   | BCE      | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V |   |   |   |   |   |
+| 0.344 | Orig | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V | V |   |   |   |   |
+| (TBA) | Orig | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |   |
+| 0.326 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% |   |   |   |   |   |   |   |   |   |
+| 0.348 | v2   | 256   | IOU+BCE  | 300   | 1e-4          | 10% | V | V |   | V | V |   |   |   |   |
+| 0.361 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |   |
+| 0.355 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V | V |   |   |   |
+| 0.350 | v2   | 512   | IOU+BCE  | 1200  | 1e-4 >> 3e-6  |  0% | V | V |   | V | V |   |   |   |   |
+| 0.353 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   | V |   |   |
+| 0.413 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   | V |   |
+
+Note:
+- Dataset (training): 
+    * V1: original kaggle
+    * V2: Feb 06, modified by Jimmy and Ryk
+- Score is public score on kaggle site
+- Zero CV rate means all data were used for training, none reserved
+- Adjust learning rate per 300 epoch
+
 ## Known Issues
 
 * Error: multiprocessing.managers.RemoteError: AttributeError: Can't get attribute 'PngImageFile'  
@@ -157,25 +210,3 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 
     ![color_equalize](docs/clahe_color_adapthist_equalize.jpeg) 
 
-## Benchmark 
-
-| Score | Data | Width | Cost Fn. | Epoch | Learning Rate | CV  | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | Watershed | Fill hole | 
-| ----- | ---- | ----- | -------- | ----- | ------------- | --- | - | - | - | - | - | - | - | - | - |
-| 0.334 | Orig | 256   | BCE      | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V |   |   |   |   |   |
-| 0.344 | Orig | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V | V |   |   |   |   |
-| (TBA) | Orig | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |   |
-| 0.326 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% |   |   |   |   |   |   |   |   |   |
-| 0.348 | v2   | 256   | IOU+BCE  | 300   | 1e-4          | 10% | V | V |   | V | V |   |   |   |   |
-| 0.361 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |   |
-| 0.355 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V | V |   |   |   |
-| 0.350 | v2   | 512   | IOU+BCE  | 1200  | 1e-4 >> 3e-6  |  0% | V | V |   | V | V |   |   |   |   |
-| 0.353 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   | V |   |   |
-| 0.413 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   | V |   |
-
-Note:
-- Dataset (training): 
-    * V1: original kaggle
-    * V2: Feb 06, modified by Jimmy and Ryk
-- Score is public score on kaggle site
-- Zero CV rate means all data were used for training, none reserved
-- Adjust learning rate per 300 epoch

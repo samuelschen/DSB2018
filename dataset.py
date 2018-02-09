@@ -59,8 +59,7 @@ class KaggleDataset(Dataset):
                 # filter only sub-category
                 ok &= df['category'] == category
             df = df[ok]
-            self.ids = df['image_id']
-            self.ids.sort_values()
+            self.ids = df['image_id'].sort_values()
         else:
             self.ids = next(os.walk(root))[1]
             self.ids.sort()
