@@ -10,11 +10,16 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Ubuntu
 * Explore model architecture
   - [x] UNet
+    - [ ] Effectiveness for contour detection
+  - [ ] DCAN
+    - [ ] Training efficiency for contour detection
+    - [ ] Boundaries detection for adjacent nuclei only
+  - [ ] Mask RCNN
   - [x] Dropout
   - [x] Batch normalization
-  - [ ] Transfer learning
-  - [ ] Cost function
-  - [ ] Score function
+  - [x] Transfer learning
+  - [x] Cost function
+  - [x] Score function
 * Hyper-parameter tunning
   - [ ] Learning rate
   - [ ] Input size
