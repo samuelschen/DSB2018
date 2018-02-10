@@ -141,7 +141,12 @@ def load_ckpt(model, optimizer=None):
     epoch = 0
     if os.path.isfile(ckpt):
         print("Loading checkpoint '{}'".format(ckpt))
-        checkpoint = torch.load(ckpt)
+        if config.cuda:
+            # Load all tensors onto previous state
+            checkpoint = torch.load(ckpt)
+        else:
+            # Load all tensors onto the CPU
+            checkpoint = torch.load(ckpt, map_location=lambda storage, loc: storage)
         epoch = checkpoint['epoch']
         model.load_state_dict(checkpoint['model'])
         if optimizer:
