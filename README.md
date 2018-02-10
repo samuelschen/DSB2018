@@ -192,9 +192,22 @@ Note:
 
 * Error: multiprocessing.managers.RemoteError: AttributeError: Can't get attribute 'PngImageFile'  
     ```
-    Reproduce rate: 1/10  
-    Root cause: PyTorch subprocess workers failed to communicate shared memory.  
-    Workaround: Ignore and issue command again
+    Reproduce rate: 
+        1/10  
+    Root cause: 
+        PyTorch subprocess workers failed to communicate shared memory.  
+    Workaround: 
+        Ignore and issue command again
+    ```
+
+* Train freeze or runtime exception running in docker container
+    ```
+    Root cause: 
+        PyTorch subprocess worker require enough shared memory for IPC communication.  
+    Fix: 
+        Assign --shm-size 8G to reserve enough shared memory
+    Example: 
+        $ docker run --runtime=nvidia -it --rm --shm-size 8G -v $PWD:/mnt -w /mnt rainbean/pytorch python3 train.py
     ```
 
 ## Transform effect demo
