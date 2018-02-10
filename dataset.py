@@ -69,7 +69,11 @@ class KaggleDataset(Dataset):
         return len(self.ids)
 
     def __getitem__(self, idx):
-        uid = self.ids[idx]
+        try:
+            uid = self.ids[idx]
+        except:
+            raise IndexError()
+
         if self.cache is not None and uid in self.cache:
             sample = self.cache[uid]
         else:
@@ -303,4 +307,3 @@ if __name__ == '__main__':
     # display composed image
     sample = compose(sample)
     compose.show(sample)
-
