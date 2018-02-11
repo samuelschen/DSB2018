@@ -89,7 +89,7 @@ def iou_mean(y_pred_in, y_true_in, instance_level=False):
     batch_size = y_true_in.shape[0]
     metric = []
     for batch in range(batch_size):
-        value = iou_metric(y_pred_in[batch], y_true_in[batch], instance_level)
+        value = iou_metric(y_pred_in[batch], y_true_in[batch], instance_level=instance_level)
         metric.append(value)
     return np.mean(metric)
 
@@ -150,7 +150,6 @@ def load_ckpt(model, optimizer=None):
         else:
             # Load all tensors onto the CPU
             checkpoint = torch.load(ckpt, map_location=lambda storage, loc: storage)
-        checkpoint = torch.load(ckpt)
         epoch = checkpoint['epoch']
         model.load_state_dict(checkpoint['model'])
         if optimizer:
