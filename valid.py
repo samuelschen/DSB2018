@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from skimage.transform import resize
 # own code
 import config
-from model import UNet, UNetVgg16, DCAN
+from model import UNet, UNetVgg16, DCAN, CAUNet
 from dataset import KaggleDataset, Compose
 from helper import load_ckpt, prob_to_rles, seg_ws
 from skimage.morphology import label
@@ -23,6 +23,8 @@ def main(args):
         model = UNetVgg16(3, 1, fixed_vgg=True)
     elif args.model == 'dcan':
         model = DCAN(3, 1)
+    elif args.model == 'caunet':
+        model = CAUNet()
     else:
         model = UNet()
     if config.cuda:
@@ -46,15 +48,15 @@ def main(args):
         with open('result.csv', 'w') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(['ImageId', 'EncodedPixels'])
-            for _, y, uid, _, _, _, _ in iter:
+            for uid, _, y, _, _, _, _, _ in iter:
                 for rle in prob_to_rles(y):
                     writer.writerow([uid, ' '.join([str(i) for i in rle])])
     else:
-        for x, y, uid, y_s, gt_s, y_c, gt_c in iter:
+        for uid, x, y, gt, y_s, gt_s, y_c, gt_c in iter:
             if args.dataset == 'test':
-                show(x, y, uid)
+                show(uid, x, y)
             else:
-                show_groundtruth(x, y, uid, y_s, gt_s, y_c, gt_c)
+                show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c)
 
 def predict(model, dataset, compose, regrowth=True):
     ''' iterate dataset and yield ndarray result tuple per sample '''
@@ -62,12 +64,12 @@ def predict(model, dataset, compose, regrowth=True):
         # get prediction
         uid = data['uid']
         inputs = x = data['image']
-        gt_s, gt_c = data['label'], data['label_e']
+        gt_s, gt_c, gt = data['label'], data['label_e'], data['label_gt']
         inputs = inputs.unsqueeze(0)
         if config.cuda:
             inputs = inputs.cuda()
         inputs = Variable(inputs)
-        if isinstance(model, DCAN):
+        if isinstance(model, DCAN) or isinstance(model, CAUNet):
             outputs_s, outputs_c = model(inputs)
             cond1 = (outputs_s >= config.threshold_sgmt)
             cond2 = (outputs_c < config.threshold_edge)
@@ -78,22 +80,24 @@ def predict(model, dataset, compose, regrowth=True):
         # convert image to numpy array
         x = compose.denorm(x)
         x = compose.pil(x)
-        gt_s = compose.denorm(gt_s)
         gt_s = compose.pil(gt_s)
-        gt_c = compose.denorm(gt_c)
         gt_c = compose.pil(gt_c)
+        gt = compose.pil(gt)
         if regrowth:
             x = x.resize(data['size'])
             gt_s = gt_s.resize(data['size'])
             gt_c = gt_c.resize(data['size'])
+            gt = gt.resize(data['size'])
+
         x = np.asarray(x)
         gt_s = np.asarray(gt_s)
         gt_c = np.asarray(gt_c)
+        gt = np.asarray(gt)
 
         # convert predict to numpy array
         if config.cuda:
             outputs = outputs.cpu()
-            if isinstance(model, DCAN):
+            if isinstance(model, DCAN) or isinstance(model, CAUNet):
                 outputs_s = outputs_s.cpu()
                 outputs_c = outputs_c.cpu()
 
@@ -103,7 +107,7 @@ def predict(model, dataset, compose, regrowth=True):
         if regrowth:
             y = resize(y, data['size'][::-1], mode='constant', preserve_range=True)
 
-        if isinstance(model, DCAN):
+        if isinstance(model, DCAN) or isinstance(model, CAUNet):
             y_s = outputs_s.data.numpy()[0]
             y_s = np.transpose(y_s, (1, 2, 0))
             y_s = np.squeeze(y_s)
@@ -117,9 +121,9 @@ def predict(model, dataset, compose, regrowth=True):
             y_s = y_c = None
 
         # yield result
-        yield x, y, uid, y_s, gt_s, y_c, gt_c
+        yield uid, x, y, gt, y_s, gt_s, y_c, gt_c
 
-def show(x, y, uid):
+def show(uid, x, y):
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, sharey=True, figsize=(14, 6))
     fig.suptitle(uid, y=1)
     ax1.set_title('Image')
@@ -143,7 +147,7 @@ def show(x, y, uid):
     plt.tight_layout()
     plt.show()
 
-def show_groundtruth(x, y, uid, y_s, gt_s, y_c, gt_c):
+def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c):
     if y_s is not None and y_c is not None:
         fig, (ax1, ax2, ax3) = plt.subplots(3, 4, sharey=True, figsize=(21, 9))
     else:
@@ -151,14 +155,14 @@ def show_groundtruth(x, y, uid, y_s, gt_s, y_c, gt_c):
     fig.suptitle(uid, y=1)
     ax1[0].set_title('Image')
     ax1[1].set_title('Final Predict, P > {}'.format(config.threshold))
-    ax1[2].set_title('Nuclei Ground Truth')
-    ax1[3].set_title('Overlay (Final Predict on Nuclei Ground Truth), P > {}'.format(config.threshold))
+    ax1[2].set_title('Instance Ground Truth')
+    ax1[3].set_title('Overlay (Instance), P > {}'.format(config.threshold))
     ax1[0].imshow(x)
     y = y > config.threshold
     ax1[1].imshow(y, cmap='gray')
-    ax1[2].imshow(gt_s, cmap='gray')
+    ax1[2].imshow(gt)
     # overlay
-    ax1[3].imshow(gt_s, cmap='gray')
+    ax1[3].imshow(gt)
     y2 = label(y)
     if config.post_segmentation:
         y2 = seg_ws(y2)
@@ -170,9 +174,9 @@ def show_groundtruth(x, y, uid, y_s, gt_s, y_c, gt_c):
 
     if y_s is not None and y_c is not None:
         ax2[0].set_title('Image')
-        ax2[1].set_title('Nuclei Predict, P > {}'.format(config.threshold))
-        ax2[2].set_title('Nuclei Ground Truth')
-        ax2[3].set_title('Overlay (Nuclei Predict on Nuclei Ground Truth), P > {}'.format(config.threshold_sgmt))
+        ax2[1].set_title('Semantic Predict, P > {}'.format(config.threshold))
+        ax2[2].set_title('Semantic Ground Truth')
+        ax2[3].set_title('Overlay (Semantic), P > {}'.format(config.threshold_sgmt))
         ax2[0].imshow(x)
         y_s = y_s > config.threshold_sgmt
         ax2[1].imshow(y_s, cmap='gray')
@@ -191,7 +195,7 @@ def show_groundtruth(x, y, uid, y_s, gt_s, y_c, gt_c):
         ax3[0].set_title('image')
         ax3[1].set_title('Contour Predict, P > {}'.format(config.threshold))
         ax3[2].set_title('Contour Ground Truth')
-        ax3[3].set_title('Overlay (Contour Predict on Contour Ground Truth), P > {}'.format(config.threshold_edge))
+        ax3[3].set_title('Overlay (Contour), P > {}'.format(config.threshold_edge))
         ax3[0].imshow(x)
         y_c = y_c > config.threshold_edge
         ax3[1].imshow(y_c, cmap='gray')
@@ -213,7 +217,7 @@ def show_groundtruth(x, y, uid, y_s, gt_s, y_c, gt_c):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', action='store', choices=['unet', 'unet_vgg16', 'dcan'], help='model name', required=True)
+    parser.add_argument('--model', action='store', choices=['unet', 'unet_vgg16', 'caunet', 'dcan'], help='model name', required=True)
     parser.add_argument('--dataset', action='store', choices=['train', 'test'], help='dataset to eval', required=True)
     parser.add_argument('--cuda', dest='cuda', action='store_true')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false')

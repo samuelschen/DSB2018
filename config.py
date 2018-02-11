@@ -3,7 +3,7 @@ n_epoch = 300
 n_ckpt_epoch = 10
 n_batch = 10
 n_worker = 4
-print_freq = 10
+print_freq = 60
 learn_rate = 0.0001
 cv_ratio = 0.1
 cv_seed = 666 # change it if different shuffle cv required 
@@ -23,7 +23,7 @@ color_equalize = False
 fill_holes = True
 # dcan multitask threshold
 threshold_sgmt = 0.5
-threshold_edge = 0.5
+threshold_edge = 0.7
 # post-process config
 post_segmentation = True
 seg_ratio = 0.5

@@ -51,3 +51,11 @@ def criterion(preds, labels):
 # (3) BCE Loss + Jaccard/IoU Loss
     return BinaryCrossEntropyLoss2d().forward(preds, labels) + \
            IoULoss().forward(preds, labels)
+
+def criterion_segment(preds, labels):
+    return BinaryCrossEntropyLoss2d().forward(preds, labels) + \
+           IoULoss().forward(preds, labels)
+
+
+def criterion_contour(preds, labels):
+    return IoULoss().forward(preds, labels)

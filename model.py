@@ -80,6 +80,54 @@ class UNet(nn.Module):
         return x
 
 
+class CAUNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.c1 = ConvBlock(3, 16)
+        self.p1 = nn.MaxPool2d(2)
+        self.c2 = ConvBlock(16, 32)
+        self.p2 = nn.MaxPool2d(2)
+        self.c3 = ConvBlock(32, 64)
+        self.p3 = nn.MaxPool2d(2)
+        self.c4 = ConvBlock(64, 128)
+        self.p4 = nn.MaxPool2d(2)
+        self.c5 = ConvBlock(128, 256)
+        self.u6s = ConvUpBlock(256, 128)
+        self.u7s = ConvUpBlock(128, 64)
+        self.u8s = ConvUpBlock(64, 32)
+        self.u9s = ConvUpBlock(32, 16)
+        self.ces = nn.Conv2d(16, 1, 1)
+        self.u6c = ConvUpBlock(256, 128)
+        self.u7c = ConvUpBlock(128, 64)
+        self.u8c = ConvUpBlock(64, 32)
+        self.u9c = ConvUpBlock(32, 16)
+        self.cec = nn.Conv2d(16, 1, 1)
+
+    def forward(self, x):
+        c1 = x = self.c1(x)
+        x = self.p1(x)
+        c2 = x = self.c2(x)
+        x = self.p2(x)
+        c3 = x = self.c3(x)
+        x = self.p3(x)
+        c4 = x = self.c4(x)
+        x = self.p4(x)
+        c5 = x = self.c5(x)
+        xs = self.u6s(x, c4)
+        xs = self.u7s(xs, c3)
+        xs = self.u8s(xs, c2)
+        xs = self.u9s(xs, c1)
+        xs = self.ces(xs)
+        xs = F.sigmoid(xs)
+        xc = self.u6c(x, c4)
+        xc = self.u7c(xc, c3)
+        xc = self.u8c(xc, c2)
+        xc = self.u9c(xc, c1)
+        xc = self.cec(xc)
+        xc = F.sigmoid(xc)
+        return xs, xc
+
+
 # Transfer Learning VGG16_BatchNorm as Encoder part of UNet
 class DeConvBlk(nn.Module):
     def __init__(self, in_ch, out_ch, dropout_ratio=0.2):
@@ -271,6 +319,9 @@ class DCAN(nn.Module):
 
 if __name__ == '__main__':
     net = UNet()
+    print(net)
+    del net
+    net = CAUNet()
     print(net)
     del net
     net = UNetVgg16(3, 1)

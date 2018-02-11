@@ -27,9 +27,12 @@ class AverageMeter():
         self.avg = self.sum / self.count
 
 # copy from https://www.kaggle.com/aglotero/another-iou-metric
-def iou_metric(y_true_in, y_pred_in, print_table=False):
-    labels = label(y_true_in > config.threshold)
+def iou_metric(y_pred_in, y_true_in, instance_level=False, print_table=False):
     y_pred = label(y_pred_in > config.threshold)
+    if instance_level:
+        labels = y_pred_in
+    else:
+        labels = label(y_true_in > config.threshold)
 
     true_objects = len(np.unique(labels))
     pred_objects = len(np.unique(y_pred))
@@ -80,13 +83,13 @@ def iou_metric(y_true_in, y_pred_in, print_table=False):
         print("AP\t-\t-\t-\t{:1.3f}".format(np.mean(prec)))
     return np.mean(prec)
 
-def iou_mean(y_true_in, y_pred_in):
-    y_true_in = y_true_in.data.cpu().numpy()
+def iou_mean(y_pred_in, y_true_in, instance_level=False):
     y_pred_in = y_pred_in.data.cpu().numpy()
+    y_true_in = y_true_in.data.cpu().numpy()
     batch_size = y_true_in.shape[0]
     metric = []
     for batch in range(batch_size):
-        value = iou_metric(y_true_in[batch], y_pred_in[batch])
+        value = iou_metric(y_pred_in[batch], y_true_in[batch], instance_level)
         metric.append(value)
     return np.mean(metric)
 
@@ -147,6 +150,7 @@ def load_ckpt(model, optimizer=None):
         else:
             # Load all tensors onto the CPU
             checkpoint = torch.load(ckpt, map_location=lambda storage, loc: storage)
+        checkpoint = torch.load(ckpt)
         epoch = checkpoint['epoch']
         model.load_state_dict(checkpoint['model'])
         if optimizer:

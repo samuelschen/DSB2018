@@ -13,10 +13,10 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from tensorboardX import SummaryWriter
 # own code
 import config
-from model import UNet, UNetVgg16, DCAN
+from model import UNet, UNetVgg16, CAUNet, DCAN
 from dataset import KaggleDataset, Compose
 from helper import AverageMeter, iou_mean, save_ckpt, load_ckpt
-from loss import criterion
+from loss import criterion, criterion_segment, criterion_contour
 
 
 def main(args):
@@ -24,6 +24,8 @@ def main(args):
         model = UNetVgg16(3, 1, fixed_vgg=True)
     elif args.model == 'dcan':
         model = DCAN(3, 1)
+    elif args.model == 'caunet':
+        model = CAUNet()
     else:
         model = UNet()
 
@@ -31,7 +33,10 @@ def main(args):
         model = model.cuda()
         #model = torch.nn.DataParallel(model).cuda()
 
-    cost = criterion
+    if isinstance(model, DCAN) or isinstance(model, CAUNet):
+        cost = (criterion_segment, criterion_contour)
+    else:
+        cost = criterion
     optimizer = torch.optim.Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=args.learn_rate,
@@ -101,10 +106,10 @@ def train(loader, model, cost, optimizer, epoch, writer):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
-    iou = AverageMeter()
-    if isinstance(model, DCAN):
-        iou_s = AverageMeter()
-        iou_c = AverageMeter()
+    iou = AverageMeter()    # instance IoU
+    iou_s = AverageMeter()  # semantic IoU
+    if isinstance(model, DCAN) or isinstance(model, CAUNet):
+        iou_c = AverageMeter() # contour IoU
     # Sets the module in training mode.
     model.train()
     end = time.time()
@@ -113,17 +118,17 @@ def train(loader, model, cost, optimizer, epoch, writer):
         # measure data loading time
         data_time.update(time.time() - end)
         # get the inputs
-        inputs, labels, labels_e = data['image'], data['label'], data['label_e']
+        inputs, labels, labels_e, labels_gt = data['image'], data['label'], data['label_e'], data['label_gt']
         if config.cuda:
-            inputs, labels, labels_e = inputs.cuda(async=True), labels.cuda(async=True), labels_e.cuda(async=True)
+            inputs, labels, labels_e, labels_gt = inputs.cuda(async=True), labels.cuda(async=True), labels_e.cuda(async=True), labels_gt.cuda(async=True)
         # wrap them in Variable
-        inputs, labels, labels_e = Variable(inputs), Variable(labels), Variable(labels_e)
+        inputs, labels, labels_e, labels_gt = Variable(inputs), Variable(labels), Variable(labels_e), Variable(labels_gt)
         # zero the parameter gradients
         optimizer.zero_grad()
         # forward step
-        if isinstance(model, DCAN):
+        if isinstance(model, DCAN) or isinstance(model, CAUNet):
             outputs_s, outputs_c = model(inputs)
-            loss = cost(outputs_s, labels) + cost(outputs_c, labels_e)
+            loss = cost[0](outputs_s, labels) + cost[1](outputs_c, labels_e)
             # measure accuracy and record loss
             batch_iou_s = iou_mean(outputs_s, labels)
             batch_iou_c = iou_mean(outputs_c, labels_e)
@@ -135,9 +140,12 @@ def train(loader, model, cost, optimizer, epoch, writer):
         else:
             outputs = model(inputs)
             loss = cost(outputs, labels)
+            # measure accuracy and record loss
+            batch_iou_s = iou_mean(outputs, labels)
+            iou_s.update(batch_iou_s, inputs.size(0))
 
         # measure accuracy and record loss
-        batch_iou = iou_mean(outputs, labels)
+        batch_iou = iou_mean(outputs, labels_gt, instance_level=True)
         iou.update(batch_iou, inputs.size(0))
 
         losses.update(loss.data[0], inputs.size(0))
@@ -153,19 +161,19 @@ def train(loader, model, cost, optimizer, epoch, writer):
         writer.add_scalar('training/batch_elapse', batch_time.val, step)
         writer.add_scalar('training/batch_iou', iou.val, step)
         writer.add_scalar('training/epoch_iou', iou.avg, step)
-        if isinstance(model, DCAN):
+        if isinstance(model, DCAN) or isinstance(model, CAUNet):
             writer.add_scalar('training/batch_iou_s', iou_s.val, step)
             writer.add_scalar('training/epoch_iou_s', iou_s.avg, step)
             writer.add_scalar('training/batch_iou_c', iou_c.val, step)
             writer.add_scalar('training/epoch_iou_c', iou_c.avg, step)
-            if i % config.print_freq == 0:
+            if (i + 1) % config.print_freq == 0:
                 print(
                     'Epoch: [{0}][{1}/{2}]\t'
                     'Time: {batch_time.avg:.3f} (io: {data_time.avg:.3f})\t\t'
                     'Loss: {loss.val:.4f} ({loss.avg:.4f})\t'
-                    'IoU: {iou.val:.3f} ({iou.avg:.3f})\t'
-                    'IoU_S: {iou_s.val:.3f} ({iou_s.avg:.3f})\t'
-                    'IoU_C: {iou_c.val:.3f} ({iou_c.avg:.3f})\t'
+                    'IoU(Instance): {iou.val:.3f} ({iou.avg:.3f})\t'
+                    'IoU(Semantic): {iou_s.val:.3f} ({iou_s.avg:.3f})\t'
+                    'IoU(Contour): {iou_c.val:.3f} ({iou_c.avg:.3f})\t'
                     .format(
                         epoch, i, n_step, batch_time=batch_time,
                         data_time=data_time, loss=losses, iou=iou,
@@ -173,38 +181,40 @@ def train(loader, model, cost, optimizer, epoch, writer):
                     )
                 )
         else:
-            if i % config.print_freq == 0:
+            if (i + 1) % config.print_freq == 0:
                 print(
                     'Epoch: [{0}][{1}/{2}]\t'
                     'Time: {batch_time.avg:.3f} (io: {data_time.avg:.3f})\t\t'
                     'Loss: {loss.val:.4f} ({loss.avg:.4f})\t'
-                    'IoU: {iou.val:.3f} ({iou.avg:.3f})\t'.format(
+                    'IoU(Instance): {iou.val:.3f} ({iou.avg:.3f})\t'
+                    'IoU(Semantic): {iou_s.val:.3f} ({iou_s.avg:.3f})\t'
+                    .format(
                         epoch, i, n_step, batch_time=batch_time,
-                        data_time=data_time, loss=losses, iou=iou
+                        data_time=data_time, loss=losses, iou=iou, iou_s=iou_s
                     )
                 )
 
 def valid(loader, model, cost, epoch, writer, n_step):
-    iou = AverageMeter()
-    if isinstance(model, DCAN):
-        iou_s = AverageMeter()
-        iou_c = AverageMeter()
+    iou = AverageMeter() # instance IoU
+    iou_s = AverageMeter() # semantic IoU
+    if isinstance(model, DCAN) or isinstance(model, CAUNet):
+        iou_c = AverageMeter() # contour IoU
     losses = AverageMeter()
 
     # Sets the model in evaluation mode.
     model.eval()
     for i, data in enumerate(loader):
         # get the inputs
-        inputs, labels, labels_e = data['image'], data['label'], data['label_e']
+        inputs, labels, labels_e, labels_gt = data['image'], data['label'], data['label_e'], data['label_gt']
         if config.cuda:
-            inputs, labels, labels_e = inputs.cuda(), labels.cuda(), labels_e.cuda()
+            inputs, labels, labels_e, labels_gt = inputs.cuda(), labels.cuda(), labels_e.cuda(), labels_gt.cuda()
         # wrap them in Variable
-        inputs, labels, labels_e = Variable(inputs), Variable(labels), Variable(labels_e)
+        inputs, labels, labels_e, labels_gt = Variable(inputs), Variable(labels), Variable(labels_e), Variable(labels_gt)
 
         # forward step
-        if isinstance(model, DCAN):
+        if isinstance(model, DCAN) or isinstance(model, CAUNet):
             outputs_s, outputs_c = model(inputs)
-            loss = cost(outputs_s, labels) + cost(outputs_c, labels_e)
+            loss = cost[0](outputs_s, labels) + cost[1](outputs_c, labels_e)
             # measure accuracy and record loss
             batch_iou_s = iou_mean(outputs_s, labels)
             batch_iou_c = iou_mean(outputs_c, labels_e)
@@ -216,24 +226,27 @@ def valid(loader, model, cost, epoch, writer, n_step):
         else:
             outputs = model(inputs)
             loss = cost(outputs, labels)
+            # measure accuracy and record loss
+            batch_iou_s = iou_mean(outputs, labels)
+            iou_s.update(batch_iou_s, inputs.size(0))
 
         # measure accuracy and record loss
-        batch_iou = iou_mean(outputs, labels)
+        batch_iou = iou_mean(outputs, labels_gt, instance_level=True)
         iou.update(batch_iou, inputs.size(0))
         losses.update(loss.data[0], inputs.size(0))
     # log to summary
     step = epoch * n_step
     writer.add_scalar('CV/loss', losses.avg, step)
     writer.add_scalar('CV/epoch_iou', iou.avg, step)
-    if isinstance(model, DCAN):
+    if isinstance(model, DCAN) or isinstance(model, CAUNet):
         writer.add_scalar('training/epoch_iou_s', iou_s.avg, step)
         writer.add_scalar('training/epoch_iou_c', iou_c.avg, step)
         print(
             'Epoch: [{0}]\t\tcross-validation\t\t'
             'Loss: N/A    ({loss.avg:.4f})\t'
-            'IoU: N/A   ({iou.avg:.3f})\t'
-            'IoU_S: N/A   ({iou_s.avg:.3f})\t'
-            'IoU_C: N/A   ({iou_c.avg:.3f})\t'
+            'IoU(Instance): N/A   ({iou.avg:.3f})\t'
+            'IoU(Semantic): N/A   ({iou_s.avg:.3f})\t'
+            'IoU(Contour): N/A   ({iou_c.avg:.3f})\t'
             .format(
                 epoch, loss=losses, iou=iou, iou_s=iou_s, iou_c=iou_c
             )
@@ -242,14 +255,16 @@ def valid(loader, model, cost, epoch, writer, n_step):
         print(
             'Epoch: [{0}]\t\tcross-validation\t\t'
             'Loss: N/A    ({loss.avg:.4f})\t'
-            'IoU: N/A   ({iou.avg:.3f})\t'.format(
-                epoch, loss=losses, iou=iou
+            'IoU(Instance): N/A   ({iou.avg:.3f})\t'
+            'IoU(Semantic): N/A   ({iou_s.avg:.3f})\t'
+            .format(
+                epoch, loss=losses, iou=iou, iou_s=iou_s
             )
         )
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', action='store', choices=['unet', 'unet_vgg16', 'dcan'], help='model name')
+    parser.add_argument('--model', action='store', choices=['unet', 'unet_vgg16', 'caunet', 'dcan'], help='model name')
     parser.add_argument('--resume', dest='resume', action='store_true')
     parser.add_argument('--no-resume', dest='resume', action='store_false')
     parser.add_argument('--cuda', dest='cuda', action='store_true')

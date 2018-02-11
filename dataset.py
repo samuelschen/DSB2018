@@ -88,10 +88,12 @@ class KaggleDataset(Dataset):
             #image = ImageCms.applyTransform(image, rgb2lab_transform) 
             # overlay masks to single mask
             w, h = image.size
-            label = np.zeros((h, w), dtype=np.uint8)
+            label = np.zeros((h, w), dtype=np.uint8) # semantic labels
             label_e = np.zeros((h, w), dtype=np.uint8) # edge labels
+            label_gt = np.zeros((h, w), dtype=np.uint8) # instance labels
             mask_dir = os.path.join(self.root, uid, 'masks')
             if os.path.isdir(mask_dir):
+                instance_idx = 1
                 for fn in next(os.walk(mask_dir))[2]:
                     fp = os.path.join(mask_dir, fn)
                     m = imread(fp)
@@ -99,19 +101,23 @@ class KaggleDataset(Dataset):
                         m = np.mean(m, -1).astype(np.uint8)
                     if config.fill_holes:
                         m = binary_fill_holes(m).astype(np.uint8)*255
-                    label = np.maximum(label, m) # merge mask
+                    label = np.maximum(label, m) # merge semantic mask
                     edges = filters.scharr(m) # detect possible edges
                     scharr_threshold = 0. if uid in bright_field_list else (np.amax(abs(edges)) / 2.)
                     edges = (np.abs(edges) > scharr_threshold).astype(np.uint8)*255
-                    label_e = np.maximum(label_e, edges)
+                    label_e = np.maximum(label_e, edges) # merge edge mask
+                    m[m > 0] = instance_idx
+                    instance_idx += 1
+                    label_gt = np.maximum(label_gt, m) # merge instance mask
             # label -= label_e // 2 # soft label edge
             label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
             # label = label.convert('1') # convert to 1-bit pixels, black and white
+            label_gt = Image.fromarray(label_gt, 'L') # specify it's grayscale 8-bit
             # def sigmoid(x):
             #     return 1 / (1 + np.exp(-x))
             # edge_penalty = sigmoid(gaussian(edges, sigma=3)) * 2
             label_e = Image.fromarray(label_e, 'L') # specify it's grayscale 8-bit
-            sample = {'image': image, 'label': label, 'label_e': label_e, 'uid': uid, 'size': image.size}
+            sample = {'image': image, 'label': label, 'label_e': label_e, 'label_gt': label_gt, 'uid': uid, 'size': image.size}
             if self.cache is not None:
                 self.cache[uid] = sample
         if self.transform:
@@ -146,7 +152,7 @@ class Compose():
         self.toAugment = augment
 
     def __call__(self, sample):
-        image, label, label_e = sample['image'], sample['label'], sample['label_e']
+        image, label, label_e, label_gt = sample['image'], sample['label'], sample['label_e'], sample['label_gt']
 
         if self.toEqualize:
             image = clahe(image)
@@ -161,19 +167,22 @@ class Compose():
             image = tx.resized_crop(image, i, j, h, w, self.size)
             label = tx.resized_crop(label, i, j, h, w, self.size)
             label_e = tx.resized_crop(label_e, i, j, h, w, self.size)
+            # label_gt should not be used, applied transformation for consistent dimensions
+            label_gt = tx.resized_crop(label_e, i, j, h, w, self.size) 
 
             # perform RandomHorizontalFlip()
             if random.random() > 0.5:
                 image = tx.hflip(image)
                 label = tx.hflip(label)
                 label_e = tx.hflip(label_e)
+                label_gt = tx.hflip(label_e)
 
             # perform RandomVerticalFlip()
             if random.random() > 0.5:
                 image = tx.vflip(image)
                 label = tx.vflip(label)
                 label_e = tx.vflip(label_e)
-
+                label_gt = tx.vflip(label_gt)
 
             # perform Elastic Distortion
             if self.toDistortion:
@@ -181,6 +190,7 @@ class Compose():
                 image = ElasticDistortion.transform(image, indices)
                 label = ElasticDistortion.transform(label, indices)
                 label_e = ElasticDistortion.transform(label_e, indices)
+                label_gt = ElasticDistortion.transform(label_gt, indices)
 
             # perform random color invert, assuming 3 channels (rgb) images
             if self.toInvert and random.random() > 0.5:
@@ -194,6 +204,7 @@ class Compose():
             image = tx.resize(image, self.size)
             label = tx.resize(label, self.size)
             label_e = tx.resize(label_e, self.size)
+            label_gt = tx.resize(label_gt, self.size)
 
         # Due to resize algorithm may introduce anti-alias edge, aka. non binary value,
         # thereafter map every pixel back to 0 and 255
@@ -206,12 +217,13 @@ class Compose():
             image = tx.to_tensor(image)
             label = tx.to_tensor(label)
             label_e = tx.to_tensor(label_e)
+            label_gt = tx.to_tensor(label_gt)
 
         # perform Normalize()
         if self.toTensor:
             image = tx.normalize(image, self.mean, self.std)
 
-        sample['image'], sample['label'], sample['label_e'] = image, label, label_e
+        sample['image'], sample['label'], sample['label_e'], sample['label_gt'] = image, label, label_e, label_gt
         return sample
 
     def denorm(self, tensor):
@@ -307,3 +319,4 @@ if __name__ == '__main__':
     # display composed image
     sample = compose(sample)
     compose.show(sample)
+
