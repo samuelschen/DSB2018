@@ -30,7 +30,7 @@ class AverageMeter():
 def iou_metric(y_pred_in, y_true_in, instance_level=False, print_table=False):
     y_pred = label(y_pred_in > config.threshold)
     if instance_level:
-        labels = y_pred_in
+        labels = y_true_in
     else:
         labels = label(y_true_in > config.threshold)
 
