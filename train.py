@@ -118,11 +118,11 @@ def train(loader, model, cost, optimizer, epoch, writer):
         # measure data loading time
         data_time.update(time.time() - end)
         # get the inputs
-        inputs, labels, labels_e, labels_gt = data['image'], data['label'], data['label_e'], data['label_gt']
+        inputs, labels, labels_e = data['image'], data['label'], data['label_e']
         if config.cuda:
-            inputs, labels, labels_e, labels_gt = inputs.cuda(async=True), labels.cuda(async=True), labels_e.cuda(async=True), labels_gt.cuda(async=True)
+            inputs, labels, labels_e = inputs.cuda(async=True), labels.cuda(async=True), labels_e.cuda(async=True)
         # wrap them in Variable
-        inputs, labels, labels_e, labels_gt = Variable(inputs), Variable(labels), Variable(labels_e), Variable(labels_gt)
+        inputs, labels, labels_e = Variable(inputs), Variable(labels), Variable(labels_e)
         # zero the parameter gradients
         optimizer.zero_grad()
         # forward step
@@ -140,12 +140,9 @@ def train(loader, model, cost, optimizer, epoch, writer):
         else:
             outputs = model(inputs)
             loss = cost(outputs, labels)
-            # measure accuracy and record loss
-            batch_iou_s = iou_mean(outputs, labels)
-            iou_s.update(batch_iou_s, inputs.size(0))
 
         # measure accuracy and record loss
-        batch_iou = iou_mean(outputs, labels_gt, instance_level=True)
+        batch_iou = iou_mean(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
 
         losses.update(loss.data[0], inputs.size(0))
@@ -171,7 +168,7 @@ def train(loader, model, cost, optimizer, epoch, writer):
                     'Epoch: [{0}][{1}/{2}]\t'
                     'Time: {batch_time.avg:.3f} (io: {data_time.avg:.3f})\t\t'
                     'Loss: {loss.val:.4f} ({loss.avg:.4f})\t'
-                    'IoU(Instance): {iou.val:.3f} ({iou.avg:.3f})\t'
+                    'IoU(S&C): {iou.val:.3f} ({iou.avg:.3f})\t'
                     'IoU(Semantic): {iou_s.val:.3f} ({iou_s.avg:.3f})\t'
                     'IoU(Contour): {iou_c.val:.3f} ({iou_c.avg:.3f})\t'
                     .format(
@@ -186,11 +183,10 @@ def train(loader, model, cost, optimizer, epoch, writer):
                     'Epoch: [{0}][{1}/{2}]\t'
                     'Time: {batch_time.avg:.3f} (io: {data_time.avg:.3f})\t\t'
                     'Loss: {loss.val:.4f} ({loss.avg:.4f})\t'
-                    'IoU(Instance): {iou.val:.3f} ({iou.avg:.3f})\t'
-                    'IoU(Semantic): {iou_s.val:.3f} ({iou_s.avg:.3f})\t'
+                    'IoU(Semantic): {iou.val:.3f} ({iou.avg:.3f})\t'
                     .format(
                         epoch, i, n_step, batch_time=batch_time,
-                        data_time=data_time, loss=losses, iou=iou, iou_s=iou_s
+                        data_time=data_time, loss=losses, iou=iou
                     )
                 )
 
@@ -205,11 +201,11 @@ def valid(loader, model, cost, epoch, writer, n_step):
     model.eval()
     for i, data in enumerate(loader):
         # get the inputs
-        inputs, labels, labels_e, labels_gt = data['image'], data['label'], data['label_e'], data['label_gt']
+        inputs, labels, labels_e = data['image'], data['label'], data['label_e']
         if config.cuda:
-            inputs, labels, labels_e, labels_gt = inputs.cuda(), labels.cuda(), labels_e.cuda(), labels_gt.cuda()
+            inputs, labels, labels_e = inputs.cuda(), labels.cuda(), labels_e.cuda()
         # wrap them in Variable
-        inputs, labels, labels_e, labels_gt = Variable(inputs), Variable(labels), Variable(labels_e), Variable(labels_gt)
+        inputs, labels, labels_e = Variable(inputs), Variable(labels), Variable(labels_e)
 
         # forward step
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
@@ -226,14 +222,12 @@ def valid(loader, model, cost, epoch, writer, n_step):
         else:
             outputs = model(inputs)
             loss = cost(outputs, labels)
-            # measure accuracy and record loss
-            batch_iou_s = iou_mean(outputs, labels)
-            iou_s.update(batch_iou_s, inputs.size(0))
 
         # measure accuracy and record loss
-        batch_iou = iou_mean(outputs, labels_gt, instance_level=True)
+        batch_iou = iou_mean(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
         losses.update(loss.data[0], inputs.size(0))
+
     # log to summary
     step = epoch * n_step
     writer.add_scalar('CV/loss', losses.avg, step)
@@ -244,7 +238,7 @@ def valid(loader, model, cost, epoch, writer, n_step):
         print(
             'Epoch: [{0}]\t\tcross-validation\t\t'
             'Loss: N/A    ({loss.avg:.4f})\t'
-            'IoU(Instance): N/A   ({iou.avg:.3f})\t'
+            'IoU(S&C): N/A   ({iou.avg:.3f})\t'
             'IoU(Semantic): N/A   ({iou_s.avg:.3f})\t'
             'IoU(Contour): N/A   ({iou_c.avg:.3f})\t'
             .format(
@@ -255,10 +249,9 @@ def valid(loader, model, cost, epoch, writer, n_step):
         print(
             'Epoch: [{0}]\t\tcross-validation\t\t'
             'Loss: N/A    ({loss.avg:.4f})\t'
-            'IoU(Instance): N/A   ({iou.avg:.3f})\t'
-            'IoU(Semantic): N/A   ({iou_s.avg:.3f})\t'
+            'IoU(Semantic): N/A   ({iou.avg:.3f})\t'
             .format(
-                epoch, loss=losses, iou=iou, iou_s=iou_s
+                epoch, loss=losses, iou=iou
             )
         )
 
