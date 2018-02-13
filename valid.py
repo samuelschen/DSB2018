@@ -9,7 +9,6 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-import matplotlib.pyplot as plt
 from skimage.transform import resize
 from skimage.morphology import label, remove_small_objects
 # own code
@@ -17,7 +16,6 @@ import config
 from model import UNet, UNetVgg16, DCAN, CAUNet
 from dataset import KaggleDataset, Compose
 from helper import load_ckpt, prob_to_rles, seg_ws, iou_metric
-
 
 def main(args):
     if args.model == 'unet_vgg16':
@@ -53,6 +51,13 @@ def main(args):
                 for rle in prob_to_rles(y):
                     writer.writerow([uid, ' '.join([str(i) for i in rle])])
     else:
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError as err:
+            print(err)
+            print("[ERROR] No GUI library for rendering, consider to save as RLE '--csv'")
+            return
+
         for uid, x, y, gt, y_s, gt_s, y_c, gt_c in iter:
             if args.dataset == 'test':
                 show(uid, x, y)
@@ -223,14 +228,16 @@ def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', action='store', choices=['unet', 'unet_vgg16', 'caunet', 'dcan'], help='model name', required=True)
-    parser.add_argument('--dataset', action='store', choices=['train', 'test'], help='dataset to eval', required=True)
+    parser.add_argument('--model', action='store', choices=['unet', 'unet_vgg16', 'caunet', 'dcan'], help='model name')
+    parser.add_argument('--dataset', action='store', choices=['train', 'test'], help='dataset to eval')
     parser.add_argument('--cuda', dest='cuda', action='store_true')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false')
     parser.add_argument('--csv', dest='csv', action='store_true')
     parser.add_argument('--show', dest='csv', action='store_false')
     parser.add_argument('--width', type=int, help='width of image to evaluate')
-    parser.set_defaults(cuda=config.cuda, width=config.width, csv=False)
+    parser.set_defaults(
+        cuda=config.cuda, width=config.width,
+        csv=False, model='unet', dataset='test')
     args = parser.parse_args()
 
     config.width = args.width
