@@ -5,10 +5,6 @@ import time
 import csv
 from multiprocessing import Manager
 # 3rd party library
-if not "DISPLAY" in os.environ:
-    print("[WARNING] No display screen detected")
-    import matplotlib
-    matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
 import numpy as np
 import torch
 import torch.nn as nn
@@ -259,9 +255,6 @@ if __name__ == '__main__':
     config.cuda = torch.cuda.is_available() and args.cuda
 
     if not args.csv:
-        if not "DISPLAY" in os.environ:
-            args.save = True
-
         try:
             import matplotlib.pyplot as plt
         except ImportError as err:
