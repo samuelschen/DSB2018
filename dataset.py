@@ -10,6 +10,7 @@ import torchvision.transforms.functional as tx
 from PIL import Image, ImageOps
 from skimage.io import imread
 from skimage import filters, img_as_ubyte
+from skimage.morphology import remove_small_objects
 from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.morphology import binary_fill_holes
 from scipy.ndimage.filters import gaussian_filter
@@ -138,6 +139,122 @@ class KaggleDataset(Dataset):
         return indices[split:], indices[:split]
 
 
+class NuclearDataset(Dataset):
+    """Single nuclei centric dataset."""
+
+    def __init__(self, root, transform=None, cache=None, category=None):
+        """
+        Args:
+            root_dir (string): Directory of data (train or test).
+            transform (callable, optional): Optional transform to be applied on a sample.
+        """
+        self.root = root
+        self.transform = transform
+        if os.path.isfile(root + '.csv'):
+            df = pd.read_csv(root + '.csv')
+            ok = df['discard'] != 1
+            if category is not None:
+                # filter only sub-category
+                ok &= df['category'] == category
+            df = df[ok]
+            cids = []
+            for cid in df['image_id'].sort_values():
+                mask_dir = os.path.join(root, cid, 'masks')
+                for mask in next(os.walk(mask_dir))[2]:
+                    cids.append(cid + '/' + mask)
+            self.ids = cids
+            self.ids.sort()
+        else:
+            cids = []
+            for cid in next(os.walk(root))[1]:
+                mask_dir = os.path.join(root, cid, 'masks')
+                for mask in next(os.walk(mask_dir))[2]:
+                    cids.append(cid + '/' + mask)
+            self.ids = cids
+            self.ids.sort()
+        self.cache = cache
+
+    def __len__(self):
+        return len(self.ids)
+
+    def _bbox(self, img_array, margin=config.bbox_margin):
+        h, w = img_array.shape
+        rows = np.any(img_array, axis=1)
+        cols = np.any(img_array, axis=0)
+        rmin, rmax = np.where(rows)[0][[0, -1]]
+        cmin, cmax = np.where(cols)[0][[0, -1]]
+        cmin = max(0, cmin-margin)
+        rmin = max(0, rmin-margin)
+        cmax = min(w, cmax+margin)
+        rmax = min(h, rmax+margin)
+        return cmin, rmin, cmax+1, rmax+1
+
+    def _crop_example(self, image, img_id, mask_id):
+        mask_name = os.path.join(self.root, img_id, 'masks', mask_id)
+        mask = imread(mask_name)
+        if (mask.ndim > 2):
+            mask = np.mean(mask, -1).astype(np.uint8)
+        mask = remove_small_objects(mask, min_size=config.min_object_size)
+        if config.fill_holes:
+            mask = binary_fill_holes(mask).astype(np.uint8)*255
+        left, top, right, bottom = self._bbox(mask)
+        def crop(img_array, left, top, right, bottom):
+            return img_array[top:bottom, left:right, :] if img_array.ndim > 2 else img_array[top:bottom, left:right]
+        crop_img = crop(np.asarray(image), left, top, right, bottom)
+        crop_mask = crop(mask, left, top, right, bottom)
+        return crop_img, crop_mask
+
+    def __getitem__(self, idx):
+        try:
+            uid = self.ids[idx]
+        except:
+            raise IndexError()
+
+        img_id, mask_id = uid.split('/')
+        if self.cache is not None and uid in self.cache:
+            sample = self.cache[uid]
+        elif self.cache is not None and img_id in self.cache:
+            image = self.cache[img_id]
+            crop_img, crop_mask, crop_edge = self._crop_example(image, img_id, mask_id)
+            crop_img = Image.fromarray(crop_img, 'RGB')
+            crop_mask = Image.fromarray(crop_mask, 'L')
+            crop_edge = contour(uid, crop_mask)
+            w, h = crop_img.size
+            sample = {'image': crop_image, 'label': crop_mask, 'label_e': crop_edge, 'label_gt': crop_mask, 'uid': uid, 'size': image.size}
+            if self.cache is not None:
+                self.cache[uid] = sample
+        else:
+            img_name = os.path.join(self.root, img_id, 'images', img_id + '.png')
+            image = Image.open(img_name)
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+            crop_img, crop_mask = self._crop_example(image, img_id, mask_id)
+            crop_img = Image.fromarray(crop_img)
+            crop_mask = Image.fromarray(crop_mask, 'L')
+            crop_edge = contour(uid, crop_mask)
+            w, h = crop_img.size
+            sample = {'image': crop_img, 'label': crop_mask, 'label_e': crop_edge, 'label_gt': crop_mask, 'uid': uid, 'size': image.size}
+            if self.cache is not None:
+                self.cache[uid] = sample
+                self.cache[img_id] = image
+        if self.transform:
+            sample = self.transform(sample)
+        return sample
+
+    def split(self):
+        # get list of dataset index
+        n = len(self.ids)
+        indices = list(range(n))
+        # random shuffle the list
+        s = random.getstate()
+        random.seed(config.cv_seed)
+        random.shuffle(indices)
+        random.setstate(s)
+        # return splitted lists
+        split = int(np.floor(config.cv_ratio * n))
+        return indices[split:], indices[:split]
+
+
 class Compose():
     def __init__(self, augment=True, tensor=True):
         self.size = (config.width, config.width)
@@ -150,6 +267,7 @@ class Compose():
         self.toEqualize = config.color_equalize
         self.toTensor = tensor
         self.toAugment = augment
+        self.toContour = config.detect_contour
 
     def __call__(self, sample):
         image, label, label_e, label_gt = sample['image'], sample['label'], sample['label_e'], sample['label_gt']
@@ -161,7 +279,7 @@ class Compose():
             # perform RandomResizedCrop()
             i, j, h, w = transforms.RandomResizedCrop.get_params(
                 image,
-                scale=(0.5, 1.0),
+                scale=config.resized_crop_scale,
                 ratio=(3. / 4., 4. / 3.)
             )
             image = tx.resized_crop(image, i, j, h, w, self.size)
@@ -192,6 +310,9 @@ class Compose():
                 label_e = ElasticDistortion.transform(label_e, indices)
                 label_gt = ElasticDistortion.transform(label_gt, indices)
 
+            if self.toContour:
+                label_e = contour(sample['uid'], label)
+
             # perform random color invert, assuming 3 channels (rgb) images
             if self.toInvert and random.random() > 0.5:
                 image = ImageOps.invert(image)
@@ -203,7 +324,7 @@ class Compose():
         else:
             image = tx.resize(image, self.size)
             label = tx.resize(label, self.size)
-            label_e = tx.resize(label_e, self.size)
+            label_e = contour(sample['uid'], label)
             label_gt = tx.resize(label_gt, self.size)
 
         # Due to resize algorithm may introduce anti-alias edge, aka. non binary value,
@@ -236,25 +357,22 @@ class Compose():
         return tx.to_pil_image(tensor)
 
     def show(self, sample):
-        image = sample['image']
-        if image.dim == 4:
-            # only dislay first sample
-            image = image[0]
-        image = self.denorm(image)
-        image = self.pil(image)
-        image.show()
-        label = sample['label']
-        if label.dim == 4:
-            # only dislay first sample
-            label = label[0]
-        label = self.pil(label)
-        label.show()
-        label_e = sample['label_e']
-        if label_e.dim == 4:
-            # only dislay first sample
-            label_e = label_e[0]
-        label_e = self.pil(label_e)
-        label_e.show()
+        image, label, label_e = sample['image'], sample['label'], sample['label_e']
+        for x in (image, label, label_e):
+            if x.dim == 4:  # only dislay first sample
+                x = x[0]
+            if x.shape[0] > 1: # channel > 1
+                x = self.denorm(x)
+            x = self.pil(x)
+            x.show()
+
+def contour(uid, mask_img):
+    id_list = uid.split('/')
+    img_id = id_list[0]
+    edge = filters.scharr(mask_img)
+    scharr_threshold = 0. if img_id in bright_field_list else (np.amax(abs(edge)) / 2.)
+    edge = (np.abs(edge) > scharr_threshold).astype(np.uint8)*255
+    return Image.fromarray(edge, 'L')
 
 def clahe(img):
     x = np.asarray(img, dtype=np.uint8)
@@ -308,10 +426,12 @@ class ElasticDistortion():
         return self.transform(img, indices)
 
 if __name__ == '__main__':
-    compose = Compose()
-    train = KaggleDataset('data/stage1_train', category='Histology')
+    compose = Compose(augment=True)
+    # train = KaggleDataset('data/stage1_train', category='Histology')
+    train = NuclearDataset('data/stage1_train', category='Histology')
     idx = random.randint(0, len(train))
     sample = train[idx]
+    print(sample['uid'])
     # display original image
     sample['image'].show()
     sample['label'].show()

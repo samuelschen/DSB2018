@@ -7,7 +7,7 @@ print_freq = 60
 learn_rate = 0.0001
 cv_ratio = 0.1
 cv_seed = 666 # change it if different shuffle cv required 
-width = 256 # model input size
+width = 256 # model input size  # 32 or 64 for single nuclei training
 cuda = True
 threshold = 0.5 # possibility gating threshold
 model_name = 'unet_iou_loss' # a name for log description
@@ -19,6 +19,8 @@ color_invert = False
 color_jitter = True
 elastic_distortion = True
 color_equalize = False
+resized_crop_scale = (1.0, 1.0) # for whole slide, use (0.5, 1.0); for single nuclei, use (1.0, 1.0)
+detect_contour = True
 # data cleanup
 fill_holes = True
 # dcan multitask threshold
@@ -30,3 +32,5 @@ seg_ratio = 0.5
 seg_scale = 0.55
 post_remove_objects = True
 min_object_size = 5
+# nuclei bounding box margin
+bbox_margin = 5
