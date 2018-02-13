@@ -263,9 +263,14 @@ if __name__ == '__main__':
             print("[ERROR] No GUI library for rendering, consider to save as RLE '--csv'")
             exit(-1)
 
-    if args.save:
-        dir = predict_save_folder()
-        if not os.path.exists(dir):
-            os.makedirs(dir)
+        if not "DISPLAY" in os.environ:
+            print("[WARNING] No display screen detected"
+            args.save = True
+
+        if args.save:
+            print("[INFO] Save side-by-side prediction figure in 'data/predict' folder...")
+            dir = predict_save_folder()
+            if not os.path.exists(dir):
+                os.makedirs(dir)
 
     main(args)
