@@ -155,7 +155,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
         current.json   ckpt-10.pkl
     ```
 
-* Evaluate test dataset, will show side-by-side images on screen
+* Evaluate test dataset, will show side-by-side images on screen. Specify ` --save ` to save as files
     ```
     $ python3 valid.py
     ```
@@ -163,6 +163,41 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 * Generate running length encoding of test dataset
     ```
     $ python3 valid.py --csv
+    ```
+
+## Jupyter Notebook running inside Docker container
+
+* ssh to docker host, say ` myhost `
+* Launch notebook container, expose port ` 8888 `
+    ```
+    $ cd ~/Code/DSB2018
+    $ docker run --runtime=nvidia -it --rm --shm-size 8G -v $PWD:/mnt -w /mnt -p 8888:8888 rainbean/pytorch
+        ...
+        Copy/paste this URL into your browser when you connect for the first time,
+        to login with a token:
+            http://localhost:8888/?token=8dae8f258f5c127feff1b9b6735a7cd651c6ce6f1246263d
+    ```
+
+* Open browser to url, remember to change hostname from ` localhost ` to real hostname/ip ` myhost `
+* Create new notebook tab (New > Python3)
+* Train model
+    ```Jupyter Notebook
+    In [1]: %run train.py --epoch 10
+
+    Loading checkpoint './checkpoint/ckpt-350.pkl'
+    Training started...
+    Epoch: [350][59/270]	Time: 0.206 (io: 0.085)		Loss: 0.5290 (0.5996)	IoU(Semantic): 0.344 (0.263)
+    ```
+
+* Evaluate side-by-side prediction in notebook cell
+    ```Jupyter Notebook
+    In [2]: %matplotlib inline
+    In [3]: %run valid.py
+    ```
+
+* Generate csv result
+    ```Jupyter Notebook
+    In [4]: %run valid.py --csv
     ```
 
 ## Benchmark 
