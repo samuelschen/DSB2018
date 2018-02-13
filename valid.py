@@ -1,4 +1,5 @@
 # python built-in library
+import os
 import argparse
 import time
 import csv
@@ -11,6 +12,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from skimage.transform import resize
 from skimage.morphology import label, remove_small_objects
+from tqdm import tqdm
 # own code
 import config
 from model import UNet, UNetVgg16, DCAN, CAUNet
@@ -51,18 +53,11 @@ def main(args):
                 for rle in prob_to_rles(y):
                     writer.writerow([uid, ' '.join([str(i) for i in rle])])
     else:
-        try:
-            import matplotlib.pyplot as plt
-        except ImportError as err:
-            print(err)
-            print("[ERROR] No GUI library for rendering, consider to save as RLE '--csv'")
-            return
-
-        for uid, x, y, gt, y_s, gt_s, y_c, gt_c in iter:
+        for uid, x, y, gt, y_s, gt_s, y_c, gt_c in tqdm(iter):
             if args.dataset == 'test':
-                show(uid, x, y)
+                show(uid, x, y, args.save)
             else:
-                show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c)
+                show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, args.save)
 
 def predict(model, dataset, compose, regrowth=True):
     ''' iterate dataset and yield ndarray result tuple per sample '''
@@ -136,7 +131,8 @@ def _make_overlay(img_array):
     cmap.set_bad('w', alpha=0) # map background(0) as transparent/white
     return img_array, cmap
 
-def show(uid, x, y):
+def show(uid, x, y, save=False):
+
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, sharey=True, figsize=(14, 6))
     fig.suptitle(uid, y=1)
     ax1.set_title('Image')
@@ -155,9 +151,14 @@ def show(uid, x, y):
     ax4.imshow(x, aspect='auto')
     ax4.imshow(y, cmap=cmap, alpha=0.3, aspect='auto')
     plt.tight_layout()
-    plt.show()
+    if save:
+        dir = predict_save_folder()
+        fp = os.path.join(dir, uid + '.png')
+        plt.savefig(fp)
+    else:
+        plt.show()
 
-def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c):
+def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, save=False):
     if y_s is not None and y_c is not None:
         fig, (ax1, ax2, ax3) = plt.subplots(3, 4, sharey=True, figsize=(21, 9))
     else:
@@ -223,8 +224,16 @@ def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c):
         ax3[3].imshow(y_c, cmap=cmap, alpha=0.3, aspect='auto')
 
     plt.tight_layout()
-    plt.show()
 
+    if save:
+        dir = predict_save_folder()
+        fp = os.path.join(dir, uid + '.png')
+        plt.savefig(fp)
+    else:
+        plt.show()
+
+def predict_save_folder():
+    return os.path.join('data', 'predict')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -233,15 +242,30 @@ if __name__ == '__main__':
     parser.add_argument('--cuda', dest='cuda', action='store_true')
     parser.add_argument('--no-cuda', dest='cuda', action='store_false')
     parser.add_argument('--csv', dest='csv', action='store_true')
+    parser.add_argument('--save', dest='save', action='store_true')
     parser.add_argument('--show', dest='csv', action='store_false')
     parser.add_argument('--width', type=int, help='width of image to evaluate')
     parser.set_defaults(
         cuda=config.cuda, width=config.width,
-        csv=False, model='unet', dataset='test')
+        csv=False, save=False,
+        model='unet', dataset='test')
     args = parser.parse_args()
 
     config.width = args.width
     # final check whether cuda is avaiable
     config.cuda = torch.cuda.is_available() and args.cuda
+
+    if not args.csv:
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError as err:
+            print(err)
+            print("[ERROR] No GUI library for rendering, consider to save as RLE '--csv'")
+            exit(-1)
+
+    if args.save:
+        dir = predict_save_folder()
+        if not os.path.exists(dir):
+            os.makedirs(dir)
 
     main(args)
