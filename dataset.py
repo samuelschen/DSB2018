@@ -103,10 +103,8 @@ class KaggleDataset(Dataset):
                     if config.fill_holes:
                         m = binary_fill_holes(m).astype(np.uint8)*255
                     label = np.maximum(label, m) # merge semantic mask
-                    edges = filters.scharr(m) # detect possible edges
-                    scharr_threshold = 0. if uid in bright_field_list else (np.amax(abs(edges)) / 2.)
-                    edges = (np.abs(edges) > scharr_threshold).astype(np.uint8)*255
-                    label_e = np.maximum(label_e, edges) # merge edge mask
+                    edge = contour(uid, m)
+                    label_e = np.maximum(label_e, edge) # merge edge mask
                     m[m > 0] = instance_idx
                     instance_idx += 1
                     label_gt = np.maximum(label_gt, m) # merge instance mask
@@ -215,12 +213,12 @@ class NuclearDataset(Dataset):
             sample = self.cache[uid]
         elif self.cache is not None and img_id in self.cache:
             image = self.cache[img_id]
-            crop_img, crop_mask, crop_edge = self._crop_example(image, img_id, mask_id)
+            crop_img, crop_mask = self._crop_example(image, img_id, mask_id)
             crop_img = Image.fromarray(crop_img, 'RGB')
             crop_mask = Image.fromarray(crop_mask, 'L')
             crop_edge = contour(uid, crop_mask)
             w, h = crop_img.size
-            sample = {'image': crop_image, 'label': crop_mask, 'label_e': crop_edge, 'label_gt': crop_mask, 'uid': uid, 'size': image.size}
+            sample = {'image': crop_img, 'label': crop_mask, 'label_e': crop_edge, 'label_gt': crop_mask, 'uid': uid, 'size': image.size}
             if self.cache is not None:
                 self.cache[uid] = sample
         else:
@@ -229,7 +227,7 @@ class NuclearDataset(Dataset):
             if image.mode != 'RGB':
                 image = image.convert('RGB')
             crop_img, crop_mask = self._crop_example(image, img_id, mask_id)
-            crop_img = Image.fromarray(crop_img)
+            crop_img = Image.fromarray(crop_img, 'RGB')
             crop_mask = Image.fromarray(crop_mask, 'L')
             crop_edge = contour(uid, crop_mask)
             w, h = crop_img.size
@@ -310,7 +308,7 @@ class Compose():
                 label_e = ElasticDistortion.transform(label_e, indices)
                 label_gt = ElasticDistortion.transform(label_gt, indices)
 
-            if self.toContour:
+            if self.toContour: # replaced with 'thinner' contour based on augmented/transformed mask
                 label_e = contour(sample['uid'], label)
 
             # perform random color invert, assuming 3 channels (rgb) images
