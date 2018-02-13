@@ -5,6 +5,10 @@ import time
 import csv
 from multiprocessing import Manager
 # 3rd party library
+if not "DISPLAY" in os.environ:
+    print("[WARNING] No display screen detected")
+    import matplotlib
+    matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
 import numpy as np
 import torch
 import torch.nn as nn
@@ -132,7 +136,6 @@ def _make_overlay(img_array):
     return img_array, cmap
 
 def show(uid, x, y, save=False):
-
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, sharey=True, figsize=(14, 6))
     fig.suptitle(uid, y=1)
     ax1.set_title('Image')
@@ -256,16 +259,15 @@ if __name__ == '__main__':
     config.cuda = torch.cuda.is_available() and args.cuda
 
     if not args.csv:
+        if not "DISPLAY" in os.environ:
+            args.save = True
+
         try:
             import matplotlib.pyplot as plt
         except ImportError as err:
             print(err)
             print("[ERROR] No GUI library for rendering, consider to save as RLE '--csv'")
             exit(-1)
-
-        if not "DISPLAY" in os.environ:
-            print("[WARNING] No display screen detected"
-            args.save = True
 
         if args.save:
             print("[INFO] Save side-by-side prediction figure in 'data/predict' folder...")
