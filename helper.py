@@ -3,7 +3,7 @@ import json
 import numpy as np
 import torch
 from scipy import ndimage as ndi
-from skimage.morphology import label, watershed
+from skimage.morphology import label, watershed, remove_small_objects
 from skimage.feature import peak_local_max
 from skimage.measure import regionprops
 import config
@@ -105,7 +105,10 @@ def rle_encoding(y):
     return run_lengths
 
 def prob_to_rles(y):
-    lab_img = label(y > config.threshold)
+    y = y > config.threshold
+    if config.post_remove_objects:
+        y = remove_small_objects(y, min_size=config.min_object_size)
+    lab_img = label(y)
     if config.post_segmentation:
         lab_img = seg_ws(lab_img)
     for i in range(1, lab_img.max() + 1):

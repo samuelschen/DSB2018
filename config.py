@@ -28,3 +28,5 @@ threshold_edge = 0.7
 post_segmentation = True
 seg_ratio = 0.5
 seg_scale = 0.55
+post_remove_objects = True
+min_object_size = 5

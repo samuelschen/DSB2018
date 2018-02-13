@@ -11,7 +11,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 from skimage.transform import resize
-from skimage.morphology import label
+from skimage.morphology import label, remove_small_objects
 # own code
 import config
 from model import UNet, UNetVgg16, DCAN, CAUNet
@@ -124,6 +124,13 @@ def predict(model, dataset, compose, regrowth=True):
         # yield result
         yield uid, x, y, gt, y_s, gt_s, y_c, gt_c
 
+def _make_overlay(img_array):
+    img_array = img_array.astype(float)
+    img_array[img_array == 0] = np.nan # workaround: matplotlib cmap mistreat vmin(1) as background(0) sometimes
+    cmap = plt.get_cmap('prism') # prism for high frequence color bands
+    cmap.set_bad('w', alpha=0) # map background(0) as transparent/white
+    return img_array, cmap
+
 def show(uid, x, y):
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, sharey=True, figsize=(14, 6))
     fig.suptitle(uid, y=1)
@@ -137,10 +144,7 @@ def show(uid, x, y):
     y = label(y)
     if config.post_segmentation:
         y = seg_ws(y)
-    y = y.astype(float)
-    y[y == 0] = np.nan # workaround: matplotlib cmap mistreat vmin(1) as background(0) sometimes
-    cmap = plt.get_cmap('prism') # prism for high frequence color bands
-    cmap.set_bad('w', alpha=0) # map background(0) as transparent/white
+    y, cmap = _make_overlay(y)
     ax3.imshow(y, cmap=cmap, aspect='auto')
     # alpha
     ax4.imshow(x, aspect='auto')
@@ -155,73 +159,63 @@ def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c):
         fig, ax1 = plt.subplots(1, 4, sharey=True, figsize=(14, 6))
     fig.suptitle(uid, y=1)
 
-    ax1[0].imshow(x, aspect='auto')
     ax1[0].set_title('Image')
+    ax1[0].imshow(x, aspect='auto')
     y = y > config.threshold
-    ax1[1].imshow(y, cmap='gray', aspect='auto')
     _, count = label(y, return_num=True)
     ax1[1].set_title('Final Pred, Pre#={}'.format(count))
+    ax1[1].imshow(y, cmap='gray', aspect='auto')
     # overlay contour to semantic ground truth (another visualized view for instance ground truth, eg. gt)
-    ax1[2].imshow(gt_s, cmap='gray', aspect='auto')
-    gt_c2 = gt_c.astype(float)
-    gt_c2[gt_c2 == 0] = np.nan # workaround: matplotlib cmap mistreat vmin(1) as background(0) sometimes
-    cmap = plt.get_cmap('prism') # prism for high frequence color bands
-    cmap.set_bad('w', alpha=0) # map background(0) as transparent/white
-    ax1[2].imshow(gt_c2, cmap=cmap, alpha=0.7, aspect='auto')
     count = len(np.unique(gt)) - 1 # remove background
     ax1[2].set_title('Instance Lbls, #={}'.format(count))
-    # overlay
-    ax1[3].imshow(gt_s, cmap='gray', aspect='auto')
-    y2 = label(y)
+    ax1[2].imshow(gt_s, cmap='gray', aspect='auto')
+    gt_c2, cmap = _make_overlay(gt_c)
+    ax1[2].imshow(gt_c2, cmap=cmap, alpha=0.7, aspect='auto')
+    # overlay (applied post-processing)
+    if config.post_remove_objects:
+        y = remove_small_objects(y, min_size=config.min_object_size)
+    y = label(y)
     if config.post_segmentation:
-        y2 = seg_ws(y2)
-    _, count = label(y2, return_num=True)
-    iou = iou_metric(y2, gt, instance_level=True)
-    y2 = y2.astype(float)
-    y2[y2 == 0] = np.nan # workaround: matplotlib cmap mistreat vmin(1) as background(0) sometimes
-    cmap = plt.get_cmap('prism') # prism for high frequence color bands
-    cmap.set_bad('w', alpha=0) # map background(0) as transparent/white
-    ax1[3].imshow(y2, cmap=cmap, alpha=0.3, aspect='auto')
+        y = seg_ws(y)
+    iou = iou_metric(y, gt, instance_level=True)
+    _, count = label(y, return_num=True)
     ax1[3].set_title('Overlay, Post#={}, IoU={:.3f}'.format(count, iou))
+    ax1[3].imshow(gt_s, cmap='gray', aspect='auto')
+    y, cmap = _make_overlay(y)
+    ax1[3].imshow(y, cmap=cmap, alpha=0.3, aspect='auto')
 
     if y_s is not None and y_c is not None:
-        ax2[0].imshow(x, aspect='auto')
         ax2[0].set_title('Image')
+        ax2[0].imshow(x, aspect='auto')
         y_s = y_s > config.threshold_sgmt
-        ax2[1].imshow(y_s, cmap='gray', aspect='auto')
         _, count = label(y_s, return_num=True)
         ax2[1].set_title('Semantic Predict, #={}'.format(count))
-        ax2[2].imshow(gt_s, cmap='gray', aspect='auto')
+        ax2[1].imshow(y_s, cmap='gray', aspect='auto')
         _, count = label(gt_s, return_num=True)
         ax2[2].set_title('Semantic Lbls, #={}'.format(count))
+        ax2[2].imshow(gt_s, cmap='gray', aspect='auto')
         # overlay
-        ax2[3].imshow(gt_s, cmap='gray', aspect='auto')
-        y_s2 = label(y_s)
-        y_s2 = y_s2.astype(float)
-        y_s2[y_s2 == 0] = np.nan # workaround: matplotlib cmap mistreat vmin(1) as background(0) sometimes
-        cmap = plt.get_cmap('prism') # prism for high frequence color bands
-        cmap.set_bad('w', alpha=0) # map background(0) as transparent/white
-        ax2[3].imshow(y_s2, cmap=cmap, alpha=0.3, aspect='auto')
         ax2[3].set_title('Overlay(Semantic)')
+        ax2[3].imshow(gt_s, cmap='gray', aspect='auto')
+        y_s = label(y_s)
+        y_s, cmap = _make_overlay(y_s)
+        ax2[3].imshow(y_s, cmap=cmap, alpha=0.3, aspect='auto')
 
-        ax3[0].imshow(x, aspect='auto')
         ax3[0].set_title('Image')
+        ax3[0].imshow(x, aspect='auto')
         y_c = y_c > config.threshold_edge
-        ax3[1].imshow(y_c, cmap='gray', aspect='auto')
         _, count = label(y_c, return_num=True)
         ax3[1].set_title('Contour Predict, #={}'.format(count))
-        ax3[2].imshow(gt_c, cmap='gray', aspect='auto')
+        ax3[1].imshow(y_c, cmap='gray', aspect='auto')
         _, count = label(gt_c, return_num=True)
         ax3[2].set_title('Contour Lbls, #={}'.format(count))
+        ax3[2].imshow(gt_c, cmap='gray', aspect='auto')
         # overlay
-        ax3[3].imshow(gt_c, cmap='gray', aspect='auto')
-        y_c2 = label(y_c)
-        y_c2 = y_c2.astype(float)
-        y_c2[y_c2 == 0] = np.nan # workaround: matplotlib cmap mistreat vmin(1) as background(0) sometimes
-        cmap = plt.get_cmap('prism') # prism for high frequence color bands
-        cmap.set_bad('w', alpha=0) # map background(0) as transparent/white
-        ax3[3].imshow(y_c2, cmap=cmap, alpha=0.3, aspect='auto')
         ax3[3].set_title('Overlay(Contour)')
+        ax3[3].imshow(gt_c, cmap='gray', aspect='auto')
+        y_c = label(y_c)
+        y_c, cmap = _make_overlay(y_c)
+        ax3[3].imshow(y_c, cmap=cmap, alpha=0.3, aspect='auto')
 
     plt.tight_layout()
     plt.show()
