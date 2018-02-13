@@ -155,9 +155,14 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
         current.json   ckpt-10.pkl
     ```
 
-* Evaluate test dataset, will show side-by-side images on screen. Specify ` --save ` to save as files
+* Evaluate on test dataset, will show side-by-side images on screen. Specify ` --save ` to save as files
     ```
     $ python3 valid.py
+    ```
+
+* Evaluate on train dataset with ground truth, will show side-by-side images & IoU on screen. Specify ` --save ` to save as files
+    ```
+    $ python3 valid.py --dataset train
     ```
 
 * Generate running length encoding of test dataset
