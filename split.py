@@ -9,9 +9,9 @@ from PIL import Image
 def split(image, uid, root, folder):
     w, h = image.size
     for y in range(0, h, 100):
-        for x in range(0, w, 100):
-            w_ = min(125, w - x)
-            h_ = min(125, h - y)
+        for x in range(0, w, 200):
+            w_ = min(256, w - x)
+            h_ = min(256, h - y)
             crop = image.crop((x, y, x + w_, y + h_))
             if np.sum(crop) == 0:
                 continue # ignore empty crop
