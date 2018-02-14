@@ -275,9 +275,10 @@ class Compose():
 
         if self.toAugment:
             # perform RandomResizedCrop()
+            scale = config.resized_crop_cell_scale if config.cell_level else config.resized_crop_slice_scale
             i, j, h, w = transforms.RandomResizedCrop.get_params(
                 image,
-                scale=config.resized_crop_scale,
+                scale=scale,
                 ratio=(3. / 4., 4. / 3.)
             )
             image = tx.resized_crop(image, i, j, h, w, self.size)
@@ -309,7 +310,7 @@ class Compose():
                 label_gt = ElasticDistortion.transform(label_gt, indices)
 
             if self.toContour: # replaced with 'thinner' contour based on augmented/transformed mask
-                label_e = contour(sample['uid'], label)
+                label_e = contour(sample['uid'], label, config.cell_level)
 
             # perform random color invert, assuming 3 channels (rgb) images
             if self.toInvert and random.random() > 0.5:
@@ -364,11 +365,13 @@ class Compose():
             x = self.pil(x)
             x.show()
 
-def contour(uid, mask_img):
+def contour(uid, mask_img, cell_level=config.cell_level):
     id_list = uid.split('/')
     img_id = id_list[0]
     edge = filters.scharr(mask_img)
-    scharr_threshold = 0. if img_id in bright_field_list else (np.amax(abs(edge)) / 2.)
+    scharr_threshold = np.amax(abs(edge)) / 2.
+    if not cell_level and (img_id in bright_field_list):
+        scharr_threshold = 0. # nuclei are much smaller than others in bright_field slice
     edge = (np.abs(edge) > scharr_threshold).astype(np.uint8)*255
     return Image.fromarray(edge, 'L')
 
@@ -427,7 +430,7 @@ if __name__ == '__main__':
     compose = Compose(augment=True)
     # train = KaggleDataset('data/stage1_train', category='Histology')
     train = NuclearDataset('data/stage1_train', category='Histology')
-    idx = random.randint(0, len(train))
+    idx = random.randint(0, len(train)-1)
     sample = train[idx]
     print(sample['uid'])
     # display original image

@@ -19,7 +19,8 @@ color_invert = False
 color_jitter = True
 elastic_distortion = True
 color_equalize = False
-resized_crop_scale = (1.0, 1.0) # for whole slide, use (0.5, 1.0); for single nuclei, use (1.0, 1.0)
+resized_crop_slice_scale = (0.5, 1.0)
+resized_crop_cell_scale = (1.0, 1.0)
 detect_contour = True
 # data cleanup
 fill_holes = True
@@ -34,3 +35,4 @@ post_remove_objects = True
 min_object_size = 5
 # nuclei bounding box margin
 bbox_margin = 5
+cell_level = False
