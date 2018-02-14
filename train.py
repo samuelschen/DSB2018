@@ -12,24 +12,37 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from tensorboardX import SummaryWriter
 # own code
-import config
 from model import UNet, UNetVgg16, CAUNet, DCAN
 from dataset import KaggleDataset, NuclearDataset, Compose
-from helper import AverageMeter, iou_mean, save_ckpt, load_ckpt
+from helper import config, AverageMeter, iou_mean, save_ckpt, load_ckpt
 from loss import criterion, criterion_segment, criterion_contour
 
 
-def main(args):
-    if args.model == 'unet_vgg16':
+def main(resume=True, n_epoch=None, learn_rate=None):
+    model_name = config['param']['model']
+    cv_ratio = config['param'].getfloat('cv_ratio')
+    if learn_rate is None:
+        learn_rate = config['param'].getfloat('learn_rate')
+    width = config[model_name].getint('width')
+    cell_level = config['param'].getboolean('cell_level')
+    c = config['train']
+    log_name = c.get('log_name')
+    n_batch = c.getint('n_batch')
+    n_worker = c.getint('n_worker')
+    n_ckpt_epoch = c.getint('n_ckpt_epoch')
+    if n_epoch is None:
+        n_epoch = c.getint('n_epoch')
+
+    if model_name == 'unet_vgg16':
         model = UNetVgg16(3, 1, fixed_vgg=True)
-    elif args.model == 'dcan':
+    elif model_name == 'dcan':
         model = DCAN(3, 1)
-    elif args.model == 'caunet':
+    elif model_name == 'caunet':
         model = CAUNet()
     else:
         model = UNet()
 
-    if config.cuda:
+    if torch.cuda.is_available():
         model = model.cuda()
         # model = torch.nn.DataParallel(model).cuda()
 
@@ -47,60 +60,60 @@ def main(args):
     manager = Manager()
     cache = manager.dict()
     # prepare dataset and loader
-    if config.cell_level:
+    if cell_level:
         dataset = NuclearDataset('data/stage1_train', transform=Compose(), cache=cache)
     else:
         dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache)
-    # dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache, category='Histology')
+        # dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache, category='Histology')
     train_idx, valid_idx = dataset.split()
     train_loader = DataLoader(
         dataset, sampler=SubsetRandomSampler(train_idx),
-        batch_size=config.n_batch,
-        num_workers=config.n_worker,
-        pin_memory=config.cuda)
+        batch_size=n_batch,
+        num_workers=n_worker,
+        pin_memory=torch.cuda.is_available())
     valid_loader = DataLoader(
         dataset, sampler=SubsetRandomSampler(valid_idx),
-        batch_size=config.n_batch,
-        num_workers=config.n_worker)
+        batch_size=n_batch,
+        num_workers=n_worker)
 
     # resume checkpoint
     start_epoch = 0
-    if args.resume:
+    if resume:
         start_epoch = load_ckpt(model, optimizer)
     if start_epoch == 0:
         print('Grand new training ...')
 
     # decide log directory name
     log_dir = os.path.join(
-        'logs', config.model_name, '{}'.format(config.width),
+        'logs', log_name, '{}-{}'.format(model_name, width),
         'ep_{},{}-lr_{}'.format(
             start_epoch,
-            args.epoch + start_epoch,
-            args.learn_rate,
+            n_epoch + start_epoch,
+            learn_rate,
         )
     )
 
     with SummaryWriter(log_dir) as writer:
         if start_epoch == 0 and False:
             # dump graph only for very first training, disable by default
-            dump_graph(model, writer) 
+            dump_graph(model, writer, n_batch, width)
         print('Training started...')
-        for epoch in range(start_epoch, args.epoch + start_epoch):
+        for epoch in range(start_epoch, n_epoch + start_epoch):
             train(train_loader, model, cost, optimizer, epoch, writer)
-            if config.cv_ratio > 0 and epoch % 3 == 2:
+            if cv_ratio > 0 and epoch % 3 == 2:
                 valid(valid_loader, model, cost, epoch, writer, len(train_loader))
             # save checkpoint per n epoch
-            if epoch % config.n_ckpt_epoch == config.n_ckpt_epoch - 1:
+            if epoch % n_ckpt_epoch == n_ckpt_epoch - 1:
                 save_ckpt(model, optimizer, epoch+1)
         print('Training finished...')
 
-def dump_graph(model, writer):
+def dump_graph(model, writer, n_batch, width):
     # Prerequisite
     # $ sudo apt-get install libprotobuf-dev protobuf-compiler
     # $ pip3 install onnx
     print('Dump model graph...')
-    dummy_input = Variable(torch.rand(config.n_batch, 4, config.width, config.width))
-    if config.cuda:
+    dummy_input = Variable(torch.rand(n_batch, 3, width, width))
+    if torch.cuda.is_available():
         dummy_input = dummy_input.cuda()
     torch.onnx.export(model, dummy_input, "checkpoint/model.pb", verbose=False)
     writer.add_graph_onnx("checkpoint/model.pb")
@@ -113,6 +126,10 @@ def train(loader, model, cost, optimizer, epoch, writer):
     iou_s = AverageMeter()  # semantic IoU
     if isinstance(model, DCAN) or isinstance(model, CAUNet):
         iou_c = AverageMeter() # contour IoU
+        model_name = config['param']['model']
+        threshold_sgmt = config[model_name].getfloat('threshold_sgmt')
+        threshold_edge = config[model_name].getfloat('threshold_edge')
+    print_freq = config['train'].getfloat('print_freq')
     # Sets the module in training mode.
     model.train()
     end = time.time()
@@ -122,7 +139,7 @@ def train(loader, model, cost, optimizer, epoch, writer):
         data_time.update(time.time() - end)
         # get the inputs
         inputs, labels, labels_e = data['image'], data['label'], data['label_e']
-        if config.cuda:
+        if torch.cuda.is_available():
             inputs, labels, labels_e = inputs.cuda(async=True), labels.cuda(async=True), labels_e.cuda(async=True)
         # wrap them in Variable
         inputs, labels, labels_e = Variable(inputs), Variable(labels), Variable(labels_e)
@@ -137,15 +154,15 @@ def train(loader, model, cost, optimizer, epoch, writer):
             batch_iou_c = iou_mean(outputs_c, labels_e)
             iou_s.update(batch_iou_s, inputs.size(0))
             iou_c.update(batch_iou_c, inputs.size(0))
-            cond1 = (outputs_s >= config.threshold_sgmt)
-            cond2 = (outputs_c < config.threshold_edge)
+            cond1 = (outputs_s >= threshold_sgmt)
+            cond2 = (outputs_c < threshold_edge)
             outputs = (cond1 * cond2)
         else:
             outputs = model(inputs)
-            loss = cost(outputs, labels_e) if config.train_contour_only else cost(outputs, labels)
+            loss = cost(outputs, labels_e) if config['pre'].getboolean('train_contour_only') else cost(outputs, labels)
 
         # measure accuracy and record loss
-        batch_iou = iou_mean(outputs, labels_e) if config.train_contour_only else cost(outputs, labels)
+        batch_iou = iou_mean(outputs, labels_e) if config['pre'].getboolean('train_contour_only') else cost(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
 
         losses.update(loss.data[0], inputs.size(0))
@@ -166,7 +183,7 @@ def train(loader, model, cost, optimizer, epoch, writer):
             writer.add_scalar('training/epoch_iou_s', iou_s.avg, step)
             writer.add_scalar('training/batch_iou_c', iou_c.val, step)
             writer.add_scalar('training/epoch_iou_c', iou_c.avg, step)
-            if (i + 1) % config.print_freq == 0:
+            if (i + 1) % print_freq == 0:
                 print(
                     'Epoch: [{0}][{1}/{2}]\t'
                     'Time: {batch_time.avg:.3f} (io: {data_time.avg:.3f})\t\t'
@@ -181,7 +198,7 @@ def train(loader, model, cost, optimizer, epoch, writer):
                     )
                 )
         else:
-            if (i + 1) % config.print_freq == 0:
+            if (i + 1) % print_freq == 0:
                 print(
                     'Epoch: [{0}][{1}/{2}]\t'
                     'Time: {batch_time.avg:.3f} (io: {data_time.avg:.3f})\t\t'
@@ -198,6 +215,9 @@ def valid(loader, model, cost, epoch, writer, n_step):
     iou_s = AverageMeter() # semantic IoU
     if isinstance(model, DCAN) or isinstance(model, CAUNet):
         iou_c = AverageMeter() # contour IoU
+        model_name = config['param']['model']
+        threshold_sgmt = config[model_name].getfloat('threshold_sgmt')
+        threshold_edge = config[model_name].getfloat('threshold_edge')
     losses = AverageMeter()
 
     # Sets the model in evaluation mode.
@@ -205,7 +225,7 @@ def valid(loader, model, cost, epoch, writer, n_step):
     for i, data in enumerate(loader):
         # get the inputs
         inputs, labels, labels_e = data['image'], data['label'], data['label_e']
-        if config.cuda:
+        if torch.cuda.is_available():
             inputs, labels, labels_e = inputs.cuda(), labels.cuda(), labels_e.cuda()
         # wrap them in Variable
         inputs, labels, labels_e = Variable(inputs), Variable(labels), Variable(labels_e)
@@ -219,15 +239,15 @@ def valid(loader, model, cost, epoch, writer, n_step):
             batch_iou_c = iou_mean(outputs_c, labels_e)
             iou_s.update(batch_iou_s, inputs.size(0))
             iou_c.update(batch_iou_c, inputs.size(0))
-            cond1 = (outputs_s >= config.threshold_sgmt)
-            cond2 = (outputs_c < config.threshold_edge)
+            cond1 = (outputs_s >= threshold_sgmt)
+            cond2 = (outputs_c < threshold_edge)
             outputs = (cond1 * cond2)
         else:
             outputs = model(inputs)
-            loss = cost(outputs, labels_e) if config.train_contour_only else cost(outputs, labels)
+            loss = cost(outputs, labels_e) if config['pre'].getboolean('train_contour_only') else cost(outputs, labels)
 
         # measure accuracy and record loss
-        batch_iou = iou_mean(outputs, labels_e) if config.train_contour_only else cost(outputs, labels)
+        batch_iou = iou_mean(outputs, labels_e) if config['pre'].getboolean('train_contour_only') else cost(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
         losses.update(loss.data[0], inputs.size(0))
 
@@ -259,20 +279,14 @@ def valid(loader, model, cost, epoch, writer, n_step):
         )
 
 if __name__ == '__main__':
+    learn_rate = config['param'].getfloat('learn_rate')
+    n_epoch = config['train'].getint('n_epoch')
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', action='store', choices=['unet', 'unet_vgg16', 'caunet', 'dcan'], help='model name')
     parser.add_argument('--resume', dest='resume', action='store_true')
     parser.add_argument('--no-resume', dest='resume', action='store_false')
-    parser.add_argument('--cuda', dest='cuda', action='store_true')
-    parser.add_argument('--no-cuda', dest='cuda', action='store_false')
     parser.add_argument('--epoch', type=int, help='run number of epoch')
     parser.add_argument('--lr', type=float, dest='learn_rate', help='learning rate')
-    parser.set_defaults(
-        resume=True, cuda=config.cuda, epoch=config.n_epoch,
-        learn_rate=config.learn_rate, model='unet')
+    parser.set_defaults(resume=True, epoch=n_epoch, learn_rate=learn_rate)
     args = parser.parse_args()
 
-    # final check whether cuda is avaiable
-    config.cuda = torch.cuda.is_available() and args.cuda
-
-    main(args)
+    main(args.resume, args.epoch, args.learn_rate)

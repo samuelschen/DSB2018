@@ -1,6 +1,7 @@
 import os
 import random
 import numpy as np
+import json
 
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
@@ -21,7 +22,7 @@ import pandas as pd
 import warnings
 warnings.filterwarnings("ignore")
 
-import config
+from helper import config
 
 bright_field_list = [
     '091944f1d2611c916b98c020bd066667e33f4639159b2a92407fe5a40788856d',
@@ -100,7 +101,7 @@ class KaggleDataset(Dataset):
                     m = imread(fp)
                     if (m.ndim > 2):
                         m = np.mean(m, -1).astype(np.uint8)
-                    if config.fill_holes:
+                    if config['pre'].getboolean('fill_holes'):
                         m = binary_fill_holes(m).astype(np.uint8)*255
                     label = np.maximum(label, m) # merge semantic mask
                     edge = contour(uid, m)
@@ -129,11 +130,11 @@ class KaggleDataset(Dataset):
         indices = list(range(n))
         # random shuffle the list
         s = random.getstate()
-        random.seed(config.cv_seed)
+        random.seed(config['param'].getint('cv_seed'))
         random.shuffle(indices)
         random.setstate(s)
         # return splitted lists
-        split = int(np.floor(config.cv_ratio * n))
+        split = int(np.floor(config['param'].getfloat('cv_ratio') * n))
         return indices[split:], indices[:split]
 
 
@@ -169,7 +170,9 @@ class NuclearDataset(Dataset):
     def __len__(self):
         return len(self.ids)
 
-    def _bbox(self, img_array, margin=config.bbox_margin):
+    def _bbox(self, img_array):
+        model_name = config['param']['model']
+        margin = config[model_name].getint('bbox_margin')
         h, w = img_array.shape
         rows = np.any(img_array, axis=1)
         cols = np.any(img_array, axis=0)
@@ -182,12 +185,15 @@ class NuclearDataset(Dataset):
         return cmin, rmin, cmax+1, rmax+1
 
     def _crop_example(self, image, img_id, mask_id):
+        min_object_size = config['pre'].getint('min_object_size')
+        fill_holes = config['pre'].getboolean('fill_holes')
+
         mask_name = os.path.join(self.root, img_id, 'masks', mask_id)
         mask = imread(mask_name)
         if (mask.ndim > 2):
             mask = np.mean(mask, -1).astype(np.uint8)
-        mask = remove_small_objects(mask, min_size=config.min_object_size)
-        if config.fill_holes:
+        mask = remove_small_objects(mask, min_object_size)
+        if fill_holes:
             mask = binary_fill_holes(mask).astype(np.uint8)*255
         left, top, right, bottom = self._bbox(mask)
         def crop(img_array, left, top, right, bottom):
@@ -213,7 +219,7 @@ class NuclearDataset(Dataset):
             crop_edge = contour(uid, crop_mask)
             w, h = crop_img.size
             sample = {'image': crop_img, 'label': crop_mask, 'label_e': crop_edge, 'uid': uid, 'size': image.size}
-            sample['label_gt'] = crop_edge if config.train_contour_only else crop_mask
+            sample['label_gt'] = crop_edge if config['pre'].getboolean('train_contour_only') else crop_mask
             if self.cache is not None:
                 self.cache[uid] = sample
         else:
@@ -227,7 +233,7 @@ class NuclearDataset(Dataset):
             crop_edge = contour(uid, crop_mask)
             w, h = crop_img.size
             sample = {'image': crop_img, 'label': crop_mask, 'label_e': crop_edge, 'uid': uid, 'size': image.size}
-            sample['label_gt'] = crop_edge if config.train_contour_only else crop_mask
+            sample['label_gt'] = crop_edge if config['pre'].getboolean('train_contour_only') else crop_mask
             if self.cache is not None:
                 self.cache[uid] = sample
                 self.cache[img_id] = image
@@ -241,27 +247,38 @@ class NuclearDataset(Dataset):
         indices = list(range(n))
         # random shuffle the list
         s = random.getstate()
-        random.seed(config.cv_seed)
+        random.seed(config['param'].getint('cv_seed'))
         random.shuffle(indices)
         random.setstate(s)
         # return splitted lists
-        split = int(np.floor(config.cv_ratio * n))
+        split = int(np.floor(config['param'].getfloat('cv_ratio') * n))
         return indices[split:], indices[:split]
 
 
 class Compose():
     def __init__(self, augment=True, tensor=True):
-        self.size = (config.width, config.width)
-        self.mean = config.mean
-        self.std = config.std
-        self.toBinary = config.label_to_binary
-        self.toInvert = config.color_invert
-        self.toJitter = config.color_jitter
-        self.toDistortion = config.elastic_distortion
-        self.toEqualize = config.color_equalize
+        model_name = config['param']['model']
+        width = config[model_name].getint('width')
+        self.size = (width, width)
+        self.cell_level = config['param'].getboolean('cell_level')
+
+        c = config['pre']
+        self.mean = json.loads(c.get('mean'))
+        self.std = json.loads(c.get('std'))
+        self.toBinary = c.getboolean('label_to_binary')
+        self.toInvert = c.getboolean('color_invert')
+        self.toJitter = c.getboolean('color_jitter')
+        self.toDistortion = c.getboolean('elastic_distortion')
+        self.toEqualize = c.getboolean('color_equalize')
         self.toTensor = tensor
         self.toAugment = augment
-        self.toContour = config.detect_contour
+        self.toContour = c.getboolean('detect_contour')
+        min_crop = c.getfloat('min_crop_scale')
+        max_crop = c.getfloat('max_crop_scale')
+        if self.cell_level:
+            self.cell_scale = (max_crop, max_crop)
+        else:
+            self.cell_scale = (min_crop, max_crop)
 
     def __call__(self, sample):
         image, label, label_e, label_gt = sample['image'], sample['label'], sample['label_e'], sample['label_gt']
@@ -271,10 +288,9 @@ class Compose():
 
         if self.toAugment:
             # perform RandomResizedCrop()
-            scale = config.resized_crop_cell_scale if config.cell_level else config.resized_crop_slice_scale
             i, j, h, w = transforms.RandomResizedCrop.get_params(
                 image,
-                scale=scale,
+                scale=self.cell_scale,
                 ratio=(3. / 4., 4. / 3.)
             )
             # label_gt should not be used, applied transformation for consistent dimensions
@@ -294,7 +310,7 @@ class Compose():
                 image, label, label_e, label_gt = [ElasticDistortion.transform(x, indices) for x in (image, label, label_e, label_gt)]
 
             if self.toContour: # replaced with 'thinner' contour based on augmented/transformed mask
-                label_e = contour(sample['uid'], label, config.cell_level)
+                label_e = contour(sample['uid'], label)
 
             # perform random color invert, assuming 3 channels (rgb) images
             if self.toInvert and random.random() > 0.5:
@@ -346,7 +362,8 @@ class Compose():
             x = self.pil(x)
             x.show()
 
-def contour(uid, mask_img, cell_level=config.cell_level):
+def contour(uid, mask_img):
+    cell_level = config['param'].getboolean('cell_level')
     id_list = uid.split('/')
     img_id = id_list[0]
     edge = filters.scharr(mask_img)
@@ -409,10 +426,8 @@ class ElasticDistortion():
 
 if __name__ == '__main__':
     compose = Compose(augment=True)
-    if config.cell_level:
-        train = NuclearDataset('data/stage1_train', category='Histology')
-    else:
-        train = KaggleDataset('data/stage1_train', category='Histology')
+    train = KaggleDataset('data/stage1_train', category='Histology')
+    #train = NuclearDataset('data/stage1_train', category='Histology')
     idx = random.randint(0, len(train)-1)
     sample = train[idx]
     print(sample['uid'])

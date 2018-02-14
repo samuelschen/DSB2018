@@ -6,7 +6,25 @@ from scipy import ndimage as ndi
 from skimage.morphology import label, watershed, remove_small_objects
 from skimage.feature import peak_local_max
 from skimage.measure import regionprops
-import config
+import configparser
+
+# config related handling
+def run_once(func):
+    ''' a declare wrapper function to call only once, use @run_once declare keyword '''
+    def wrapper(*args, **kwargs):
+        if 'result' not in wrapper.__dict__:
+            wrapper.result = func(*args, **kwargs)
+        return wrapper.result
+    return wrapper
+
+@run_once
+def read_config():
+    conf = configparser.ConfigParser()
+    candidates = ['config_default.ini', 'config.ini']
+    conf.read(candidates)
+    return conf
+
+config = read_config() # keep the line as top as possible
 
 # copy from https://github.com/pytorch/examples/blob/master/imagenet/main.py#L139
 class AverageMeter():
@@ -28,11 +46,13 @@ class AverageMeter():
 
 # copy from https://www.kaggle.com/aglotero/another-iou-metric
 def iou_metric(y_pred_in, y_true_in, instance_level=False, print_table=False):
-    y_pred = label(y_pred_in > config.threshold)
+    threshold = config['param'].getfloat('threshold')
+
+    y_pred = label(y_pred_in > threshold)
     if instance_level:
         labels = y_true_in
     else:
-        labels = label(y_true_in > config.threshold)
+        labels = label(y_true_in > threshold)
 
     true_objects = len(np.unique(labels))
     pred_objects = len(np.unique(y_pred))
@@ -105,11 +125,16 @@ def rle_encoding(y):
     return run_lengths
 
 def prob_to_rles(y):
-    y = y > config.threshold
-    if config.post_remove_objects:
-        y = remove_small_objects(y, min_size=config.min_object_size)
+    threshold = config['param'].getfloat('threshold')
+    segmentation = config['post'].getboolean('segmentation')
+    remove_objects = config['post'].getboolean('remove_objects')
+    min_object_size = config['post'].getint('min_object_size')
+
+    y = y > threshold
+    if remove_objects:
+        y = remove_small_objects(y, min_size=min_object_size)
     lab_img = label(y)
-    if config.post_segmentation:
+    if segmentation:
         lab_img = seg_ws(lab_img)
     for i in range(1, lab_img.max() + 1):
         yield rle_encoding(lab_img == i)
@@ -147,7 +172,7 @@ def load_ckpt(model, optimizer=None):
     epoch = 0
     if os.path.isfile(ckpt):
         print("Loading checkpoint '{}'".format(ckpt))
-        if config.cuda:
+        if torch.cuda.is_available():
             # Load all tensors onto previous state
             checkpoint = torch.load(ckpt)
         else:
@@ -177,7 +202,10 @@ def evaluate_size(image, ratio):
     return size_index
 
 # Segment image with watershed algorithm.
-def seg_ws(image, size_scale=config.seg_scale, ratio=config.seg_ratio):
+def seg_ws(image):
+    size_scale=config['post'].getfloat('seg_scale')
+    ratio=config['post'].getfloat('seg_ratio')
+
     #Calculate the average size of the image.
     size_index = evaluate_size(image, ratio)
     """

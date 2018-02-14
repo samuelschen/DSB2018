@@ -93,7 +93,6 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 ```
 .
 ├── README.md
-├── config.py
 ├── data
     ├── stage1_test
     │   ├── 0114f484a16c152baa2d82fdd43740880a762c93f436c8988ac461c5c9dbe7d5
@@ -110,7 +109,6 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
         ```
         .
         ├── README.md
-        ├── config.py
         ├── data
             ├── stage1_test.csv <--- rename to this
             ├── stage1_test
@@ -133,12 +131,27 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
         # dataset = KaggleDataset('data/stage1_test', transform=compose, category='Histology')
         ```
 
+## Change default configuration
+
+Create a ` config.ini ` file, in which you may overwrite any setting in config_default.ini
+```
+; copy and modify customer setting, for example
+;
+[param]
+model = unet_nuclei
+
+[train]
+learn_rate = 0.0003
+n_batch = 64
+```
+
+
 ## Command line usage
 
 * Train model
     ```
     $ python3 train.py
-        usage: train.py [-h] [--resume] [--no-resume] [--cuda] [--no-cuda] [--epoch EPOCH]
+        usage: train.py [-h] [--resume] [--no-resume] [--epoch EPOCH] [--lr LEARN_RATE]
 
         Grand new training ...
         Training started...
