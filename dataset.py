@@ -60,10 +60,10 @@ class KaggleDataset(Dataset):
                 # filter only sub-category
                 ok &= df['category'] == category
             df = df[ok]
-            self.ids = df['image_id'].sort_values()
+            self.ids = list(df['image_id'])
         else:
             self.ids = next(os.walk(root))[1]
-            self.ids.sort()
+        self.ids.sort()
         self.cache = cache
 
     def __len__(self):
@@ -155,21 +155,15 @@ class NuclearDataset(Dataset):
                 # filter only sub-category
                 ok &= df['category'] == category
             df = df[ok]
-            cids = []
-            for cid in df['image_id'].sort_values():
-                mask_dir = os.path.join(root, cid, 'masks')
-                for mask in next(os.walk(mask_dir))[2]:
-                    cids.append(cid + '/' + mask)
-            self.ids = cids
-            self.ids.sort()
+            cids = list(df['image_id'])
         else:
-            cids = []
-            for cid in next(os.walk(root))[1]:
-                mask_dir = os.path.join(root, cid, 'masks')
-                for mask in next(os.walk(mask_dir))[2]:
-                    cids.append(cid + '/' + mask)
-            self.ids = cids
-            self.ids.sort()
+            cids = next(os.walk(root))[1]
+        self.ids = []
+        for cid in cids:
+            mask_dir = os.path.join(root, cid, 'masks')
+            for mask in next(os.walk(mask_dir))[2]:
+                self.ids.append(cid + '/' + mask)
+        self.ids.sort()
         self.cache = cache
 
     def __len__(self):
