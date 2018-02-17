@@ -14,7 +14,7 @@ from tensorboardX import SummaryWriter
 # own code
 import config
 from model import UNet, UNetVgg16, CAUNet, DCAN
-from dataset import KaggleDataset, Compose
+from dataset import KaggleDataset, NuclearDataset, Compose
 from helper import AverageMeter, iou_mean, save_ckpt, load_ckpt
 from loss import criterion, criterion_segment, criterion_contour
 
@@ -31,7 +31,7 @@ def main(args):
 
     if config.cuda:
         model = model.cuda()
-        #model = torch.nn.DataParallel(model).cuda()
+        # model = torch.nn.DataParallel(model).cuda()
 
     if isinstance(model, DCAN) or isinstance(model, CAUNet):
         cost = (criterion_segment, criterion_contour)
@@ -47,7 +47,10 @@ def main(args):
     manager = Manager()
     cache = manager.dict()
     # prepare dataset and loader
-    dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache)
+    if config.cell_level:
+        dataset = NuclearDataset('data/stage1_train', transform=Compose(), cache=cache)
+    else:
+        dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache)
     # dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache, category='Histology')
     train_idx, valid_idx = dataset.split()
     train_loader = DataLoader(
@@ -139,10 +142,10 @@ def train(loader, model, cost, optimizer, epoch, writer):
             outputs = (cond1 * cond2)
         else:
             outputs = model(inputs)
-            loss = cost(outputs, labels)
+            loss = cost(outputs, labels_e) if config.train_contour_only else cost(outputs, labels)
 
         # measure accuracy and record loss
-        batch_iou = iou_mean(outputs, labels)
+        batch_iou = iou_mean(outputs, labels_e) if config.train_contour_only else cost(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
 
         losses.update(loss.data[0], inputs.size(0))
@@ -221,10 +224,10 @@ def valid(loader, model, cost, epoch, writer, n_step):
             outputs = (cond1 * cond2)
         else:
             outputs = model(inputs)
-            loss = cost(outputs, labels)
+            loss = cost(outputs, labels_e) if config.train_contour_only else cost(outputs, labels)
 
         # measure accuracy and record loss
-        batch_iou = iou_mean(outputs, labels)
+        batch_iou = iou_mean(outputs, labels_e) if config.train_contour_only else cost(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
         losses.update(loss.data[0], inputs.size(0))
 

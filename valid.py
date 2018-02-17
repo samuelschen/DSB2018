@@ -16,7 +16,7 @@ from tqdm import tqdm
 # own code
 import config
 from model import UNet, UNetVgg16, DCAN, CAUNet
-from dataset import KaggleDataset, Compose
+from dataset import KaggleDataset, NuclearDataset, Compose
 from helper import load_ckpt, prob_to_rles, seg_ws, iou_metric
 
 def main(args):
@@ -30,6 +30,7 @@ def main(args):
         model = UNet()
     if config.cuda:
         model = model.cuda()
+        # model = torch.nn.DataParallel(model).cuda()
     # Sets the model in evaluation mode.
     model.eval()
 
@@ -41,7 +42,10 @@ def main(args):
     # prepare dataset
     compose = Compose(augment=False)
     data_dir = 'data/stage1_test' if args.dataset == 'test' else 'data/stage1_train'
-    dataset = KaggleDataset(data_dir, transform=compose)
+    if config.cell_level:
+        dataset = NuclearDataset(data_dir, transform=compose)
+    else:
+        dataset = KaggleDataset(data_dir, transform=compose)
     # dataset = KaggleDataset(data_dir, transform=compose, category='Histology')
     iter = predict(model, dataset, compose)
 

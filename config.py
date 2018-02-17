@@ -22,6 +22,7 @@ color_equalize = False
 resized_crop_slice_scale = (0.5, 1.0)
 resized_crop_cell_scale = (1.0, 1.0)
 detect_contour = True
+train_contour_only = False
 # data cleanup
 fill_holes = True
 # dcan multitask threshold

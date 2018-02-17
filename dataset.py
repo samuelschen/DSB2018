@@ -212,7 +212,8 @@ class NuclearDataset(Dataset):
             crop_mask = Image.fromarray(crop_mask, 'L')
             crop_edge = contour(uid, crop_mask)
             w, h = crop_img.size
-            sample = {'image': crop_img, 'label': crop_mask, 'label_e': crop_edge, 'label_gt': crop_mask, 'uid': uid, 'size': image.size}
+            sample = {'image': crop_img, 'label': crop_mask, 'label_e': crop_edge, 'uid': uid, 'size': image.size}
+            sample['label_gt'] = crop_edge if config.train_contour_only else crop_mask
             if self.cache is not None:
                 self.cache[uid] = sample
         else:
@@ -225,7 +226,8 @@ class NuclearDataset(Dataset):
             crop_mask = Image.fromarray(crop_mask, 'L')
             crop_edge = contour(uid, crop_mask)
             w, h = crop_img.size
-            sample = {'image': crop_img, 'label': crop_mask, 'label_e': crop_edge, 'label_gt': crop_mask, 'uid': uid, 'size': image.size}
+            sample = {'image': crop_img, 'label': crop_mask, 'label_e': crop_edge, 'uid': uid, 'size': image.size}
+            sample['label_gt'] = crop_edge if config.train_contour_only else crop_mask
             if self.cache is not None:
                 self.cache[uid] = sample
                 self.cache[img_id] = image
@@ -275,33 +277,21 @@ class Compose():
                 scale=scale,
                 ratio=(3. / 4., 4. / 3.)
             )
-            image = tx.resized_crop(image, i, j, h, w, self.size)
-            label = tx.resized_crop(label, i, j, h, w, self.size)
-            label_e = tx.resized_crop(label_e, i, j, h, w, self.size)
             # label_gt should not be used, applied transformation for consistent dimensions
-            label_gt = tx.resized_crop(label_e, i, j, h, w, self.size) 
+            image, label, label_e, label_gt = [tx.resized_crop(x, i, j, h, w, self.size) for x in (image, label, label_e, label_gt)]
 
             # perform RandomHorizontalFlip()
             if random.random() > 0.5:
-                image = tx.hflip(image)
-                label = tx.hflip(label)
-                label_e = tx.hflip(label_e)
-                label_gt = tx.hflip(label_e)
+                image, label, label_e, label_gt = [tx.hflip(x) for x in (image, label, label_e, label_gt)]
 
             # perform RandomVerticalFlip()
             if random.random() > 0.5:
-                image = tx.vflip(image)
-                label = tx.vflip(label)
-                label_e = tx.vflip(label_e)
-                label_gt = tx.vflip(label_gt)
+                image, label, label_e, label_gt = [tx.vflip(x) for x in (image, label, label_e, label_gt)]
 
             # perform Elastic Distortion
             if self.toDistortion:
                 indices = ElasticDistortion.get_params(image)
-                image = ElasticDistortion.transform(image, indices)
-                label = ElasticDistortion.transform(label, indices)
-                label_e = ElasticDistortion.transform(label_e, indices)
-                label_gt = ElasticDistortion.transform(label_gt, indices)
+                image, label, label_e, label_gt = [ElasticDistortion.transform(x, indices) for x in (image, label, label_e, label_gt)]
 
             if self.toContour: # replaced with 'thinner' contour based on augmented/transformed mask
                 label_e = contour(sample['uid'], label, config.cell_level)
@@ -315,23 +305,18 @@ class Compose():
                 color = transforms.ColorJitter.get_params(0.5, 0.5, 0.5, 0.25)
                 image = color(image)
         else:
-            image = tx.resize(image, self.size)
-            label = tx.resize(label, self.size)
+            image, label, label_gt = [tx.resize(x, self.size) for x in (image, label, label_gt)]
             label_e = contour(sample['uid'], label)
-            label_gt = tx.resize(label_gt, self.size)
 
         # Due to resize algorithm may introduce anti-alias edge, aka. non binary value,
         # thereafter map every pixel back to 0 and 255
         if self.toBinary:
-            label = label.point(lambda p, threhold=100: 255 if p > threhold else 0)
-            label_e = label_e.point(lambda p, threhold=100: 255 if p > threhold else 0)
+            label, label_e, label_gt = [x.point(lambda p, threhold=100: 255 if p > threhold else 0)
+                                         for x in (label, label_e, label_gt)]
 
         # perform ToTensor()
         if self.toTensor:
-            image = tx.to_tensor(image)
-            label = tx.to_tensor(label)
-            label_e = tx.to_tensor(label_e)
-            label_gt = tx.to_tensor(label_gt)
+            image, label, label_e, label_gt = [tx.to_tensor(x) for x in (image, label, label_e, label_gt)]
 
         # perform Normalize()
         if self.toTensor:
@@ -422,8 +407,10 @@ class ElasticDistortion():
 
 if __name__ == '__main__':
     compose = Compose(augment=True)
-    # train = KaggleDataset('data/stage1_train', category='Histology')
-    train = NuclearDataset('data/stage1_train', category='Histology')
+    if config.cell_level:
+        train = NuclearDataset('data/stage1_train', category='Histology')
+    else:
+        train = KaggleDataset('data/stage1_train', category='Histology')
     idx = random.randint(0, len(train)-1)
     sample = train[idx]
     print(sample['uid'])
@@ -434,4 +421,3 @@ if __name__ == '__main__':
     # display composed image
     sample = compose(sample)
     compose.show(sample)
-
