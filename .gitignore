@@ -6,3 +6,8 @@
 **/.DS_Store
 **/data
 **/log
+**/logs
+**/checkpoint
+**/*.zip
+data/**
+*.png
