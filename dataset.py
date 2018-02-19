@@ -311,8 +311,10 @@ class Compose():
         # Due to resize algorithm may introduce anti-alias edge, aka. non binary value,
         # thereafter map every pixel back to 0 and 255
         if self.toBinary:
-            label, label_e, label_gt = [x.point(lambda p, threhold=100: 255 if p > threhold else 0)
-                                         for x in (label, label_e, label_gt)]
+            label, label_e = [x.point(lambda p, threhold=100: 255 if p > threhold else 0)
+                                for x in (label, label_e)]
+            if config.train_contour_only:
+                label_gt = label_gt.point(lambda p, threhold=100: 255 if p > threhold else 0)
 
         # perform ToTensor()
         if self.toTensor:

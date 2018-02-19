@@ -204,7 +204,8 @@ def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, save=False):
         ax2[2].set_title('Semantic Lbls, #={}'.format(count))
         ax2[2].imshow(gt_s, cmap='gray', aspect='auto')
         # overlay
-        ax2[3].set_title('Overlay(Semantic)')
+        iou = iou_metric(y_s, gt_s)
+        ax2[3].set_title('Overlay(Semantic), IoU={:.3f}'.format(iou))
         ax2[3].imshow(gt_s, cmap='gray', aspect='auto')
         y_s = label(y_s)
         y_s, cmap = _make_overlay(y_s)
@@ -220,7 +221,8 @@ def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, save=False):
         ax3[2].set_title('Contour Lbls, #={}'.format(count))
         ax3[2].imshow(gt_c, cmap='gray', aspect='auto')
         # overlay
-        ax3[3].set_title('Overlay(Contour)')
+        iou = iou_metric(y_c, gt_c)
+        ax3[3].set_title('Overlay(Contour), IoU={:.3f}'.format(iou))
         ax3[3].imshow(gt_c, cmap='gray', aspect='auto')
         y_c = label(y_c)
         y_c, cmap = _make_overlay(y_c)
