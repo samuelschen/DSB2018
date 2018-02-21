@@ -92,7 +92,7 @@ class KaggleDataset(Dataset):
             w, h = image.size
             label = np.zeros((h, w), dtype=np.uint8) # semantic labels
             label_e = np.zeros((h, w), dtype=np.uint8) # edge labels
-            label_gt = np.zeros((h, w), dtype=np.uint8) # instance labels
+            label_gt = np.zeros((h, w), dtype=np.int32) # instance labels, might > 256
             mask_dir = os.path.join(self.root, uid, 'masks')
             if os.path.isdir(mask_dir):
                 instance_idx = 1
@@ -112,7 +112,7 @@ class KaggleDataset(Dataset):
             # label -= label_e // 2 # soft label edge
             label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
             # label = label.convert('1') # convert to 1-bit pixels, black and white
-            label_gt = Image.fromarray(label_gt, 'L') # specify it's grayscale 8-bit
+            label_gt = Image.fromarray(label_gt)
             # def sigmoid(x):
             #     return 1 / (1 + np.exp(-x))
             # edge_penalty = sigmoid(gaussian(edges, sigma=3)) * 2
@@ -311,7 +311,7 @@ class Compose():
                 image, label, label_e, label_gt = [ElasticDistortion.transform(x, indices) for x in (image, label, label_e, label_gt)]
 
             if self.toContour: # replaced with 'thinner' contour based on augmented/transformed mask
-                label_e = contour(sample['uid'], label)
+                label_e = contour(sample['uid'], label) # TODO: handle overlapping/touching contours
 
             # perform random color invert, assuming 3 channels (rgb) images
             if self.toInvert and random.random() > 0.5:
@@ -323,15 +323,18 @@ class Compose():
                 image = color(image)
         else:
             image, label, label_gt = [tx.resize(x, self.size) for x in (image, label, label_gt)]
-            label_e = contour(sample['uid'], label)
+            label_e = contour(sample['uid'], label) # TODO: handle overlapping/touching contours
 
         # Due to resize algorithm may introduce anti-alias edge, aka. non binary value,
         # thereafter map every pixel back to 0 and 255
         if self.toBinary:
             label, label_e = [x.point(lambda p, threhold=100: 255 if p > threhold else 0)
                                 for x in (label, label_e)]
-            if self.onlyContour:
-                label_gt = label_gt.point(lambda p, threhold=100: 255 if p > threhold else 0)
+            if self.cell_level or self.onlyContour:
+                #TODO: handle overlapping/touching contours of a whole slice
+                label_gt = np.array(label_gt)
+                label_gt[label_gt > 0] = 255
+                label_gt = Image.fromarray(label_gt)
 
         # perform ToTensor()
         if self.toTensor:
@@ -354,8 +357,8 @@ class Compose():
         return tx.to_pil_image(tensor)
 
     def show(self, sample):
-        image, label, label_e = sample['image'], sample['label'], sample['label_e']
-        for x in (image, label, label_e):
+        image, label, label_e, label_gt = sample['image'], sample['label'], sample['label_e'], sample['label_gt']
+        for x in (image, label, label_e, label_gt):
             if x.dim == 4:  # only dislay first sample
                 x = x[0]
             if x.shape[0] > 1: # channel > 1
@@ -426,9 +429,13 @@ class ElasticDistortion():
         return self.transform(img, indices)
 
 if __name__ == '__main__':
+    cell_level = config['param'].getboolean('cell_level')
+
     compose = Compose(augment=True)
-    train = KaggleDataset('data/stage1_train', category='Histology')
-    #train = NuclearDataset('data/stage1_train', category='Histology')
+    if cell_level:
+        train = NuclearDataset('data/stage1_train', category='Histology')
+    else:
+        train = KaggleDataset('data/stage1_train', category='Histology')
     idx = random.randint(0, len(train)-1)
     sample = train[idx]
     print(sample['uid'])
@@ -436,6 +443,7 @@ if __name__ == '__main__':
     sample['image'].show()
     sample['label'].show()
     sample['label_e'].show()
+    sample['label_gt'].show()
     # display composed image
     sample = compose(sample)
     compose.show(sample)

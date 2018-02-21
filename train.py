@@ -249,7 +249,7 @@ def valid(loader, model, cost, epoch, writer, n_step):
             loss = cost(outputs, labels_e) if only_contour else cost(outputs, labels)
 
         # measure accuracy and record loss
-        batch_iou = iou_mean(outputs, labels_e) if only_contour else cost(outputs, labels)
+        batch_iou = iou_mean(outputs, labels_e) if only_contour else iou_mean(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
         losses.update(loss.data[0], inputs.size(0))
 
