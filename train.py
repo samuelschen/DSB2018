@@ -130,6 +130,7 @@ def train(loader, model, cost, optimizer, epoch, writer):
         threshold_sgmt = config[model_name].getfloat('threshold_sgmt')
         threshold_edge = config[model_name].getfloat('threshold_edge')
     print_freq = config['train'].getfloat('print_freq')
+    only_contour = config['pre'].getboolean('train_contour_only')
     # Sets the module in training mode.
     model.train()
     end = time.time()
@@ -159,10 +160,10 @@ def train(loader, model, cost, optimizer, epoch, writer):
             outputs = (cond1 * cond2)
         else:
             outputs = model(inputs)
-            loss = cost(outputs, labels_e) if config['pre'].getboolean('train_contour_only') else cost(outputs, labels)
+            loss = cost(outputs, labels_e) if only_contour else cost(outputs, labels)
 
         # measure accuracy and record loss
-        batch_iou = iou_mean(outputs, labels_e) if config['pre'].getboolean('train_contour_only') else cost(outputs, labels)
+        batch_iou = iou_mean(outputs, labels_e) if only_contour else iou_mean(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
 
         losses.update(loss.data[0], inputs.size(0))
@@ -219,6 +220,7 @@ def valid(loader, model, cost, epoch, writer, n_step):
         threshold_sgmt = config[model_name].getfloat('threshold_sgmt')
         threshold_edge = config[model_name].getfloat('threshold_edge')
     losses = AverageMeter()
+    only_contour = config['pre'].getboolean('train_contour_only')
 
     # Sets the model in evaluation mode.
     model.eval()
@@ -244,10 +246,10 @@ def valid(loader, model, cost, epoch, writer, n_step):
             outputs = (cond1 * cond2)
         else:
             outputs = model(inputs)
-            loss = cost(outputs, labels_e) if config['pre'].getboolean('train_contour_only') else cost(outputs, labels)
+            loss = cost(outputs, labels_e) if only_contour else cost(outputs, labels)
 
         # measure accuracy and record loss
-        batch_iou = iou_mean(outputs, labels_e) if config['pre'].getboolean('train_contour_only') else cost(outputs, labels)
+        batch_iou = iou_mean(outputs, labels_e) if only_contour else cost(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
         losses.update(loss.data[0], inputs.size(0))
 

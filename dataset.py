@@ -273,6 +273,7 @@ class Compose():
         self.toTensor = tensor
         self.toAugment = augment
         self.toContour = c.getboolean('detect_contour')
+        self.onlyContour = c.getboolean('train_contour_only')
         min_crop = c.getfloat('min_crop_scale')
         max_crop = c.getfloat('max_crop_scale')
         if self.cell_level:
@@ -329,7 +330,7 @@ class Compose():
         if self.toBinary:
             label, label_e = [x.point(lambda p, threhold=100: 255 if p > threhold else 0)
                                 for x in (label, label_e)]
-            if config.train_contour_only:
+            if self.onlyContour:
                 label_gt = label_gt.point(lambda p, threhold=100: 255 if p > threhold else 0)
 
         # perform ToTensor()
