@@ -111,12 +111,11 @@ class KaggleDataset(Dataset):
                     label_gt = np.maximum(label_gt, m) # merge instance mask
             # label -= label_e // 2 # soft label edge
             label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
-            # label = label.convert('1') # convert to 1-bit pixels, black and white
+            label_e = Image.fromarray(label_e, 'L') # specify it's grayscale 8-bit
             label_gt = Image.fromarray(label_gt)
             # def sigmoid(x):
             #     return 1 / (1 + np.exp(-x))
             # edge_penalty = sigmoid(gaussian(edges, sigma=3)) * 2
-            label_e = Image.fromarray(label_e, 'L') # specify it's grayscale 8-bit
             sample = {'image': image, 'label': label, 'label_e': label_e, 'label_gt': label_gt, 'uid': uid, 'size': image.size}
             if self.cache is not None:
                 self.cache[uid] = sample
@@ -215,8 +214,8 @@ class NuclearDataset(Dataset):
             image = self.cache[img_id]
             crop_img, crop_mask = self._crop_example(image, img_id, mask_id)
             crop_img = Image.fromarray(crop_img, 'RGB')
+            crop_edge = Image.fromarray(contour(uid, crop_mask), 'L')
             crop_mask = Image.fromarray(crop_mask, 'L')
-            crop_edge = contour(uid, crop_mask)
             w, h = crop_img.size
             sample = {'image': crop_img, 'label': crop_mask, 'label_e': crop_edge, 'uid': uid, 'size': image.size}
             sample['label_gt'] = crop_edge if config['pre'].getboolean('train_contour_only') else crop_mask
@@ -229,8 +228,8 @@ class NuclearDataset(Dataset):
                 image = image.convert('RGB')
             crop_img, crop_mask = self._crop_example(image, img_id, mask_id)
             crop_img = Image.fromarray(crop_img, 'RGB')
+            crop_edge = Image.fromarray(contour(uid, crop_mask), 'L')
             crop_mask = Image.fromarray(crop_mask, 'L')
-            crop_edge = contour(uid, crop_mask)
             w, h = crop_img.size
             sample = {'image': crop_img, 'label': crop_mask, 'label_e': crop_edge, 'uid': uid, 'size': image.size}
             sample['label_gt'] = crop_edge if config['pre'].getboolean('train_contour_only') else crop_mask
@@ -294,8 +293,9 @@ class Compose():
                 scale=self.cell_scale,
                 ratio=(3. / 4., 4. / 3.)
             )
-            # label_gt should not be used, applied transformation for consistent dimensions
-            image, label, label_e, label_gt = [tx.resized_crop(x, i, j, h, w, self.size) for x in (image, label, label_e, label_gt)]
+            # label_gt use NEAREST instead of BILINEAR (default) to avoid polluting instance labels after augmentation
+            image, label, label_e = [tx.resized_crop(x, i, j, h, w, self.size) for x in (image, label, label_e)]
+            label_gt = tx.resized_crop(label_gt, i, j, h, w, self.size, interpolation=Image.NEAREST)
 
             # perform RandomHorizontalFlip()
             if random.random() > 0.5:
@@ -308,10 +308,14 @@ class Compose():
             # perform Elastic Distortion
             if self.toDistortion:
                 indices = ElasticDistortion.get_params(image)
-                image, label, label_e, label_gt = [ElasticDistortion.transform(x, indices) for x in (image, label, label_e, label_gt)]
+                image, label, label_e = [ElasticDistortion.transform(x, indices) for x in (image, label, label_e)]
+                label_gt = ElasticDistortion.transform(label_gt, indices, spline_order=0) # spline_order=0 to avoid polluting instance labels
 
             if self.toContour: # replaced with 'thinner' contour based on augmented/transformed mask
-                label_e = contour(sample['uid'], label) # TODO: handle overlapping/touching contours
+                if self.cell_level:
+                    label_e = Image.fromarray(contour(sample['uid'], np.asarray(label)))
+                else:
+                    label_e = Image.fromarray(instances_contour(sample['uid'], np.asarray(label_gt)))
 
             # perform random color invert, assuming 3 channels (rgb) images
             if self.toInvert and random.random() > 0.5:
@@ -322,19 +326,22 @@ class Compose():
                 color = transforms.ColorJitter.get_params(0.5, 0.5, 0.5, 0.25)
                 image = color(image)
         else:
-            image, label, label_gt = [tx.resize(x, self.size) for x in (image, label, label_gt)]
-            label_e = contour(sample['uid'], label) # TODO: handle overlapping/touching contours
+            image, label = [tx.resize(x, self.size) for x in (image, label)]
+            label_gt = tx.resize(label_gt, self.size, interpolation=Image.NEAREST)
+            if self.cell_level:
+                label_e = Image.fromarray(contour(sample['uid'], np.asarray(label)))
+            else:
+                label_e = Image.fromarray(instances_contour(sample['uid'], np.asarray(label_gt)))
 
         # Due to resize algorithm may introduce anti-alias edge, aka. non binary value,
         # thereafter map every pixel back to 0 and 255
         if self.toBinary:
             label, label_e = [x.point(lambda p, threhold=100: 255 if p > threhold else 0)
                                 for x in (label, label_e)]
-            if self.cell_level or self.onlyContour:
-                #TODO: handle overlapping/touching contours of a whole slice
-                label_gt = np.array(label_gt)
-                label_gt[label_gt > 0] = 255
-                label_gt = Image.fromarray(label_gt)
+            if self.cell_level:
+                label_gt = label
+            if self.onlyContour:
+                label_gt = label_e
 
         # perform ToTensor()
         if self.toTensor:
@@ -366,16 +373,32 @@ class Compose():
             x = self.pil(x)
             x.show()
 
-def contour(uid, mask_img):
+def contour(uid, mask):
     cell_level = config['param'].getboolean('cell_level')
     id_list = uid.split('/')
     img_id = id_list[0]
-    edge = filters.scharr(mask_img)
+    edge = filters.scharr(Image.fromarray(mask))
     scharr_threshold = np.amax(abs(edge)) / 2.
     if not cell_level and (img_id in bright_field_list):
         scharr_threshold = 0. # nuclei are much smaller than others in bright_field slice
     edge = (np.abs(edge) > scharr_threshold).astype(np.uint8)*255
-    return Image.fromarray(edge, 'L')
+    return edge
+
+def instances_contour(uid, instances_mask):
+    h, w = instances_mask.shape
+    result = np.zeros((h, w), dtype=np.uint8)
+    idxs = np.unique(np.asarray(instances_mask)) # sorted, 1st one is background
+    masks = np.array(instances_mask)
+    for idx in idxs[1:]:
+        mask = np.array(instances_mask)
+        others = (mask != idx)
+        mask[others] = 0
+        target = (mask == idx)
+        mask[target] = 255
+        edge = contour(uid, mask)
+        result = np.maximum(result, edge)
+    return result
+
 
 def clahe(img):
     x = np.asarray(img, dtype=np.uint8)
