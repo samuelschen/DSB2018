@@ -124,18 +124,21 @@ def rle_encoding(y):
         prev = b
     return run_lengths
 
-def prob_to_rles(y):
+def prob_to_rles(y, y_s, y_c):
     threshold = config['param'].getfloat('threshold')
     segmentation = config['post'].getboolean('segmentation')
     remove_objects = config['post'].getboolean('remove_objects')
     min_object_size = config['post'].getint('min_object_size')
 
     y = y > threshold
-    if remove_objects:
-        y = remove_small_objects(y, min_size=min_object_size)
     lab_img = label(y)
     if segmentation:
-        lab_img = seg_ws(lab_img)
+        if y_s is not None and y_c is not None:
+            lab_img = seg_ws_by_edge(y_s, y_c)
+        else:
+            lab_img = seg_ws(lab_img)
+    if remove_objects:
+        lab_img = remove_small_objects(lab_img, min_size=min_object_size)
     for i in range(1, lab_img.max() + 1):
         yield rle_encoding(lab_img == i)
 
