@@ -18,7 +18,7 @@ from model import UNet, UNetVgg16, DCAN, CAUNet
 from dataset import KaggleDataset, NuclearDataset, Compose
 from helper import config, load_ckpt, prob_to_rles, seg_ws, iou_metric
 
-def main(csv=False, save=False, valid_train=False):
+def main(tocsv=False, save=False, valid_train=False):
     model_name = config['param']['model']
     cell_level = config['param'].getboolean('cell_level')
 
@@ -53,7 +53,7 @@ def main(csv=False, save=False, valid_train=False):
         # dataset = KaggleDataset(data_dir, transform=compose, category='Histology')
     iter = predict(model, dataset, compose)
 
-    if csv:
+    if tocsv:
         with open('result.csv', 'w') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(['ImageId', 'EncodedPixels'])

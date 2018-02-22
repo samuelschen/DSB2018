@@ -139,9 +139,9 @@ Create a ` config.ini ` file, in which you may overwrite any setting in config_d
 ;
 [param]
 model = unet_nuclei
+learn_rate = 0.0003
 
 [train]
-learn_rate = 0.0003
 n_batch = 64
 ```
 
@@ -232,11 +232,14 @@ n_batch = 64
 | 0.350 | v2   | 512   | IOU+BCE  | 1200  | 1e-4 >> 3e-6  |  0% | V | V |   | V | V |   |   |   |   |
 | 0.353 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   | V |   |   |
 | 0.413 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   | V |   |
+| 0.421 | v3   | 256   | IOU+BCE  | 400   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   | V |   |
+| 0.437 | v3   | 256   | IOU+BCE  | 900   | 1e-4          |  0% | V | V |   | V | V |   |   | V |   |
 
 Note:
 - Dataset (training): 
     * V1: original kaggle
     * V2: Feb 06, modified by Jimmy and Ryk
+    * V3: V2 + TCGA 256
 - Score is public score on kaggle site
 - Zero CV rate means all data were used for training, none reserved
 - Adjust learning rate per 300 epoch
