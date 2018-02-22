@@ -338,8 +338,11 @@ class Compose():
         if self.toBinary:
             label, label_e = [x.point(lambda p, threhold=100: 255 if p > threhold else 0)
                                 for x in (label, label_e)]
+            # For single cell level example, label_gt is awkward after 'nearest' interpolation
             if self.cell_level:
                 label_gt = label
+            # For train contour only, leverage the merged instances contour label (label_e)
+            # the side effect is losing instance count information
             if self.onlyContour:
                 label_gt = label_e
 

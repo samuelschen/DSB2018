@@ -178,6 +178,7 @@ def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, save=False):
     segmentation = config['post'].getboolean('segmentation')
     remove_objects = config['post'].getboolean('remove_objects')
     min_object_size = config['post'].getint('min_object_size')
+    contour_only = config['pre'].getboolean('train_contour_only')
     model_name = config['param']['model']
     if model_name == 'dcan' or model_name == 'caunet':
         threshold_sgmt = config[model_name].getfloat('threshold_sgmt')
@@ -196,7 +197,10 @@ def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, save=False):
     ax1[1].set_title('Final Pred, Pre#={}'.format(count))
     ax1[1].imshow(y, cmap='gray', aspect='auto')
     # overlay contour to semantic ground truth (another visualized view for instance ground truth, eg. gt)
-    count = len(np.unique(gt)) - 1 # remove background
+    if contour_only: # gt is actually a copy of gt_c in this case
+        _, count = label(gt, return_num=True)
+    else:
+        count = len(np.unique(gt)) - 1 # remove background
     ax1[2].set_title('Instance Lbls, #={}'.format(count))
     ax1[2].imshow(gt_s, cmap='gray', aspect='auto')
     gt_c2, cmap = _make_overlay(gt_c)
@@ -207,7 +211,10 @@ def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, save=False):
     y = label(y)
     if segmentation:
         y = seg_ws(y)
-    iou = iou_metric(y, gt, instance_level=True)
+    if contour_only: # can not tell from instances in this case
+        iou = iou_metric(y, gt)
+    else:
+        iou = iou_metric(y, gt, instance_level=True)
     _, count = label(y, return_num=True)
     ax1[3].set_title('Overlay, Post#={}, IoU={:.3f}'.format(count, iou))
     ax1[3].imshow(gt_s, cmap='gray', aspect='auto')
