@@ -221,3 +221,15 @@ def seg_ws(image):
     markers = ndi.label(local_maxi)[0]
     labels = watershed(-distance, markers, mask=image)
     return labels
+
+def seg_ws_by_edge(raw_bodies, raw_edges):
+    threshold=config['param'].getfloat('threshold')
+    k=config['post'].getfloat('edge_weight_factor')
+
+    bodies = raw_bodies > threshold
+    # edges = raw_edges > threshold
+    seeds = ((raw_bodies - k * raw_edges) > threshold)
+    # seeds = bodies & ~edges
+    labels = label(seeds)
+    final_labels = watershed(-ndi.distance_transform_edt(bodies), labels, mask=bodies)
+    return final_labels

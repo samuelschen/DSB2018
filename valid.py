@@ -16,7 +16,7 @@ from tqdm import tqdm
 # own code
 from model import UNet, UNetVgg16, DCAN, CAUNet
 from dataset import KaggleDataset, NuclearDataset, Compose
-from helper import config, load_ckpt, prob_to_rles, seg_ws, iou_metric
+from helper import config, load_ckpt, prob_to_rles, seg_ws, seg_ws_by_edge, iou_metric
 
 def main(tocsv=False, save=False, valid_train=False):
     model_name = config['param']['model']
@@ -65,7 +65,7 @@ def main(tocsv=False, save=False, valid_train=False):
             if valid_train:
                 show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, save)
             else:
-                show(uid, x, y, save)
+                show(uid, x, y, y_s, y_c, save)
 
 def predict(model, dataset, compose, regrowth=True):
     ''' iterate dataset and yield ndarray result tuple per sample '''
@@ -85,9 +85,10 @@ def predict(model, dataset, compose, regrowth=True):
         inputs = Variable(inputs)
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
             outputs_s, outputs_c = model(inputs)
-            cond1 = (outputs_s >= threshold_sgmt)
-            cond2 = (outputs_c < threshold_edge)
-            outputs = (cond1 * cond2)
+            # cond1 = (outputs_s >= threshold_sgmt)
+            # cond2 = (outputs_c < threshold_edge)
+            # outputs = (cond1 * cond2)
+            outputs = outputs_s # let post-process merge two outputs, instead of DCAN's approach
         else:
             outputs = model(inputs)
 
@@ -144,9 +145,11 @@ def _make_overlay(img_array):
     cmap.set_bad('w', alpha=0) # map background(0) as transparent/white
     return img_array, cmap
 
-def show(uid, x, y, save=False):
+def show(uid, x, y, y_s, y_c, save=False):
     threshold = config['param'].getfloat('threshold')
     segmentation = config['post'].getboolean('segmentation')
+    remove_objects = config['post'].getboolean('remove_objects')
+    min_object_size = config['post'].getint('min_object_size')
 
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, sharey=True, figsize=(14, 6))
     fig.suptitle(uid, y=1)
@@ -159,7 +162,12 @@ def show(uid, x, y, save=False):
     ax2.imshow(y, cmap='gray', aspect='auto')
     y = label(y)
     if segmentation:
-        y = seg_ws(y)
+        if y_s is not None and y_c is not None:
+            y = seg_ws_by_edge(y_s, y_c)
+        else:
+            y = seg_ws(y)
+    if remove_objects:
+        y = remove_small_objects(y, min_size=min_object_size)
     y, cmap = _make_overlay(y)
     ax3.imshow(y, cmap=cmap, aspect='auto')
     # alpha
@@ -193,24 +201,24 @@ def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, save=False):
     ax1[0].set_title('Image')
     ax1[0].imshow(x, aspect='auto')
     y = y > threshold
+    y = label(y)
+    if segmentation :
+        if y_s is not None and y_c is not None:
+            y = seg_ws_by_edge(y_s, y_c)
+        else:
+            y = seg_ws(y)
     _, count = label(y, return_num=True)
-    ax1[1].set_title('Final Pred, Pre#={}'.format(count))
+    ax1[1].set_title('Final Pred, #={}'.format(count))
     ax1[1].imshow(y, cmap='gray', aspect='auto')
     # overlay contour to semantic ground truth (another visualized view for instance ground truth, eg. gt)
-    if contour_only: # gt is actually a copy of gt_c in this case
-        _, count = label(gt, return_num=True)
-    else:
-        count = len(np.unique(gt)) - 1 # remove background
+    _, count = label(gt, return_num=True)
     ax1[2].set_title('Instance Lbls, #={}'.format(count))
     ax1[2].imshow(gt_s, cmap='gray', aspect='auto')
     gt_c2, cmap = _make_overlay(gt_c)
     ax1[2].imshow(gt_c2, cmap=cmap, alpha=0.7, aspect='auto')
-    # overlay (applied post-processing)
+    # overlay (applied further post-processing)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
-    y = label(y)
-    if segmentation:
-        y = seg_ws(y)
     if contour_only: # can not tell from instances in this case
         iou = iou_metric(y, gt)
     else:
@@ -235,7 +243,6 @@ def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, save=False):
         iou = iou_metric(y_s, gt_s)
         ax2[3].set_title('Overlay(Semantic), IoU={:.3f}'.format(iou))
         ax2[3].imshow(gt_s, cmap='gray', aspect='auto')
-        y_s = label(y_s)
         y_s, cmap = _make_overlay(y_s)
         ax2[3].imshow(y_s, cmap=cmap, alpha=0.3, aspect='auto')
 
@@ -252,7 +259,6 @@ def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, save=False):
         iou = iou_metric(y_c, gt_c)
         ax3[3].set_title('Overlay(Contour), IoU={:.3f}'.format(iou))
         ax3[3].imshow(gt_c, cmap='gray', aspect='auto')
-        y_c = label(y_c)
         y_c, cmap = _make_overlay(y_c)
         ax3[3].imshow(y_c, cmap=cmap, alpha=0.3, aspect='auto')
 
