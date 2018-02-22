@@ -167,9 +167,10 @@ def train(loader, model, cost, optimizer, epoch, writer):
             batch_iou_c = iou_mean(outputs_c, labels_e)
             iou_s.update(batch_iou_s, inputs.size(0))
             iou_c.update(batch_iou_c, inputs.size(0))
-            cond1 = (outputs_s >= threshold_sgmt)
-            cond2 = (outputs_c < threshold_edge)
-            outputs = (cond1 * cond2)
+            # cond1 = (outputs_s >= threshold_sgmt)
+            # cond2 = (outputs_c < threshold_edge)
+            # outputs = (cond1 * cond2)
+            outputs = outputs_s # let post-process merge two outputs, instead of DCAN's approach
         else:
             outputs = model(inputs)
             if only_contour:
