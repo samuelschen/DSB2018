@@ -131,6 +131,16 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
         # dataset = KaggleDataset('data/stage1_test', transform=compose, category='Histology')
         ```
 
+* (Optional) prepare V3 dataset
+    - Download [V2](https://drive.google.com/open?id=1UyIxGrVzzo7IUXRJnDRpqT3C_rXOe1s1) and uncompress to `data` folder
+    - Download [TCGA](https://drive.google.com/open?id=13zrouhpaM7_df-pqC6ClOoeOm8B3sBb0) and uncompress to `data` folder
+    - Split TCGA to proper scale and prefered data distribution
+    ```
+    $ cd data
+    $ python3 ../split.py external_TCGA_train --step 200 --width 256
+    $ mv external_TCGA_train_split/* stage1_train/
+    ```
+
 ## Change default configuration
 
 Create a ` config.ini ` file, in which you may overwrite any setting in config_default.ini
@@ -139,7 +149,7 @@ Create a ` config.ini ` file, in which you may overwrite any setting in config_d
 ;
 [param]
 model = unet_nuclei
-learn_rate = 0.0003
+cv_ratio = 0
 
 [train]
 n_batch = 64
