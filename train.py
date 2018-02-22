@@ -15,7 +15,7 @@ from tensorboardX import SummaryWriter
 from model import UNet, UNetVgg16, CAUNet, DCAN
 from dataset import KaggleDataset, NuclearDataset, Compose
 from helper import config, AverageMeter, iou_mean, save_ckpt, load_ckpt
-from loss import criterion, criterion_segment, criterion_contour
+from loss import criterion, criterion_segment, criterion_contour, weight_criterion
 
 
 def main(resume=True, n_epoch=None, learn_rate=None):
@@ -25,6 +25,7 @@ def main(resume=True, n_epoch=None, learn_rate=None):
         learn_rate = config['param'].getfloat('learn_rate')
     width = config[model_name].getint('width')
     cell_level = config['param'].getboolean('cell_level')
+    weight_bce = config['param'].getboolean('weight_bce')
     c = config['train']
     log_name = c.get('log_name')
     n_batch = c.getint('n_batch')
@@ -48,8 +49,11 @@ def main(resume=True, n_epoch=None, learn_rate=None):
 
     if isinstance(model, DCAN) or isinstance(model, CAUNet):
         cost = (criterion_segment, criterion_contour)
+    elif weight_bce:
+        cost = weight_criterion
     else:
         cost = criterion
+
     optimizer = torch.optim.Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=args.learn_rate,
@@ -131,6 +135,8 @@ def train(loader, model, cost, optimizer, epoch, writer):
         threshold_edge = config[model_name].getfloat('threshold_edge')
     print_freq = config['train'].getfloat('print_freq')
     only_contour = config['pre'].getboolean('train_contour_only')
+    weight_bce = config['param'].getboolean('weight_bce')
+
     # Sets the module in training mode.
     model.train()
     end = time.time()
@@ -144,6 +150,12 @@ def train(loader, model, cost, optimizer, epoch, writer):
             inputs, labels, labels_e, labels_gt = inputs.cuda(async=True), labels.cuda(async=True), labels_e.cuda(async=True), labels_gt.cuda(async=True)
         # wrap them in Variable
         inputs, labels, labels_e, labels_gt = Variable(inputs), Variable(labels), Variable(labels_e), Variable(labels_gt)
+        # get loss weight
+        if weight_bce and 'weight' in data:
+            weights = data['weight']
+            if torch.cuda.is_available():
+                weights = weights.cuda(async=True)
+            weights = Variable(weights)
         # zero the parameter gradients
         optimizer.zero_grad()
         # forward step
@@ -160,7 +172,12 @@ def train(loader, model, cost, optimizer, epoch, writer):
             outputs = (cond1 * cond2)
         else:
             outputs = model(inputs)
-            loss = cost(outputs, labels_e) if only_contour else cost(outputs, labels)
+            if only_contour:
+                loss = cost(outputs, labels_e)
+            elif weight_bce:
+                loss = cost(outputs, labels, weights)
+            else:
+                loss = cost(outputs, labels)
 
         # measure accuracy and record loss
         batch_iou = iou_mean(outputs, labels_e) if only_contour else iou_mean(outputs, labels_gt, instance_level=True)
@@ -221,6 +238,7 @@ def valid(loader, model, cost, epoch, writer, n_step):
         threshold_edge = config[model_name].getfloat('threshold_edge')
     losses = AverageMeter()
     only_contour = config['pre'].getboolean('train_contour_only')
+    weight_bce = config['param'].getboolean('weight_bce')
 
     # Sets the model in evaluation mode.
     model.eval()
@@ -231,6 +249,12 @@ def valid(loader, model, cost, epoch, writer, n_step):
             inputs, labels, labels_e, labels_gt = inputs.cuda(), labels.cuda(), labels_e.cuda(), labels_gt.cuda()
         # wrap them in Variable
         inputs, labels, labels_e, labels_gt = Variable(inputs), Variable(labels), Variable(labels_e), Variable(labels_gt)
+        # get loss weight
+        if weight_bce and 'weight' in data:
+            weights = data['weight']
+            if torch.cuda.is_available():
+                weights = weights.cuda(async=True)
+            weights = Variable(weights)
 
         # forward step
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
@@ -246,7 +270,12 @@ def valid(loader, model, cost, epoch, writer, n_step):
             outputs = (cond1 * cond2)
         else:
             outputs = model(inputs)
-            loss = cost(outputs, labels_e) if only_contour else cost(outputs, labels)
+            if only_contour:
+                loss = cost(outputs, labels_e)
+            elif weight_bce:
+                loss = cost(outputs, labels, weights)
+            else:
+                loss = cost(outputs, labels)
 
         # measure accuracy and record loss
         batch_iou = iou_mean(outputs, labels_e) if only_contour else iou_mean(outputs, labels_gt, instance_level=True)

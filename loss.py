@@ -1,4 +1,5 @@
 import torch.nn as nn
+from torch.nn.functional import binary_cross_entropy
 
 class BinaryCrossEntropyLoss2d(nn.Module):
     def __init__(self, weight=None, size_average=True):
@@ -56,6 +57,9 @@ def criterion_segment(preds, labels):
     return BinaryCrossEntropyLoss2d().forward(preds, labels) + \
            IoULoss().forward(preds, labels)
 
-
 def criterion_contour(preds, labels):
     return IoULoss().forward(preds, labels)
+
+def weight_criterion(preds, labels, weights):
+    return binary_cross_entropy(preds, labels, weights) + \
+           IoULoss().forward(preds, labels)

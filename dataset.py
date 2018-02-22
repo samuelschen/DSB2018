@@ -3,6 +3,7 @@ import random
 import numpy as np
 import json
 
+import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
@@ -260,6 +261,7 @@ class Compose():
         width = config[model_name].getint('width')
         self.size = (width, width)
         self.cell_level = config['param'].getboolean('cell_level')
+        self.weight_bce = config['param'].getboolean('weight_bce')
 
         c = config['pre']
         self.mean = json.loads(c.get('mean'))
@@ -282,6 +284,7 @@ class Compose():
 
     def __call__(self, sample):
         image, label, label_e, label_gt = sample['image'], sample['label'], sample['label_e'], sample['label_gt']
+        weight = None
 
         if self.toEqualize:
             image = clahe(image)
@@ -315,7 +318,8 @@ class Compose():
                 if self.cell_level:
                     label_e = Image.fromarray(contour(sample['uid'], np.asarray(label)))
                 else:
-                    label_e = Image.fromarray(instances_contour(sample['uid'], np.asarray(label_gt)))
+                    label_e, weight = instances_contour(sample['uid'], np.asarray(label_gt))
+                    label_e = Image.fromarray(label_e)
 
             # perform random color invert, assuming 3 channels (rgb) images
             if self.toInvert and random.random() > 0.5:
@@ -354,6 +358,10 @@ class Compose():
         if self.toTensor:
             image = tx.normalize(image, self.mean, self.std)
 
+        if self.weight_bce and weight is not None:
+            weight = np.expand_dims(weight, 0)
+            sample['weight'] = torch.from_numpy(weight)
+
         sample['image'], sample['label'], sample['label_e'], sample['label_gt'] = image, label, label_e, label_gt
         return sample
 
@@ -390,6 +398,7 @@ def contour(uid, mask):
 def instances_contour(uid, instances_mask):
     h, w = instances_mask.shape
     result = np.zeros((h, w), dtype=np.uint8)
+    weight = np.ones((h, w), dtype=np.float32)
     idxs = np.unique(np.asarray(instances_mask)) # sorted, 1st one is background
     masks = np.array(instances_mask)
     for idx in idxs[1:]:
@@ -400,7 +409,9 @@ def instances_contour(uid, instances_mask):
         mask[target] = 255
         edge = contour(uid, mask)
         result = np.maximum(result, edge)
-    return result
+        # magic number 25 make weight distributed to [1, 10) roughly
+        weight *= (1 + gaussian_filter(edge, sigma=1) / 25)
+    return result, weight
 
 
 def clahe(img):
@@ -473,3 +484,11 @@ if __name__ == '__main__':
     # display composed image
     sample = compose(sample)
     compose.show(sample)
+
+    if 'weight' in sample:
+        w = sample['weight']
+        # brighten the pixels
+        w = (w.numpy() * 10).astype(np.uint8)
+        w = np.squeeze(w)
+        w = Image.fromarray(w, 'L')
+        w.show()
