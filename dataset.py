@@ -335,7 +335,8 @@ class Compose():
             if self.cell_level:
                 label_e = Image.fromarray(contour(sample['uid'], np.asarray(label)))
             else:
-                label_e = Image.fromarray(instances_contour(sample['uid'], np.asarray(label_gt)))
+                label_e, weight = instances_contour(sample['uid'], np.asarray(label_gt))
+                label_e = Image.fromarray(label_e)
 
         # Due to resize algorithm may introduce anti-alias edge, aka. non binary value,
         # thereafter map every pixel back to 0 and 255
