@@ -139,8 +139,9 @@ def prob_to_rles(y, y_s, y_c):
             lab_img = seg_ws(lab_img)
     if remove_objects:
         lab_img = remove_small_objects(lab_img, min_size=min_object_size)
-    for i in range(1, lab_img.max() + 1):
-        yield rle_encoding(lab_img == i)
+    idxs = np.unique(lab_img) # sorted, 1st is background (e.g. 0)
+    for idx in idxs[1:]:
+        yield rle_encoding(lab_img == idx)
 
 # checkpoint handling
 def ckpt_path(epoch=None):
