@@ -15,7 +15,7 @@ from tensorboardX import SummaryWriter
 from model import UNet, UNetVgg16, CAUNet, DCAN
 from dataset import KaggleDataset, NuclearDataset, Compose
 from helper import config, AverageMeter, iou_mean, save_ckpt, load_ckpt
-from loss import criterion, criterion_segment, criterion_contour, weight_criterion
+from loss import criterion, segment_criterion, contour_criterion, weight_criterion
 
 
 def main(resume=True, n_epoch=None, learn_rate=None):
@@ -48,7 +48,10 @@ def main(resume=True, n_epoch=None, learn_rate=None):
         # model = torch.nn.DataParallel(model).cuda()
 
     if isinstance(model, DCAN) or isinstance(model, CAUNet):
-        cost = (criterion_segment, criterion_contour)
+        if weight_bce:
+            cost = (segment_criterion, weight_criterion) # TODO: both segment & contour heads are weighted
+        else:
+            cost = (segment_criterion, contour_criterion)
     elif weight_bce:
         cost = weight_criterion
     else:
@@ -160,7 +163,10 @@ def train(loader, model, cost, optimizer, epoch, writer):
         # forward step
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
             outputs_s, outputs_c = model(inputs)
-            loss = cost[0](outputs_s, labels) + cost[1](outputs_c, labels_e)
+            if weight_bce:
+                loss = cost[0](outputs_s, labels) + cost[1](outputs_c, labels_e, weights) #TODO: both semantic & contour heads are weighted
+            else:
+                loss = cost[0](outputs_s, labels) + cost[1](outputs_c, labels_e)
             batch_iou_c = iou_mean(outputs_c, labels_e)
             iou_c.update(batch_iou_c, inputs.size(0))
             # cond1 = (outputs_s >= threshold_sgmt)
@@ -252,7 +258,10 @@ def valid(loader, model, cost, epoch, writer, n_step):
         # forward step
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
             outputs_s, outputs_c = model(inputs)
-            loss = cost[0](outputs_s, labels) + cost[1](outputs_c, labels_e)
+            if weight_bce:
+                loss = cost[0](outputs_s, labels) + cost[1](outputs_c, labels_e, weights) #TODO: both semantic & contour heads are weighted
+            else:
+                loss = cost[0](outputs_s, labels) + cost[1](outputs_c, labels_e)
             # measure accuracy and record loss
             batch_iou_c = iou_mean(outputs_c, labels_e)
             iou_c.update(batch_iou_c, inputs.size(0))

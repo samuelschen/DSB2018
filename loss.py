@@ -53,11 +53,11 @@ def criterion(preds, labels):
     return BinaryCrossEntropyLoss2d().forward(preds, labels) + \
            IoULoss().forward(preds, labels)
 
-def criterion_segment(preds, labels):
+def segment_criterion(preds, labels):
     return BinaryCrossEntropyLoss2d().forward(preds, labels) + \
            IoULoss().forward(preds, labels)
 
-def criterion_contour(preds, labels):
+def contour_criterion(preds, labels):
     return IoULoss().forward(preds, labels)
 
 def weight_criterion(preds, labels, weights):
