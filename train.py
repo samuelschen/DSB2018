@@ -126,8 +126,7 @@ def train(loader, model, cost, optimizer, epoch, writer):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
-    iou = AverageMeter()    # instance IoU
-    iou_s = AverageMeter()  # semantic IoU
+    iou = AverageMeter()    # semantic IoU
     if isinstance(model, DCAN) or isinstance(model, CAUNet):
         iou_c = AverageMeter() # contour IoU
         model_name = config['param']['model']
@@ -145,11 +144,11 @@ def train(loader, model, cost, optimizer, epoch, writer):
         # measure data loading time
         data_time.update(time.time() - end)
         # get the inputs
-        inputs, labels, labels_e, labels_gt = data['image'], data['label'], data['label_e'], data['label_gt']
+        inputs, labels, labels_e = data['image'], data['label'], data['label_e']
         if torch.cuda.is_available():
-            inputs, labels, labels_e, labels_gt = inputs.cuda(async=True), labels.cuda(async=True), labels_e.cuda(async=True), labels_gt.cuda(async=True)
+            inputs, labels, labels_e = inputs.cuda(async=True), labels.cuda(async=True), labels_e.cuda(async=True)
         # wrap them in Variable
-        inputs, labels, labels_e, labels_gt = Variable(inputs), Variable(labels), Variable(labels_e), Variable(labels_gt)
+        inputs, labels, labels_e = Variable(inputs), Variable(labels), Variable(labels_e)
         # get loss weight
         if weight_bce and 'weight' in data:
             weights = data['weight']
@@ -162,10 +161,7 @@ def train(loader, model, cost, optimizer, epoch, writer):
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
             outputs_s, outputs_c = model(inputs)
             loss = cost[0](outputs_s, labels) + cost[1](outputs_c, labels_e)
-            # measure accuracy and record loss
-            batch_iou_s = iou_mean(outputs_s, labels)
             batch_iou_c = iou_mean(outputs_c, labels_e)
-            iou_s.update(batch_iou_s, inputs.size(0))
             iou_c.update(batch_iou_c, inputs.size(0))
             # cond1 = (outputs_s >= threshold_sgmt)
             # cond2 = (outputs_c < threshold_edge)
@@ -181,7 +177,8 @@ def train(loader, model, cost, optimizer, epoch, writer):
                 loss = cost(outputs, labels)
 
         # measure accuracy and record loss
-        batch_iou = iou_mean(outputs, labels_e) if only_contour else iou_mean(outputs, labels_gt, instance_level=True)
+        # NOT instance-level IoU in training phase, for better speed & instance separation handled in post-processing
+        batch_iou = iou_mean(outputs, labels_e) if only_contour else iou_mean(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
 
         losses.update(loss.data[0], inputs.size(0))
@@ -198,8 +195,6 @@ def train(loader, model, cost, optimizer, epoch, writer):
         writer.add_scalar('training/batch_iou', iou.val, step)
         writer.add_scalar('training/epoch_iou', iou.avg, step)
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
-            writer.add_scalar('training/batch_iou_s', iou_s.val, step)
-            writer.add_scalar('training/epoch_iou_s', iou_s.avg, step)
             writer.add_scalar('training/batch_iou_c', iou_c.val, step)
             writer.add_scalar('training/epoch_iou_c', iou_c.avg, step)
             if (i + 1) % print_freq == 0:
@@ -207,13 +202,11 @@ def train(loader, model, cost, optimizer, epoch, writer):
                     'Epoch: [{0}][{1}/{2}]\t'
                     'Time: {batch_time.avg:.3f} (io: {data_time.avg:.3f})\t\t'
                     'Loss: {loss.val:.4f} ({loss.avg:.4f})\t'
-                    'IoU(Instance): {iou.val:.3f} ({iou.avg:.3f})\t'
-                    'IoU(Semantic): {iou_s.val:.3f} ({iou_s.avg:.3f})\t'
+                    'IoU(Semantic): {iou.val:.3f} ({iou.avg:.3f})\t'
                     'IoU(Contour): {iou_c.val:.3f} ({iou_c.avg:.3f})\t'
                     .format(
                         epoch, i, n_step, batch_time=batch_time,
-                        data_time=data_time, loss=losses, iou=iou,
-                        iou_s=iou_s, iou_c=iou_c
+                        data_time=data_time, loss=losses, iou=iou, iou_c=iou_c
                     )
                 )
         else:
@@ -230,8 +223,7 @@ def train(loader, model, cost, optimizer, epoch, writer):
                 )
 
 def valid(loader, model, cost, epoch, writer, n_step):
-    iou = AverageMeter() # instance IoU
-    iou_s = AverageMeter() # semantic IoU
+    iou = AverageMeter() # semantic IoU
     if isinstance(model, DCAN) or isinstance(model, CAUNet):
         iou_c = AverageMeter() # contour IoU
         model_name = config['param']['model']
@@ -245,11 +237,11 @@ def valid(loader, model, cost, epoch, writer, n_step):
     model.eval()
     for i, data in enumerate(loader):
         # get the inputs
-        inputs, labels, labels_e, labels_gt = data['image'], data['label'], data['label_e'], data['label_gt']
+        inputs, labels, labels_e = data['image'], data['label'], data['label_e']
         if torch.cuda.is_available():
-            inputs, labels, labels_e, labels_gt = inputs.cuda(), labels.cuda(), labels_e.cuda(), labels_gt.cuda()
+            inputs, labels, labels_e = inputs.cuda(), labels.cuda(), labels_e.cuda()
         # wrap them in Variable
-        inputs, labels, labels_e, labels_gt = Variable(inputs), Variable(labels), Variable(labels_e), Variable(labels_gt)
+        inputs, labels, labels_e = Variable(inputs), Variable(labels), Variable(labels_e)
         # get loss weight
         if weight_bce and 'weight' in data:
             weights = data['weight']
@@ -262,13 +254,12 @@ def valid(loader, model, cost, epoch, writer, n_step):
             outputs_s, outputs_c = model(inputs)
             loss = cost[0](outputs_s, labels) + cost[1](outputs_c, labels_e)
             # measure accuracy and record loss
-            batch_iou_s = iou_mean(outputs_s, labels)
             batch_iou_c = iou_mean(outputs_c, labels_e)
-            iou_s.update(batch_iou_s, inputs.size(0))
             iou_c.update(batch_iou_c, inputs.size(0))
-            cond1 = (outputs_s >= threshold_sgmt)
-            cond2 = (outputs_c < threshold_edge)
-            outputs = (cond1 * cond2)
+            # cond1 = (outputs_s >= threshold_sgmt)
+            # cond2 = (outputs_c < threshold_edge)
+            # outputs = (cond1 * cond2)
+            outputs = outputs_s # let post-process merge two outputs, instead of DCAN's approach
         else:
             outputs = model(inputs)
             if only_contour:
@@ -278,8 +269,8 @@ def valid(loader, model, cost, epoch, writer, n_step):
             else:
                 loss = cost(outputs, labels)
 
-        # measure accuracy and record loss
-        batch_iou = iou_mean(outputs, labels_e) if only_contour else iou_mean(outputs, labels_gt, instance_level=True)
+        # measure accuracy and record loss (Non-instance level IoU)
+        batch_iou = iou_mean(outputs, labels_e) if only_contour else iou_mean(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
         losses.update(loss.data[0], inputs.size(0))
 
@@ -288,16 +279,14 @@ def valid(loader, model, cost, epoch, writer, n_step):
     writer.add_scalar('CV/loss', losses.avg, step)
     writer.add_scalar('CV/epoch_iou', iou.avg, step)
     if isinstance(model, DCAN) or isinstance(model, CAUNet):
-        writer.add_scalar('training/epoch_iou_s', iou_s.avg, step)
         writer.add_scalar('training/epoch_iou_c', iou_c.avg, step)
         print(
             'Epoch: [{0}]\t\tcross-validation\t\t'
             'Loss: N/A    ({loss.avg:.4f})\t'
-            'IoU(Instance): N/A   ({iou.avg:.3f})\t'
-            'IoU(Semantic): N/A   ({iou_s.avg:.3f})\t'
+            'IoU(Semantic): N/A   ({iou.avg:.3f})\t'
             'IoU(Contour): N/A   ({iou_c.avg:.3f})\t'
             .format(
-                epoch, loss=losses, iou=iou, iou_s=iou_s, iou_c=iou_c
+                epoch, loss=losses, iou=iou, iou_c=iou_c
             )
         )
     else:
