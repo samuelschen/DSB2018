@@ -124,24 +124,21 @@ def rle_encoding(y):
         prev = b
     return run_lengths
 
-def prob_to_rles(y, y_s, y_c):
-    threshold = config['param'].getfloat('threshold')
+def prob_to_rles(y, y_c):
     segmentation = config['post'].getboolean('segmentation')
     remove_objects = config['post'].getboolean('remove_objects')
     min_object_size = config['post'].getint('min_object_size')
 
-    y = y > threshold
-    lab_img = label(y)
     if segmentation:
-        if y_s is not None and y_c is not None:
-            lab_img = seg_ws_by_edge(y_s, y_c)
+        if y_c is not None:
+            y = seg_ws_by_edge(y, y_c)
         else:
-            lab_img = seg_ws(lab_img)
+            y = seg_ws(y)
     if remove_objects:
-        lab_img = remove_small_objects(lab_img, min_size=min_object_size)
-    idxs = np.unique(lab_img) # sorted, 1st is background (e.g. 0)
+        y = remove_small_objects(y, min_size=min_object_size)
+    idxs = np.unique(y) # sorted, 1st is background (e.g. 0)
     for idx in idxs[1:]:
-        yield rle_encoding(lab_img == idx)
+        yield rle_encoding(y == idx)
 
 # checkpoint handling
 def ckpt_path(epoch=None):
@@ -206,10 +203,13 @@ def evaluate_size(image, ratio):
     return size_index
 
 # Segment image with watershed algorithm.
-def seg_ws(image):
+def seg_ws(raw_image):
+    threshold=config['param'].getfloat('threshold')
     size_scale=config['post'].getfloat('seg_scale')
     ratio=config['post'].getfloat('seg_ratio')
 
+    image = raw_image > threshold
+    image = label(image) # TODO: is this necessary?
     #Calculate the average size of the image.
     size_index = evaluate_size(image, ratio)
     """

@@ -132,9 +132,6 @@ def train(loader, model, cost, optimizer, epoch, writer):
     iou = AverageMeter()    # semantic IoU
     if isinstance(model, DCAN) or isinstance(model, CAUNet):
         iou_c = AverageMeter() # contour IoU
-        model_name = config['param']['model']
-        threshold_sgmt = config[model_name].getfloat('threshold_sgmt')
-        threshold_edge = config[model_name].getfloat('threshold_edge')
     print_freq = config['train'].getfloat('print_freq')
     only_contour = config['pre'].getboolean('train_contour_only')
     weight_bce = config['param'].getboolean('weight_bce')
@@ -162,17 +159,13 @@ def train(loader, model, cost, optimizer, epoch, writer):
         optimizer.zero_grad()
         # forward step
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
-            outputs_s, outputs_c = model(inputs)
+            outputs, outputs_c = model(inputs)
             if weight_bce:
-                loss = cost[0](outputs_s, labels) + cost[1](outputs_c, labels_e, weights) #TODO: both semantic & contour heads are weighted
+                loss = cost[0](outputs, labels) + cost[1](outputs_c, labels_e, weights) #TODO: both semantic & contour heads are weighted
             else:
-                loss = cost[0](outputs_s, labels) + cost[1](outputs_c, labels_e)
+                loss = cost[0](outputs, labels) + cost[1](outputs_c, labels_e)
             batch_iou_c = iou_mean(outputs_c, labels_e)
             iou_c.update(batch_iou_c, inputs.size(0))
-            # cond1 = (outputs_s >= threshold_sgmt)
-            # cond2 = (outputs_c < threshold_edge)
-            # outputs = (cond1 * cond2)
-            outputs = outputs_s # let post-process merge two outputs, instead of DCAN's approach
         else:
             outputs = model(inputs)
             if only_contour:
@@ -232,9 +225,6 @@ def valid(loader, model, cost, epoch, writer, n_step):
     iou = AverageMeter() # semantic IoU
     if isinstance(model, DCAN) or isinstance(model, CAUNet):
         iou_c = AverageMeter() # contour IoU
-        model_name = config['param']['model']
-        threshold_sgmt = config[model_name].getfloat('threshold_sgmt')
-        threshold_edge = config[model_name].getfloat('threshold_edge')
     losses = AverageMeter()
     only_contour = config['pre'].getboolean('train_contour_only')
     weight_bce = config['param'].getboolean('weight_bce')
@@ -257,18 +247,14 @@ def valid(loader, model, cost, epoch, writer, n_step):
 
         # forward step
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
-            outputs_s, outputs_c = model(inputs)
+            outputs, outputs_c = model(inputs)
             if weight_bce:
-                loss = cost[0](outputs_s, labels) + cost[1](outputs_c, labels_e, weights) #TODO: both semantic & contour heads are weighted
+                loss = cost[0](outputs, labels) + cost[1](outputs_c, labels_e, weights) #TODO: both semantic & contour heads are weighted
             else:
-                loss = cost[0](outputs_s, labels) + cost[1](outputs_c, labels_e)
+                loss = cost[0](outputs, labels) + cost[1](outputs_c, labels_e)
             # measure accuracy and record loss
             batch_iou_c = iou_mean(outputs_c, labels_e)
             iou_c.update(batch_iou_c, inputs.size(0))
-            # cond1 = (outputs_s >= threshold_sgmt)
-            # cond2 = (outputs_c < threshold_edge)
-            # outputs = (cond1 * cond2)
-            outputs = outputs_s # let post-process merge two outputs, instead of DCAN's approach
         else:
             outputs = model(inputs)
             if only_contour:

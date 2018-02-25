@@ -57,23 +57,18 @@ def main(tocsv=False, save=False, valid_train=False):
         with open('result.csv', 'w') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(['ImageId', 'EncodedPixels'])
-            for uid, _, y, _, y_s, _, y_c, _ in iter:
-                for rle in prob_to_rles(y, y_s, y_c):
+            for uid, _, y, y_c, _, _, _ in iter:
+                for rle in prob_to_rles(y, y_c):
                     writer.writerow([uid, ' '.join([str(i) for i in rle])])
     else:
-        for uid, x, y, gt, y_s, gt_s, y_c, gt_c in tqdm(iter):
+        for uid, x, y, y_c, gt, gt_s, gt_c in tqdm(iter):
             if valid_train:
-                show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, save)
+                show_groundtruth(uid, x, y, y_c, gt, gt_s, gt_c, save)
             else:
-                show(uid, x, y, y_s, y_c, save)
+                show(uid, x, y, y_c, save)
 
 def predict(model, dataset, compose, regrowth=True):
     ''' iterate dataset and yield ndarray result tuple per sample '''
-    if isinstance(model, DCAN) or isinstance(model, CAUNet):
-        model_name = config['param']['model']
-        threshold_sgmt = config[model_name].getfloat('threshold_sgmt')
-        threshold_edge = config[model_name].getfloat('threshold_edge')
-
     for data in dataset:
         # get prediction
         uid = data['uid']
@@ -84,11 +79,7 @@ def predict(model, dataset, compose, regrowth=True):
             inputs = inputs.cuda()
         inputs = Variable(inputs)
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
-            outputs_s, outputs_c = model(inputs)
-            # cond1 = (outputs_s >= threshold_sgmt)
-            # cond2 = (outputs_c < threshold_edge)
-            # outputs = (cond1 * cond2)
-            outputs = outputs_s # let post-process merge two outputs, instead of DCAN's approach
+            outputs, outputs_c = model(inputs)
         else:
             outputs = model(inputs)
 
@@ -113,7 +104,6 @@ def predict(model, dataset, compose, regrowth=True):
         if torch.cuda.is_available():
             outputs = outputs.cpu()
             if isinstance(model, DCAN) or isinstance(model, CAUNet):
-                outputs_s = outputs_s.cpu()
                 outputs_c = outputs_c.cpu()
 
         y = outputs.data.numpy()[0]
@@ -123,20 +113,15 @@ def predict(model, dataset, compose, regrowth=True):
             y = resize(y, data['size'][::-1], mode='constant', preserve_range=True)
 
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
-            y_s = outputs_s.data.numpy()[0]
-            y_s = np.transpose(y_s, (1, 2, 0))
-            y_s = np.squeeze(y_s)
             y_c = outputs_c.data.numpy()[0]
             y_c = np.transpose(y_c, (1, 2, 0))
             y_c = np.squeeze(y_c)
             if regrowth:
-                y_s = resize(y_s, data['size'][::-1], mode='constant', preserve_range=True)
                 y_c = resize(y_c, data['size'][::-1], mode='constant', preserve_range=True)
         else:
-            y_s = y_c = None
+            y_c = None
 
-        # yield result
-        yield uid, x, y, gt, y_s, gt_s, y_c, gt_c
+        yield uid, x, y, y_c, gt, gt_s, gt_c
 
 def _make_overlay(img_array):
     img_array = img_array.astype(float)
@@ -145,7 +130,7 @@ def _make_overlay(img_array):
     cmap.set_bad('w', alpha=0) # map background(0) as transparent/white
     return img_array, cmap
 
-def show(uid, x, y, y_s, y_c, save=False):
+def show(uid, x, y, y_c, save=False):
     threshold = config['param'].getfloat('threshold')
     segmentation = config['post'].getboolean('segmentation')
     remove_objects = config['post'].getboolean('remove_objects')
@@ -158,12 +143,11 @@ def show(uid, x, y, y_s, y_c, save=False):
     ax3.set_title('Region, P > {}'.format(threshold))
     ax4.set_title('Overlay, P > {}'.format(threshold))
     ax1.imshow(x, aspect='auto')
-    y = y > threshold
-    ax2.imshow(y, cmap='gray', aspect='auto')
-    y = label(y)
+    y_bw = y > threshold
+    ax2.imshow(y_bw, cmap='gray', aspect='auto')
     if segmentation:
-        if y_s is not None and y_c is not None:
-            y = seg_ws_by_edge(y_s, y_c)
+        if y_c is not None:
+            y = seg_ws_by_edge(y, y_c)
         else:
             y = seg_ws(y)
     if remove_objects:
@@ -181,7 +165,7 @@ def show(uid, x, y, y_s, y_c, save=False):
     else:
         plt.show()
 
-def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, save=False):
+def show_groundtruth(uid, x, y, y_c, gt, gt_s, gt_c, save=False):
     threshold = config['param'].getfloat('threshold')
     segmentation = config['post'].getboolean('segmentation')
     remove_objects = config['post'].getboolean('remove_objects')
@@ -192,19 +176,18 @@ def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, save=False):
         threshold_sgmt = config[model_name].getfloat('threshold_sgmt')
         threshold_edge = config[model_name].getfloat('threshold_edge')
 
-    if y_s is not None and y_c is not None:
+    if y_c is not None:
         fig, (ax1, ax2, ax3) = plt.subplots(3, 4, sharey=True, figsize=(21, 9))
+        y_s = y # to show pure semantic predict later
     else:
         fig, ax1 = plt.subplots(1, 4, sharey=True, figsize=(14, 6))
     fig.suptitle(uid, y=1)
 
     ax1[0].set_title('Image')
     ax1[0].imshow(x, aspect='auto')
-    y = y > threshold
-    y = label(y)
     if segmentation :
-        if y_s is not None and y_c is not None:
-            y = seg_ws_by_edge(y_s, y_c)
+        if y_c is not None:
+            y = seg_ws_by_edge(y, y_c)
         else:
             y = seg_ws(y)
     _, count = label(y, return_num=True)
@@ -229,7 +212,7 @@ def show_groundtruth(uid, x, y, gt, y_s, gt_s, y_c, gt_c, save=False):
     y, cmap = _make_overlay(y)
     ax1[3].imshow(y, cmap=cmap, alpha=0.3, aspect='auto')
 
-    if y_s is not None and y_c is not None:
+    if y_c is not None:
         ax2[0].set_title('Image')
         ax2[0].imshow(x, aspect='auto')
         y_s = y_s > threshold_sgmt
