@@ -411,7 +411,7 @@ def instances_contour(uid, instances_mask):
         edge = contour(uid, mask)
         result = np.maximum(result, edge)
         # magic number 25 make weight distributed to [1, 10) roughly
-        weight *= (1 + gaussian_filter(edge, sigma=1) / 25)
+        weight *= (1 + gaussian_filter(edge, sigma=1) / 50)
     return result, weight
 
 

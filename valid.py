@@ -138,29 +138,41 @@ def show(uid, x, y, y_c, save=False):
     segmentation = config['post'].getboolean('segmentation')
     remove_objects = config['post'].getboolean('remove_objects')
     min_object_size = config['post'].getint('min_object_size')
+    model_name = config['param']['model']
+    if model_name == 'dcan' or model_name == 'caunet':
+        threshold_edge = config[model_name].getfloat('threshold_edge')
 
-    fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, sharey=True, figsize=(14, 6))
+    fig, (ax1, ax2) = plt.subplots(2, 3, sharey=True, figsize=(10, 8))
     fig.suptitle(uid, y=1)
-    ax1.set_title('Image')
-    ax2.set_title('Predict, P > {}'.format(threshold))
-    ax3.set_title('Region, P > {}'.format(threshold))
-    ax4.set_title('Overlay, P > {}'.format(threshold))
-    ax1.imshow(x, aspect='auto')
+    ax1[0].set_title('Image')
+    ax1[1].set_title('Final Pred, P > {}'.format(threshold))
+    ax1[2].set_title('Overlay, P > {}'.format(threshold))
     y_bw = y > threshold
-    ax2.imshow(y_bw, cmap='gray', aspect='auto')
+    ax1[0].imshow(x, aspect='auto')
     if segmentation:
         if y_c is not None:
-            y = seg_ws_by_edge(y, y_c)
+            y, markers = seg_ws_by_edge(y, y_c)
         else:
-            y = seg_ws(y)
+            y, markers = seg_ws(y)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
     y, cmap = _make_overlay(y)
-    ax3.imshow(y, cmap=cmap, aspect='auto')
+    ax1[1].imshow(y, cmap=cmap, aspect='auto')
     # alpha
-    ax4.imshow(x, aspect='auto')
-    ax4.imshow(y, cmap=cmap, alpha=0.3, aspect='auto')
+    ax1[2].imshow(x, aspect='auto')
+    ax1[2].imshow(y, cmap=cmap, alpha=0.3, aspect='auto')
+
+    ax2[0].set_title('Semantic Pred, P > {}'.format(threshold))
+    ax2[0].imshow(y_bw, cmap='gray', aspect='auto')
+    _, count = label(markers, return_num=True)
+    ax2[1].set_title('Markers, #={}'.format(count))
+    ax2[1].imshow(markers, cmap='gray', aspect='auto')
+    if y_c is not None:
+        ax2[2].set_title('Contour Pred, P > {}'.format(threshold_edge))
+        y_c = y_c > threshold_edge
+        ax2[2].imshow(y_c, cmap='gray', aspect='auto')
     plt.tight_layout()
+
     if save:
         dir = predict_save_folder()
         fp = os.path.join(dir, uid + '.png')
@@ -179,20 +191,19 @@ def show_groundtruth(uid, x, y, y_c, gt, gt_s, gt_c, save=False):
         threshold_sgmt = config[model_name].getfloat('threshold_sgmt')
         threshold_edge = config[model_name].getfloat('threshold_edge')
 
-    if y_c is not None:
-        fig, (ax1, ax2, ax3) = plt.subplots(3, 4, sharey=True, figsize=(21, 9))
-        y_s = y # to show pure semantic predict later
-    else:
-        fig, ax1 = plt.subplots(1, 4, sharey=True, figsize=(14, 6))
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 3, sharey=True, figsize=(12, 8))
     fig.suptitle(uid, y=1)
 
+    y_s = y # to show pure semantic predict later
     ax1[0].set_title('Image')
     ax1[0].imshow(x, aspect='auto')
     if segmentation :
         if y_c is not None:
-            y = seg_ws_by_edge(y, y_c)
+            y, markers = seg_ws_by_edge(y, y_c)
         else:
-            y = seg_ws(y)
+            y, markers = seg_ws(y)
+    if remove_objects:
+        y = remove_small_objects(y, min_size=min_object_size)
     _, count = label(y, return_num=True)
     ax1[1].set_title('Final Pred, #={}'.format(count))
     ax1[1].imshow(y, cmap='gray', aspect='auto')
@@ -202,38 +213,28 @@ def show_groundtruth(uid, x, y, y_c, gt, gt_s, gt_c, save=False):
     ax1[2].imshow(gt_s, cmap='gray', aspect='auto')
     gt_c2, cmap = _make_overlay(gt_c)
     ax1[2].imshow(gt_c2, cmap=cmap, alpha=0.7, aspect='auto')
-    # overlay (applied further post-processing)
-    if remove_objects:
-        y = remove_small_objects(y, min_size=min_object_size)
+
     if contour_only: # can not tell from instances in this case
         iou = iou_metric(y, gt)
     else:
         iou = iou_metric(y, gt, instance_level=True)
-    _, count = label(y, return_num=True)
-    ax1[3].set_title('Overlay, Post#={}, IoU={:.3f}'.format(count, iou))
-    ax1[3].imshow(gt_s, cmap='gray', aspect='auto')
+    # _, count = label(y, return_num=True)
+    ax2[0].set_title('Overlay, IoU={:.3f}'.format(iou))
+    ax2[0].imshow(gt_s, cmap='gray', aspect='auto')
     y, cmap = _make_overlay(y)
-    ax1[3].imshow(y, cmap=cmap, alpha=0.3, aspect='auto')
+    ax2[0].imshow(y, cmap=cmap, alpha=0.3, aspect='auto')
+    y_s = y_s > threshold
+    _, count = label(y_s, return_num=True)
+    ax2[1].set_title('Semantic Predict, #={}'.format(count))
+    ax2[1].imshow(y_s, cmap='gray', aspect='auto')
+    _, count = label(gt_s, return_num=True)
+    ax2[2].set_title('Semantic Lbls, #={}'.format(count))
+    ax2[2].imshow(gt_s, cmap='gray', aspect='auto')
 
+    _, count = label(markers, return_num=True)
+    ax3[0].set_title('Markers, #={}'.format(count))
+    ax3[0].imshow(markers, cmap='gray', aspect='auto')
     if y_c is not None:
-        ax2[0].set_title('Image')
-        ax2[0].imshow(x, aspect='auto')
-        y_s = y_s > threshold_sgmt
-        _, count = label(y_s, return_num=True)
-        ax2[1].set_title('Semantic Predict, #={}'.format(count))
-        ax2[1].imshow(y_s, cmap='gray', aspect='auto')
-        _, count = label(gt_s, return_num=True)
-        ax2[2].set_title('Semantic Lbls, #={}'.format(count))
-        ax2[2].imshow(gt_s, cmap='gray', aspect='auto')
-        # overlay
-        iou = iou_metric(y_s, gt_s)
-        ax2[3].set_title('Overlay(Semantic), IoU={:.3f}'.format(iou))
-        ax2[3].imshow(gt_s, cmap='gray', aspect='auto')
-        y_s, cmap = _make_overlay(y_s)
-        ax2[3].imshow(y_s, cmap=cmap, alpha=0.3, aspect='auto')
-
-        ax3[0].set_title('Image')
-        ax3[0].imshow(x, aspect='auto')
         y_c = y_c > threshold_edge
         _, count = label(y_c, return_num=True)
         ax3[1].set_title('Contour Predict, #={}'.format(count))
@@ -241,12 +242,6 @@ def show_groundtruth(uid, x, y, y_c, gt, gt_s, gt_c, save=False):
         _, count = label(gt_c, return_num=True)
         ax3[2].set_title('Contour Lbls, #={}'.format(count))
         ax3[2].imshow(gt_c, cmap='gray', aspect='auto')
-        # overlay
-        iou = iou_metric(y_c, gt_c)
-        ax3[3].set_title('Overlay(Contour), IoU={:.3f}'.format(iou))
-        ax3[3].imshow(gt_c, cmap='gray', aspect='auto')
-        y_c, cmap = _make_overlay(y_c)
-        ax3[3].imshow(y_c, cmap=cmap, alpha=0.3, aspect='auto')
 
     plt.tight_layout()
 
@@ -268,9 +263,9 @@ def save_mask(uid, y, y_c):
 
     if segmentation:
         if y_c is not None:
-            y = seg_ws_by_edge(y, y_c)
+            y, _ = seg_ws_by_edge(y, y_c)
         else:
-            y = seg_ws(y)
+            y, _ = seg_ws(y)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
 

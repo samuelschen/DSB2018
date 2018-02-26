@@ -131,9 +131,9 @@ def prob_to_rles(y, y_c):
 
     if segmentation:
         if y_c is not None:
-            y = seg_ws_by_edge(y, y_c)
+            y, _ = seg_ws_by_edge(y, y_c)
         else:
-            y = seg_ws(y)
+            y, _ = seg_ws(y)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
     idxs = np.unique(y) # sorted, 1st is background (e.g. 0)
@@ -209,7 +209,7 @@ def seg_ws(raw_image):
     ratio=config['post'].getfloat('seg_ratio')
 
     image = raw_image > threshold
-    image = label(image) # TODO: is this necessary?
+    # image = label(image) # TODO: is this label necessary?
     #Calculate the average size of the image.
     size_index = evaluate_size(image, ratio)
     """
@@ -224,16 +224,34 @@ def seg_ws(raw_image):
                                 labels=image)
     markers = ndi.label(local_maxi)[0]
     labels = watershed(-distance, markers, mask=image)
-    return labels
+    return labels, markers
 
 def seg_ws_by_edge(raw_bodies, raw_edges):
     threshold=config['param'].getfloat('threshold')
     k=config['post'].getfloat('edge_weight_factor')
+    min_object_size = config['post'].getint('min_object_size')
+    model_name = config['param']['model']
+    if model_name == 'dcan' or model_name == 'caunet':
+        threshold_edge = config[model_name].getfloat('threshold_edge')
 
     bodies = raw_bodies > threshold
-    # edges = raw_edges > threshold
-    seeds = ((raw_bodies - k * raw_edges) > threshold)
-    # seeds = bodies & ~edges
-    labels = label(seeds)
-    final_labels = watershed(-ndi.distance_transform_edt(bodies), labels, mask=bodies)
-    return final_labels
+    edges = raw_edges > threshold_edge
+    # markers = ((raw_bodies - k * raw_edges) > threshold)
+    # markers = bodies & ~edges
+    markers = np.logical_and(bodies, np.logical_not(edges))
+
+    # remove small noisy objects (caused by non perfect bodies - edges),
+    # it might remove some legit objects, need add them back after watershed
+    markers = remove_small_objects(markers, min_size=min_object_size)
+    markers, marker_count = label(markers, return_num=True)
+    ws_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
+
+    # add back objects which are not marked earlier
+    leftover = np.logical_and(bodies, np.logical_not(ws_labels))
+    leftover, num = label(leftover, return_num=True)
+    idxs = np.unique(leftover)
+    for idx in idxs[1:]:
+        target = (leftover == idx)
+        leftover[target] = idx + marker_count
+    final_labels = np.add(ws_labels, leftover)
+    return final_labels, markers
