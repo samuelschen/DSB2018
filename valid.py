@@ -3,7 +3,7 @@ import os
 import argparse
 import time
 import csv
-from multiprocessing import Manager
+import uuid
 # 3rd party library
 import numpy as np
 import torch
@@ -13,12 +13,13 @@ from torch.utils.data import DataLoader
 from skimage.transform import resize
 from skimage.morphology import label, remove_small_objects
 from tqdm import tqdm
+from PIL import Image
 # own code
 from model import UNet, UNetVgg16, DCAN, CAUNet
 from dataset import KaggleDataset, NuclearDataset, Compose
 from helper import config, load_ckpt, prob_to_rles, seg_ws, seg_ws_by_edge, iou_metric
 
-def main(tocsv=False, save=False, valid_train=False):
+def main(tocsv=False, save=False, mask=False, valid_train=False):
     model_name = config['param']['model']
     cell_level = config['param'].getboolean('cell_level')
 
@@ -64,6 +65,8 @@ def main(tocsv=False, save=False, valid_train=False):
         for uid, x, y, y_c, gt, gt_s, gt_c in tqdm(iter):
             if valid_train:
                 show_groundtruth(uid, x, y, y_c, gt, gt_s, gt_c, save)
+            elif mask:
+                save_mask(uid, y, y_c)
             else:
                 show(uid, x, y, y_c, save)
 
@@ -257,13 +260,40 @@ def show_groundtruth(uid, x, y, y_c, gt, gt_s, gt_c, save=False):
 def predict_save_folder():
     return os.path.join('data', 'predict')
 
+def save_mask(uid, y, y_c):
+    threshold = config['param'].getfloat('threshold')
+    segmentation = config['post'].getboolean('segmentation')
+    remove_objects = config['post'].getboolean('remove_objects')
+    min_object_size = config['post'].getint('min_object_size')
+
+    if segmentation:
+        if y_c is not None:
+            y = seg_ws_by_edge(y, y_c)
+        else:
+            y = seg_ws(y)
+    if remove_objects:
+        y = remove_small_objects(y, min_size=min_object_size)
+
+    idxs = np.unique(y) # sorted, 1st is background (e.g. 0)
+
+    dir = os.path.join(predict_save_folder(), uid, 'masks')
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+
+    for idx in idxs[1:]:
+        mask = (y == idx).astype(np.uint8) 
+        mask *= 255
+        img = Image.fromarray(mask, mode='L')
+        img.save(os.path.join(dir, str(uuid.uuid4()) + '.png'), 'PNG')
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', action='store', choices=['train', 'test'], help='dataset to eval')
     parser.add_argument('--csv', dest='csv', action='store_true')
     parser.add_argument('--show', dest='csv', action='store_false')
-    parser.add_argument('--save', dest='save', action='store_true')
-    parser.set_defaults(csv=False, save=False, dataset='test')
+    parser.add_argument('--save', action='store_true')
+    parser.add_argument('--mask', action='store_true')
+    parser.set_defaults(csv=False, save=False, mask=False, dataset='test')
     args = parser.parse_args()
 
     if not args.csv:
@@ -280,4 +310,4 @@ if __name__ == '__main__':
             if not os.path.exists(dir):
                 os.makedirs(dir)
 
-    main(args.csv, args.save, args.dataset == 'train')
+    main(args.csv, args.save, args.mask, args.dataset == 'train')
