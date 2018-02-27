@@ -10,10 +10,10 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Ubuntu
 * Explore model architecture
   - [x] UNet
-    - [ ] Effectiveness for contour detection
-  - [ ] DCAN
-    - [ ] Training efficiency for contour detection
-    - [ ] Boundaries detection for adjacent nuclei only
+    - [x] Effectiveness for contour detection
+    - [ ] Boundaries detection for adjacent nuclei only?
+  - [x] DCAN (switch to multitask UNet judged bt experimental results)
+    - [x] Training efficiency for contour detection
   - [ ] Mask RCNN
   - [x] Dropout
   - [x] Batch normalization
@@ -48,6 +48,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [ ] Use [color map algorithm](https://stackoverflow.com/questions/42863543/applying-the-4-color-theorem-to-list-of-neighbor-polygons-stocked-in-a-graph-arr) to generate ground truth of limited label (4-), in order to prevent cross-talking 
 * Post-process
   - [x] Segmentation group by scipy watershed algorithm
+  - [x] Segmentation group by scipy watershed algorithm with contour-based markers
   - [ ] Fill hole inside each segment group
   - [ ] ...
 * Computation performance
@@ -230,26 +231,28 @@ n_batch = 64
 
 ## Benchmark 
 
-| Score | Data | Width | Cost Fn. | Epoch | Learning Rate | CV  | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | Watershed | Fill hole | 
-| ----- | ---- | ----- | -------- | ----- | ------------- | --- | - | - | - | - | - | - | - | - | - |
-| 0.334 | Orig | 256   | BCE      | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V |   |   |   |   |   |
-| 0.344 | Orig | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V | V |   |   |   |   |
-| (TBA) | Orig | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |   |
-| 0.326 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% |   |   |   |   |   |   |   |   |   |
-| 0.348 | v2   | 256   | IOU+BCE  | 300   | 1e-4          | 10% | V | V |   | V | V |   |   |   |   |
-| 0.361 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |   |
-| 0.355 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V | V |   |   |   |
-| 0.350 | v2   | 512   | IOU+BCE  | 1200  | 1e-4 >> 3e-6  |  0% | V | V |   | V | V |   |   |   |   |
-| 0.353 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   | V |   |   |
-| 0.413 | v2   | 256   | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   | V |   |
-| 0.421 | v3   | 256   | IOU+BCE  | 400   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   | V |   |
-| 0.437 | v3   | 256   | IOU+BCE  | 900   | 1e-4          |  0% | V | V |   | V | V |   |   | V |   |
+| Score | Data | Width | Model | Cost Fn. | Epoch | Learning Rate | CV  | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | Watershed | Fill hole | 
+| ----- | ---- | ----- | ----- | -------- | ----- | ------------- | --- | - | - | - | - | - | - | - | - | - |
+| 0.334 | Orig | 256   | UNet  | BCE      | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V |   |   |   |   |   |
+| 0.344 | Orig | 256   | UNet  | IOU+BCE  | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V | V |   |   |   |   |
+| (TBA) | Orig | 256   | UNet  | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |   |
+| 0.326 | v2   | 256   | UNet  | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% |   |   |   |   |   |   |   |   |   |
+| 0.348 | v2   | 256   | UNet  | IOU+BCE  | 300   | 1e-4          | 10% | V | V |   | V | V |   |   |   |   |
+| 0.361 | v2   | 256   | UNet  | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |   |
+| 0.355 | v2   | 256   | UNet  | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V | V |   |   |   |
+| 0.350 | v2   | 512   | UNet  | IOU+BCE  | 1200  | 1e-4 >> 3e-6  |  0% | V | V |   | V | V |   |   |   |   |
+| 0.353 | v2   | 256   | UNet  | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   | V |   |   |
+| 0.413 | v2   | 256   | UNet  | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   | V1|   |
+| 0.421 | v3   | 256   | UNet  | IOU+BCE  | 400   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   | V1|   |
+| 0.437 | v3   | 256   | UNet  | IOU+BCE  | 900   | 1e-4          |  0% | V | V |   | V | V |   |   | V1|   |
+| 0.460 | v4   | 256   | CAUNet| IOU+BCE(weight)  | 900   | 1e-4  |  0% | V | V |   | V | V |   |   | V2|   |
 
 Note:
 - Dataset (training): 
     * V1: original kaggle
     * V2: Feb 06, modified by Jimmy and Ryk
     * V3: V2 + TCGA 256
+    * V4: V2 + TCGA 256 (Non overlapped)
 - Score is public score on kaggle site
 - Zero CV rate means all data were used for training, none reserved
 - Adjust learning rate per 300 epoch
