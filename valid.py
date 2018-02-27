@@ -147,6 +147,22 @@ def _make_overlay(img_array):
     cmap.set_bad('w', alpha=0) # map background(0) as transparent/white
     return img_array, cmap
 
+def show_figure():
+    backend = matplotlib.get_backend()
+    _x = config['valid'].getint('figure_pos_x')
+    _y = config['valid'].getint('figure_pos_y')
+    mgr = plt.get_current_fig_manager()
+    if backend == 'TkAgg':
+        mgr.window.wm_geometry("+%d+%d" % (_x, _y))
+    elif backend == 'WXAgg':
+        mgr.window.SetPosition((_x, _y))
+    elif backend == 'Qt5Agg':
+        mgr.window.move(_x, _y)
+    else:
+        # jupyter notebook etc.
+        pass
+    plt.show()
+
 def show(uid, x, y, y_c, save=False):
     threshold = config['param'].getfloat('threshold')
     segmentation = config['post'].getboolean('segmentation')
@@ -192,7 +208,7 @@ def show(uid, x, y, y_c, save=False):
         fp = os.path.join(dir, uid + '.png')
         plt.savefig(fp)
     else:
-        plt.show()
+        show_figure()
 
 def show_groundtruth(uid, x, y, y_c, gt, gt_s, gt_c, save=False):
     threshold = config['param'].getfloat('threshold')
@@ -264,7 +280,7 @@ def show_groundtruth(uid, x, y, y_c, gt, gt_s, gt_c, save=False):
         fp = os.path.join(dir, uid + '.png')
         plt.savefig(fp)
     else:
-        plt.show()
+        show_figure()
 
 def predict_save_folder():
     return os.path.join('data', 'predict')
@@ -307,6 +323,7 @@ if __name__ == '__main__':
 
     if not args.csv:
         try:
+            import matplotlib
             import matplotlib.pyplot as plt
         except ImportError as err:
             print(err)
