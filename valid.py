@@ -22,6 +22,7 @@ from helper import config, load_ckpt, prob_to_rles, seg_ws, seg_ws_by_edge, iou_
 def main(tocsv=False, save=False, mask=False, valid_train=False):
     model_name = config['param']['model']
     cell_level = config['param'].getboolean('cell_level')
+    use_padding = config['valid'].getboolean('pred_orig_size')
 
     if model_name == 'unet_vgg16':
         model = UNetVgg16(3, 1, fixed_vgg=True)
@@ -45,14 +46,14 @@ def main(tocsv=False, save=False, mask=False, valid_train=False):
         return
 
     # prepare dataset
-    compose = Compose(augment=False)
+    compose = Compose(augment=False, padding=use_padding)
     data_dir = 'data/stage1_train' if valid_train else 'data/stage1_test'
     if cell_level:
         dataset = NuclearDataset(data_dir, transform=compose)
     else:
         dataset = KaggleDataset(data_dir, transform=compose)
         # dataset = KaggleDataset(data_dir, transform=compose, category='Histology')
-    iter = predict(model, dataset, compose)
+    iter = predict(model, dataset, compose, not use_padding)
 
     if tocsv:
         with open('result.csv', 'w') as csvfile:
@@ -75,6 +76,7 @@ def predict(model, dataset, compose, regrowth=True):
     for data in dataset:
         # get prediction
         uid = data['uid']
+        size = data['size']
         inputs = x = data['image']
         gt_s, gt_c, gt = data['label'], data['label_e'], data['label_gt']
         inputs = inputs.unsqueeze(0)
@@ -93,10 +95,16 @@ def predict(model, dataset, compose, regrowth=True):
         gt_c = compose.pil(gt_c)
         gt = compose.pil(gt)
         if regrowth:
-            x = x.resize(data['size'])
-            gt_s = gt_s.resize(data['size'])
-            gt_c = gt_c.resize(data['size'])
-            gt = gt.resize(data['size'])
+            x = x.resize(size)
+            gt_s = gt_s.resize(size)
+            gt_c = gt_c.resize(size)
+            gt = gt.resize(size)
+        else:
+            rect = (0, 0, size[0], size[1])
+            x = x.crop(rect)
+            gt_s = gt_s.crop(rect)
+            gt_c = gt_c.crop(rect)
+            gt = gt.crop(rect)
 
         x = np.asarray(x)
         gt_s = np.asarray(gt_s)
@@ -113,14 +121,20 @@ def predict(model, dataset, compose, regrowth=True):
         y = np.transpose(y, (1, 2, 0))
         y = np.squeeze(y)
         if regrowth:
-            y = resize(y, data['size'][::-1], mode='constant', preserve_range=True)
+            y = resize(y, size[::-1], mode='constant', preserve_range=True)
+        else:
+            w, h = size
+            y = y[:h, :w]
 
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
             y_c = outputs_c.data.numpy()[0]
             y_c = np.transpose(y_c, (1, 2, 0))
             y_c = np.squeeze(y_c)
             if regrowth:
-                y_c = resize(y_c, data['size'][::-1], mode='constant', preserve_range=True)
+                y_c = resize(y_c, size[::-1], mode='constant', preserve_range=True)
+            else:
+                w, h = size
+                y_c = y_c[:h, :w]
         else:
             y_c = None
 
