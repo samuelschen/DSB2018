@@ -311,7 +311,7 @@ class Compose():
                 image, label, label_e, label_gt = [tx.vflip(x) for x in (image, label, label_e, label_gt)]
 
             # perform Elastic Distortion
-            if self.toDistortion:
+            if self.toDistortion and random.random() > 0.5:
                 indices = ElasticDistortion.get_params(image)
                 image, label, label_e = [ElasticDistortion.transform(x, indices) for x in (image, label, label_e)]
                 label_gt = ElasticDistortion.transform(label_gt, indices, spline_order=0) # spline_order=0 to avoid polluting instance labels
