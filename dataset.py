@@ -451,7 +451,7 @@ class ElasticDistortion():
         pass
 
     @staticmethod
-    def get_params(img, alpha=1000, sigma=30):
+    def get_params(img, alpha=2000, sigma=30):
         w, h = img.size
         dx = gaussian_filter((np.random.rand(*(h, w)) * 2 - 1),
                             sigma, mode="constant", cval=0) * alpha
