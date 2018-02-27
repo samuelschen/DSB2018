@@ -339,9 +339,10 @@ class Compose():
                 pad_w = gcd - (w % gcd)
             if 0 != (h % gcd):
                 pad_h = gcd - (h % gcd)
-            image = ImageOps.expand(image, (0, 0, pad_w, pad_h))
+            # padding color should honor each image background, default is black (0)
+            bgcolor = 'black' if np.median(image) < 100 else 'white'
+            image = ImageOps.expand(image, (0, 0, pad_w, pad_h), bgcolor)
             label = ImageOps.expand(label, (0, 0, pad_w, pad_h))
-            # todo: padding color should honor each image background, default is black (0)
             label_gt = ImageOps.expand(label_gt, (0, 0, pad_w, pad_h))
             if self.cell_level:
                 label_e = Image.fromarray(contour(sample['uid'], np.asarray(label)))
