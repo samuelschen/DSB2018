@@ -238,7 +238,12 @@ def seg_ws_by_edge(raw_bodies, raw_edges):
     edges = raw_edges > threshold_edge
     # markers = ((raw_bodies - k * raw_edges) > threshold)
     # markers = bodies & ~edges
-    markers = np.logical_and(bodies, np.logical_not(edges))
+
+    # to remedy dropped edges around the image border (1 or 2 pixels holes)
+    box_bodies = bodies.copy()
+    h, w = box_bodies.shape
+    box_bodies[0:2, :] = box_bodies[h-2:, :] = box_bodies[:, 0:2] = box_bodies[:, w-2:] = 0
+    markers = np.logical_and(box_bodies, np.logical_not(edges))
 
     # remove small noisy objects (caused by non perfect bodies - edges),
     # it might remove some legit objects, need add them back after watershed
