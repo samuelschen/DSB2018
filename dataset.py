@@ -256,12 +256,13 @@ class NuclearDataset(Dataset):
 
 
 class Compose():
-    def __init__(self, augment=True, tensor=True):
+    def __init__(self, augment=True, padding=False, tensor=True):
         model_name = config['param']['model']
         width = config[model_name].getint('width')
         self.size = (width, width)
         self.cell_level = config['param'].getboolean('cell_level')
         self.weight_bce = config['param'].getboolean('weight_bce')
+        self.gcd_depth = config['param'].getint('gcd_depth')
 
         c = config['pre']
         self.mean = json.loads(c.get('mean'))
@@ -273,6 +274,7 @@ class Compose():
         self.toEqualize = c.getboolean('color_equalize')
         self.toTensor = tensor
         self.toAugment = augment
+        self.toPadding = padding
         self.toContour = c.getboolean('detect_contour')
         self.onlyContour = c.getboolean('train_contour_only')
         min_crop = c.getfloat('min_crop_scale')
@@ -329,6 +331,23 @@ class Compose():
             if self.toJitter:
                 color = transforms.ColorJitter.get_params(0.5, 0.5, 0.5, 0.25)
                 image = color(image)
+        elif self.toPadding:
+            w, h = sample['size']
+            gcd = self.gcd_depth
+            pad_w = pad_h = 0
+            if 0 != (w % gcd):
+                pad_w = gcd - (w % gcd)
+            if 0 != (h % gcd):
+                pad_h = gcd - (h % gcd)
+            image = ImageOps.expand(image, (0, 0, pad_w, pad_h))
+            label = ImageOps.expand(label, (0, 0, pad_w, pad_h))
+            # todo: padding color should honor each image background, default is black (0)
+            label_gt = ImageOps.expand(label_gt, (0, 0, pad_w, pad_h))
+            if self.cell_level:
+                label_e = Image.fromarray(contour(sample['uid'], np.asarray(label)))
+            else:
+                label_e, weight = instances_contour(sample['uid'], np.asarray(label_gt))
+                label_e = Image.fromarray(label_e)
         else:
             image, label = [tx.resize(x, self.size) for x in (image, label)]
             label_gt = tx.resize(label_gt, self.size, interpolation=Image.NEAREST)
