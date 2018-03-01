@@ -49,7 +49,7 @@ def main(resume=True, n_epoch=None, learn_rate=None):
 
     if isinstance(model, DCAN) or isinstance(model, CAUNet):
         if weight_bce:
-            cost = (segment_criterion, weight_criterion) # TODO: both segment & contour heads are weighted
+            cost = (weight_criterion, weight_criterion)
         else:
             cost = (segment_criterion, contour_criterion)
     elif weight_bce:
@@ -161,7 +161,7 @@ def train(loader, model, cost, optimizer, epoch, writer):
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
             outputs, outputs_c = model(inputs)
             if weight_bce:
-                loss = cost[0](outputs, labels) + cost[1](outputs_c, labels_e, weights) #TODO: both semantic & contour heads are weighted
+                loss = cost[0](outputs, labels, weights) + cost[1](outputs_c, labels_e, weights)
             else:
                 loss = cost[0](outputs, labels) + cost[1](outputs_c, labels_e)
             batch_iou_c = iou_mean(outputs_c, labels_e)
@@ -249,7 +249,7 @@ def valid(loader, model, cost, epoch, writer, n_step):
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
             outputs, outputs_c = model(inputs)
             if weight_bce:
-                loss = cost[0](outputs, labels) + cost[1](outputs_c, labels_e, weights) #TODO: both semantic & contour heads are weighted
+                loss = cost[0](outputs, labels, weights) + cost[1](outputs_c, labels_e, weights)
             else:
                 loss = cost[0](outputs, labels) + cost[1](outputs_c, labels_e)
             # measure accuracy and record loss
