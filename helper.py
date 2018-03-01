@@ -236,15 +236,15 @@ def seg_ws_by_edge(raw_bodies, raw_edges):
 
     bodies = raw_bodies > threshold
     edges = raw_edges > threshold_edge
-    # markers = ((raw_bodies - k * raw_edges) > threshold)
-    # markers = bodies & ~edges
+    # markers = ((box_bodies - k * raw_edges) > threshold)
+    # h, w = markers.shape
+    # markers[0:2, :] = markers[h-2:, :] = markers[:, 0:2] = markers[:, w-2:] = 0
 
-    # to remedy dropped edges around the image border (1 or 2 pixels holes)
+    # to remedy error-dropped edges around the image border (1 or 2 pixels holes)
     box_bodies = bodies.copy()
     h, w = box_bodies.shape
     box_bodies[0:2, :] = box_bodies[h-2:, :] = box_bodies[:, 0:2] = box_bodies[:, w-2:] = 0
-    markers = np.logical_and(box_bodies, np.logical_not(edges))
-
+    markers = box_bodies & ~edges
     # remove small noisy objects (caused by non perfect bodies - edges),
     # it might remove some legit objects, need add them back after watershed
     markers = remove_small_objects(markers, min_size=min_object_size)
@@ -252,11 +252,7 @@ def seg_ws_by_edge(raw_bodies, raw_edges):
     ws_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
 
     # add back objects which are not marked earlier
-    leftover = np.logical_and(bodies, np.logical_not(ws_labels))
-    leftover, num = label(leftover, return_num=True)
-    idxs = np.unique(leftover)
-    for idx in idxs[1:]:
-        target = (leftover == idx)
-        leftover[target] = idx + marker_count
-    final_labels = np.add(ws_labels, leftover)
+    dropped = label(bodies & ~(ws_labels > 0))
+    dropped = np.where(dropped > 0, dropped + marker_count, 0)
+    final_labels = np.add(ws_labels, dropped)
     return final_labels, markers
