@@ -302,6 +302,8 @@ class Compose():
             # perform RandomCrop()
             i, j, h, w = transforms.RandomCrop.get_params(image, self.size)
             image, label, label_e, label_gt = [tx.crop(x, i, j, h, w) for x in (image, label, label_e, label_gt)]
+            if self.preciseContour:
+                pil_masks = [tx.crop(m, i, j, h, w) for m in pil_masks]
 
             # Note: RandomResizedCrop() is popularly used to train the Inception networks, but might not the best choice for segmentation?
             # # perform RandomResizedCrop()
@@ -314,14 +316,6 @@ class Compose():
             # image, label, label_e = [tx.resized_crop(x, i, j, h, w, self.size) for x in (image, label, label_e)]
             # label_gt = tx.resized_crop(label_gt, i, j, h, w, self.size, interpolation=Image.NEAREST)
 
-            # perform RandomHorizontalFlip()
-            if random.random() > 0.5:
-                image, label, label_e, label_gt = [tx.hflip(x) for x in (image, label, label_e, label_gt)]
-
-            # perform RandomVerticalFlip()
-            if random.random() > 0.5:
-                image, label, label_e, label_gt = [tx.vflip(x) for x in (image, label, label_e, label_gt)]
-
             # perform Elastic Distortion
             if self.toDistortion and random.random() > 0.75:
                 indices = ElasticDistortion.get_params(image)
@@ -331,6 +325,14 @@ class Compose():
                     label_gt = compose_mask(pil_masks, pil=True)
                 else:
                     label_gt = ElasticDistortion.transform(label_gt, indices, spline_order=0) # spline_order=0 to avoid polluting instance labels
+
+            # perform RandomHorizontalFlip()
+            if random.random() > 0.5:
+                image, label, label_e, label_gt = [tx.hflip(x) for x in (image, label, label_e, label_gt)]
+
+            # perform RandomVerticalFlip()
+            if random.random() > 0.5:
+                image, label, label_e, label_gt = [tx.vflip(x) for x in (image, label, label_e, label_gt)]
 
             if self.toContour: # replaced with 'thinner' contour based on augmented/transformed mask
                 if self.cell_level:
@@ -344,7 +346,7 @@ class Compose():
                 image = ImageOps.invert(image)
 
             # perform ColorJitter()
-            if self.toJitter:
+            if self.toJitter and random.random() > 0.5:
                 color = transforms.ColorJitter.get_params(0.5, 0.5, 0.5, 0.25)
                 image = color(image)
         elif self.toPadding:
