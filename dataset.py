@@ -405,10 +405,10 @@ class Compose():
             weight = np.expand_dims(weight, 0)
             sample['weight'] = torch.from_numpy(weight)
 
-        txf_sample = {'image': image, 'label': label, 'label_e': label_e, 'label_gt': label_gt, 'uid': sample['uid'], 'size': sample['size']}
-        if 'weight' in sample:
-            txf_sample['weight'] = sample['weight']
-        return txf_sample
+        sample['image'], sample['label'], sample['label_e'], sample['label_gt'] = image, label, label_e, label_gt
+        if 'pil_masks' in sample:
+            del sample['pil_masks']
+        return sample
 
     def denorm(self, tensor):
         tensor = tensor.clone()
