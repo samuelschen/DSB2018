@@ -67,6 +67,7 @@ class KaggleDataset(Dataset):
             self.ids = next(os.walk(root))[1]
         self.ids.sort()
         self.cache = cache
+        self.preciseContour = config['pre'].getboolean('precise_contour')
 
     def __len__(self):
         return len(self.ids)
@@ -87,9 +88,11 @@ class KaggleDataset(Dataset):
                 image = image.convert('RGB')
             # overlay masks to single mask
             w, h = image.size
+            label_gt = np.zeros((h, w), dtype=np.int32) # instance labels, might > 256
+            label = np.zeros((h, w), dtype=np.uint8) # semantic labels
+            label_e = np.zeros((h, w), dtype=np.uint8) # edge labels
             mask_dir = os.path.join(self.root, uid, 'masks')
             if os.path.isdir(mask_dir):
-                edges = []
                 masks = []
                 for fn in next(os.walk(mask_dir))[2]:
                     fp = os.path.join(mask_dir, fn)
@@ -98,16 +101,18 @@ class KaggleDataset(Dataset):
                         m = np.mean(m, -1).astype(np.uint8)
                     if config['pre'].getboolean('fill_holes'):
                         m = binary_fill_holes(m).astype(np.uint8)*255
-                    edges.append(get_contour(uid, m))
                     masks.append(m)
-                label_e = np.where(np.sum(edges, axis=0) > 0, 255, 0).astype(np.uint8)
                 label_gt = compose_mask(masks)
                 label = (label_gt > 0).astype(np.uint8)*255 # semantic masks, generated from merged instance mask
-            label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
-            label_e = Image.fromarray(label_e, 'L') # specify it's grayscale 8-bit
+                label_e, _ = get_instances_contour(uid, label_gt)
             label_gt = Image.fromarray(label_gt)
-            pil_masks = [Image.fromarray(m) for m in masks]
-            sample = {'image': image, 'label': label, 'label_e': label_e, 'label_gt': label_gt, 'uid': uid, 'size': image.size, 'pil_masks': pil_masks}
+            label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
+            label_e = Image.fromarray(label_e, 'L')
+            if self.preciseContour:
+                pil_masks = [Image.fromarray(m) for m in masks]
+                sample = {'image': image, 'label': label, 'label_e': label_e, 'label_gt': label_gt, 'uid': uid, 'size': image.size, 'pil_masks': pil_masks}
+            else:
+                sample = {'image': image, 'label': label, 'label_e': label_e, 'label_gt': label_gt, 'uid': uid, 'size': image.size}
             if self.cache is not None:
                 self.cache[uid] = sample
         if self.transform:
@@ -129,7 +134,7 @@ class KaggleDataset(Dataset):
 
 
 class NuclearDataset(Dataset):
-    """Single nuclei centric dataset."""
+    """Single nuclei centric dataset. Deprecated!"""
 
     def __init__(self, root, transform=None, cache=None, category=None):
         """
@@ -276,13 +281,16 @@ class Compose():
             self.cell_scale = (min_crop, max_crop)
 
     def __call__(self, sample):
-        image, label, label_e, label_gt, pil_masks = sample['image'], sample['label'], sample['label_e'], sample['label_gt'], sample['pil_masks']
+        if self.preciseContour:
+            image, label, label_e, label_gt, pil_masks = sample['image'], sample['label'], sample['label_e'], sample['label_gt'], sample['pil_masks']
+        else:
+            image, label, label_e, label_gt = sample['image'], sample['label'], sample['label_e'], sample['label_gt']
         weight = None
 
-        if self.toEqualize:
-            image = clahe(image)
-
         if self.toAugment:
+            if self.toEqualize and random.random() > 0.5:
+                image = clahe(image)
+
             # perform RandomResize() or just enlarge for image size < model input size
             if random.random() > 0.5:
                 new_size = int(random.uniform(0.5, 1.5) * np.min(image.size))
