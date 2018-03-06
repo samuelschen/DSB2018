@@ -281,10 +281,10 @@ class Compose():
             self.cell_scale = (min_crop, max_crop)
 
     def __call__(self, sample):
+        image, label, label_e, label_gt = \
+                sample['image'], sample['label'], sample['label_e'], sample['label_gt']
         if self.preciseContour:
-            image, label, label_e, label_gt, pil_masks = sample['image'], sample['label'], sample['label_e'], sample['label_gt'], sample['pil_masks']
-        else:
-            image, label, label_e, label_gt = sample['image'], sample['label'], sample['label_e'], sample['label_gt']
+            pil_masks = sample['pil_masks']
         weight = None
 
         if self.toAugment:
@@ -409,14 +409,18 @@ class Compose():
         if self.toTensor:
             image = tx.normalize(image, self.mean, self.std)
 
+        # prepare a shadow copy of composed data to avoid screwup cached data 
+        x = sample.copy()
+        x['image'], x['label'], x['label_e'], x['label_gt'] = image, label, label_e, label_gt
+
         if self.weight_bce and weight is not None:
             weight = np.expand_dims(weight, 0)
-            sample['weight'] = torch.from_numpy(weight)
+            x['weight'] = torch.from_numpy(weight)
 
-        sample['image'], sample['label'], sample['label_e'], sample['label_gt'] = image, label, label_e, label_gt
-        if 'pil_masks' in sample:
-            del sample['pil_masks']
-        return sample
+        if 'pil_masks' in x:
+            del x['pil_masks']
+
+        return x
 
     def denorm(self, tensor):
         tensor = tensor.clone()
@@ -461,7 +465,7 @@ def get_contour(uid, mask):
     cell_level = config['param'].getboolean('cell_level')
     id_list = uid.split('/')
     img_id = id_list[0]
-    edge = filters.scharr(Image.fromarray(mask))
+    edge = filters.scharr(mask)
     scharr_threshold = np.amax(abs(edge)) / 2.
     if not cell_level and (img_id in bright_field_list):
         scharr_threshold = 0. # nuclei are much smaller than others in bright_field slice
