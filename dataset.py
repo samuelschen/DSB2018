@@ -273,12 +273,8 @@ class Compose():
         self.toContour = c.getboolean('detect_contour')
         self.onlyContour = c.getboolean('train_contour_only')
         self.preciseContour = c.getboolean('precise_contour')
-        min_crop = c.getfloat('min_crop_scale')
-        max_crop = c.getfloat('max_crop_scale')
-        if self.cell_level:
-            self.cell_scale = (max_crop, max_crop)
-        else:
-            self.cell_scale = (min_crop, max_crop)
+        self.min_scale = c.getfloat('min_scale')
+        self.max_scale = c.getfloat('max_scale')
 
     def __call__(self, sample):
         image, label, label_e, label_gt = \
@@ -293,7 +289,7 @@ class Compose():
 
             # perform RandomResize() or just enlarge for image size < model input size
             if random.random() > 0.5:
-                new_size = int(random.uniform(0.5, 1.5) * np.min(image.size))
+                new_size = int(random.uniform(self.min_scale, self.max_scale) * np.min(image.size))
             else:
                 new_size = int(np.min(image.size))
             if new_size < np.max(self.size): # make it viable for cropping
@@ -317,7 +313,7 @@ class Compose():
             # # perform RandomResizedCrop()
             # i, j, h, w = transforms.RandomResizedCrop.get_params(
             #     image,
-            #     scale=self.cell_scale,
+            #     scale=(0.5, 1.0)
             #     ratio=(3. / 4., 4. / 3.)
             # )
             # # label_gt use NEAREST instead of BILINEAR (default) to avoid polluting instance labels after augmentation
