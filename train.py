@@ -192,10 +192,8 @@ def train(loader, model, cost, optimizer, epoch, writer):
         writer.add_scalar('training/loss', loss.data[0], step)
         writer.add_scalar('training/batch_elapse', batch_time.val, step)
         writer.add_scalar('training/batch_iou', iou.val, step)
-        writer.add_scalar('training/epoch_iou', iou.avg, step)
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
             writer.add_scalar('training/batch_iou_c', iou_c.val, step)
-            writer.add_scalar('training/epoch_iou_c', iou_c.avg, step)
             if (i + 1) % print_freq == 0:
                 print(
                     'Epoch: [{0}][{1}/{2}]\t'
@@ -220,6 +218,10 @@ def train(loader, model, cost, optimizer, epoch, writer):
                         data_time=data_time, loss=losses, iou=iou
                     )
                 )
+    writer.add_scalar('training/epoch_loss', losses.avg, epoch)
+    writer.add_scalar('training/epoch_iou', iou.avg, epoch)
+    if isinstance(model, DCAN) or isinstance(model, CAUNet):
+        writer.add_scalar('training/epoch_iou_c', iou_c.avg, epoch)
 
 def valid(loader, model, cost, epoch, writer, n_step):
     iou = AverageMeter() # semantic IoU
@@ -270,11 +272,10 @@ def valid(loader, model, cost, epoch, writer, n_step):
         losses.update(loss.data[0], inputs.size(0))
 
     # log to summary
-    step = epoch * n_step
-    writer.add_scalar('CV/loss', losses.avg, step)
-    writer.add_scalar('CV/epoch_iou', iou.avg, step)
+    writer.add_scalar('CV/epoch_loss', losses.avg, epoch)
+    writer.add_scalar('CV/epoch_iou', iou.avg, epoch)
     if isinstance(model, DCAN) or isinstance(model, CAUNet):
-        writer.add_scalar('training/epoch_iou_c', iou_c.avg, step)
+        writer.add_scalar('CV/epoch_iou_c', iou_c.avg, epoch)
         print(
             'Epoch: [{0}]\t\tcross-validation\t\t'
             'Loss: N/A    ({loss.avg:.4f})\t'
