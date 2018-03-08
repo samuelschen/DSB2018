@@ -215,7 +215,7 @@ def show_groundtruth(uid, x, y, y_c, gt, gt_s, gt_c, save=False):
     segmentation = config['post'].getboolean('segmentation')
     remove_objects = config['post'].getboolean('remove_objects')
     min_object_size = config['post'].getint('min_object_size')
-    contour_only = config['pre'].getboolean('train_contour_only')
+    only_contour = config['contour'].getboolean('exclusive')
     model_name = config['param']['model']
     if model_name == 'dcan' or model_name == 'caunet':
         threshold_sgmt = config[model_name].getfloat('threshold_sgmt')
@@ -244,7 +244,7 @@ def show_groundtruth(uid, x, y, y_c, gt, gt_s, gt_c, save=False):
     gt_c2, cmap = _make_overlay(gt_c)
     ax1[2].imshow(gt_c2, cmap=cmap, alpha=0.7, aspect='auto')
 
-    if contour_only: # can not tell from instances in this case
+    if only_contour: # can not tell from instances in this case
         iou = iou_metric(y, gt)
     else:
         iou = iou_metric(y, gt, instance_level=True)

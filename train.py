@@ -133,7 +133,7 @@ def train(loader, model, cost, optimizer, epoch, writer):
     if isinstance(model, DCAN) or isinstance(model, CAUNet):
         iou_c = AverageMeter() # contour IoU
     print_freq = config['train'].getfloat('print_freq')
-    only_contour = config['pre'].getboolean('train_contour_only')
+    only_contour = config['contour'].getboolean('exclusive')
     weight_bce = config['param'].getboolean('weight_bce')
 
     # Sets the module in training mode.
@@ -177,7 +177,10 @@ def train(loader, model, cost, optimizer, epoch, writer):
 
         # measure accuracy and record loss
         # NOT instance-level IoU in training phase, for better speed & instance separation handled in post-processing
-        batch_iou = iou_mean(outputs, labels_e) if only_contour else iou_mean(outputs, labels)
+        if only_contour:
+            batch_iou = iou_mean(outputs, labels_e)
+        else:
+            batch_iou = iou_mean(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
 
         losses.update(loss.data[0], inputs.size(0))
@@ -228,7 +231,7 @@ def valid(loader, model, cost, epoch, writer, n_step):
     if isinstance(model, DCAN) or isinstance(model, CAUNet):
         iou_c = AverageMeter() # contour IoU
     losses = AverageMeter()
-    only_contour = config['pre'].getboolean('train_contour_only')
+    only_contour = config['contour'].getboolean('exclusive')
     weight_bce = config['param'].getboolean('weight_bce')
 
     # Sets the model in evaluation mode.
@@ -267,7 +270,10 @@ def valid(loader, model, cost, epoch, writer, n_step):
                 loss = cost(outputs, labels)
 
         # measure accuracy and record loss (Non-instance level IoU)
-        batch_iou = iou_mean(outputs, labels_e) if only_contour else iou_mean(outputs, labels)
+        if only_contour:
+            batch_iou = iou_mean(outputs, labels_e)
+        else:
+            batch_iou = iou_mean(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
         losses.update(loss.data[0], inputs.size(0))
 

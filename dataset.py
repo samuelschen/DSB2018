@@ -67,7 +67,6 @@ class KaggleDataset(Dataset):
             self.ids = next(os.walk(root))[1]
         self.ids.sort()
         self.cache = cache
-        self.preciseContour = config['pre'].getboolean('precise_contour')
 
     def __len__(self):
         return len(self.ids)
@@ -104,11 +103,12 @@ class KaggleDataset(Dataset):
                     masks.append(m)
                 label_gt = compose_mask(masks)
                 label = (label_gt > 0).astype(np.uint8)*255 # semantic masks, generated from merged instance mask
-                label_e, _ = get_instances_contour(uid, label_gt)
+                if config['contour'].getboolean('detect'):
+                    label_e, _ = get_instances_contour(uid, label_gt)
             label_gt = Image.fromarray(label_gt)
             label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
             label_e = Image.fromarray(label_e, 'L')
-            if self.preciseContour:
+            if config['contour'].getboolean('precise'):
                 pil_masks = [Image.fromarray(m) for m in masks]
                 sample = {'image': image, 'label': label, 'label_e': label_e, 'label_gt': label_gt, 'uid': uid, 'size': image.size, 'pil_masks': pil_masks}
             else:
@@ -214,7 +214,10 @@ class NuclearDataset(Dataset):
             crop_mask = Image.fromarray(crop_mask, 'L')
             w, h = crop_img.size
             sample = {'image': crop_img, 'label': crop_mask, 'label_e': crop_edge, 'uid': uid, 'size': image.size}
-            sample['label_gt'] = crop_edge if config['pre'].getboolean('train_contour_only') else crop_mask
+            if config['contour'].getboolean('exclusive'):
+                sample['label_gt'] = crop_edge
+            else:
+                sample['label_gt'] = crop_mask
             if self.cache is not None:
                 self.cache[uid] = sample
         else:
@@ -228,7 +231,10 @@ class NuclearDataset(Dataset):
             crop_mask = Image.fromarray(crop_mask, 'L')
             w, h = crop_img.size
             sample = {'image': crop_img, 'label': crop_mask, 'label_e': crop_edge, 'uid': uid, 'size': image.size}
-            sample['label_gt'] = crop_edge if config['pre'].getboolean('train_contour_only') else crop_mask
+            if config['contour'].getboolean('exclusive'):
+                sample['label_gt'] = crop_edge
+            else:
+                sample['label_gt'] = crop_mask
             if self.cache is not None:
                 self.cache[uid] = sample
                 self.cache[img_id] = image
@@ -270,11 +276,13 @@ class Compose():
         self.toTensor = tensor
         self.toAugment = augment
         self.toPadding = padding
-        self.toContour = c.getboolean('detect_contour')
-        self.onlyContour = c.getboolean('train_contour_only')
-        self.preciseContour = c.getboolean('precise_contour')
         self.min_scale = c.getfloat('min_scale')
         self.max_scale = c.getfloat('max_scale')
+
+        c = config['contour']
+        self.toContour = c.getboolean('detect')
+        self.onlyContour = c.getboolean('exclusive')
+        self.preciseContour = c.getboolean('precise')
 
     def __call__(self, sample):
         image, label, label_e, label_gt = \
@@ -338,7 +346,8 @@ class Compose():
             if random.random() > 0.5:
                 image, label, label_e, label_gt = [tx.vflip(x) for x in (image, label, label_e, label_gt)]
 
-            if self.toContour: # replaced with 'thinner' contour based on augmented/transformed mask
+            # replaced with 'thinner' contour based on augmented/transformed mask
+            if self.toContour:
                 if self.cell_level:
                     label_e = Image.fromarray(get_contour(sample['uid'], np.asarray(label)))
                 else:
