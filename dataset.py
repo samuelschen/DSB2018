@@ -332,7 +332,7 @@ class Compose():
             if self.elastic_distortion and random.random() > 0.75:
                 indices = ElasticDistortion.get_params(image)
                 image, label, label_e = [ElasticDistortion.transform(x, indices) for x in (image, label, label_e)]
-                if self.preciseContour:
+                if self.precise_contour:
                     pil_masks = [ElasticDistortion.transform(m, indices) for m in pil_masks]
                     label_gt = compose_mask(pil_masks, pil=True)
                 else:
