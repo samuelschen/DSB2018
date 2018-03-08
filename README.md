@@ -246,6 +246,7 @@ n_batch = 64
 | 0.421 | v3   | 256   | UNet  | IOU+BCE  | 400   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   | V1|   |
 | 0.437 | v3   | 256   | UNet  | IOU+BCE  | 900   | 1e-4          |  0% | V | V |   | V | V |   |   | V1|   |
 | 0.460 | v4   | 256   | CAUNet| IOU+BCE(weight)  |  900  | 1e-4  |  0% | V | V |   | V | V |   |   | V2|   |
+| 0.459 | v5   | 256   | CAUNet| IOU+BCE(weight)  | 1200  | 1e-4  |  0% | V | V |   | V | V |   |   | V2|   |
 | 0.447 | v4   | 256   | CAUNet| IOU+BCE          | 1800  | 1e-4  |  0% | V | V |   | V | V |   |   | V2|   |
 | 0.465 | v4   | 256   | CAUNet| IOU+BCE(weight)  | 1800  | 1e-4  |  0% | V | V |   | V | V |   |   | V2|   |
 
@@ -255,6 +256,7 @@ Note:
     * V2: Feb 06, modified by Jimmy and Ryk
     * V3: V2 + TCGA 256
     * V4: V2 + TCGA 256 (Non overlapped)
+    * V5: [lopuhin Github](https://github.com/lopuhin/kaggle-dsbowl-2018-dataset-fixes) + TCGA 256 (Non overlapped)
 - Score is public score on kaggle site
 - Zero CV rate means all data were used for training, none reserved
 - Adjust learning rate per 300 epoch
