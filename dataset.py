@@ -268,31 +268,31 @@ class Compose():
         c = config['pre']
         self.mean = json.loads(c.get('mean'))
         self.std = json.loads(c.get('std'))
-        self.toBinary = c.getboolean('label_to_binary')
-        self.toInvert = c.getboolean('color_invert')
-        self.toJitter = c.getboolean('color_jitter')
-        self.toDistortion = c.getboolean('elastic_distortion')
-        self.toEqualize = c.getboolean('color_equalize')
-        self.toTensor = tensor
-        self.toAugment = augment
-        self.toPadding = padding
+        self.label_binary = c.getboolean('label_to_binary')
+        self.color_invert = c.getboolean('color_invert')
+        self.color_jitter = c.getboolean('color_jitter')
+        self.elastic_distortion = c.getboolean('elastic_distortion')
+        self.color_equalize = c.getboolean('color_equalize')
+        self.tensor = tensor
+        self.augment = augment
+        self.padding = padding
         self.min_scale = c.getfloat('min_scale')
         self.max_scale = c.getfloat('max_scale')
 
         c = config['contour']
-        self.toContour = c.getboolean('detect')
-        self.onlyContour = c.getboolean('exclusive')
-        self.preciseContour = c.getboolean('precise')
+        self.detect_contour = c.getboolean('detect')
+        self.only_contour = c.getboolean('exclusive')
+        self.precise_contour = c.getboolean('precise')
 
     def __call__(self, sample):
         image, label, label_e, label_gt = \
                 sample['image'], sample['label'], sample['label_e'], sample['label_gt']
-        if self.preciseContour:
+        if self.precise_contour:
             pil_masks = sample['pil_masks']
         weight = None
 
-        if self.toAugment:
-            if self.toEqualize and random.random() > 0.5:
+        if self.augment:
+            if self.color_equalize and random.random() > 0.5:
                 image = clahe(image)
 
             # perform RandomResize() or just enlarge for image size < model input size
@@ -303,7 +303,7 @@ class Compose():
             if new_size < np.max(self.size): # make it viable for cropping
                 new_size = int(np.max(self.size))
             image, label, label_e = [tx.resize(x, new_size) for x in (image, label, label_e)]
-            if self.preciseContour:
+            if self.precise_contour:
                 # regenerate all resized masks (bilinear interpolation) and compose them afterwards
                 pil_masks = [tx.resize(m, new_size) for m in pil_masks]
                 label_gt = compose_mask(pil_masks, pil=True)
@@ -314,7 +314,7 @@ class Compose():
             # perform RandomCrop()
             i, j, h, w = transforms.RandomCrop.get_params(image, self.size)
             image, label, label_e, label_gt = [tx.crop(x, i, j, h, w) for x in (image, label, label_e, label_gt)]
-            if self.preciseContour:
+            if self.precise_contour:
                 pil_masks = [tx.crop(m, i, j, h, w) for m in pil_masks]
 
             # Note: RandomResizedCrop() is popularly used to train the Inception networks, but might not the best choice for segmentation?
@@ -329,7 +329,7 @@ class Compose():
             # label_gt = tx.resized_crop(label_gt, i, j, h, w, self.size, interpolation=Image.NEAREST)
 
             # perform Elastic Distortion
-            if self.toDistortion and random.random() > 0.75:
+            if self.elastic_distortion and random.random() > 0.75:
                 indices = ElasticDistortion.get_params(image)
                 image, label, label_e = [ElasticDistortion.transform(x, indices) for x in (image, label, label_e)]
                 if self.preciseContour:
@@ -347,7 +347,7 @@ class Compose():
                 image, label, label_e, label_gt = [tx.vflip(x) for x in (image, label, label_e, label_gt)]
 
             # replaced with 'thinner' contour based on augmented/transformed mask
-            if self.toContour:
+            if self.detect_contour:
                 if self.cell_level:
                     label_e = Image.fromarray(get_contour(sample['uid'], np.asarray(label)))
                 else:
@@ -355,14 +355,15 @@ class Compose():
                     label_e = Image.fromarray(label_e)
 
             # perform random color invert, assuming 3 channels (rgb) images
-            if self.toInvert and random.random() > 0.5:
+            if self.color_invert and random.random() > 0.5:
                 image = ImageOps.invert(image)
 
             # perform ColorJitter()
-            if self.toJitter and random.random() > 0.5:
+            if self.color_jitter and random.random() > 0.5:
                 color = transforms.ColorJitter.get_params(0.5, 0.5, 0.5, 0.25)
                 image = color(image)
-        elif self.toPadding:
+
+        elif self.padding: # add border padding
             w, h = sample['size']
             gcd = self.gcd_depth
             pad_w = pad_h = 0
@@ -375,27 +376,30 @@ class Compose():
             image = ImageOps.expand(image, (0, 0, pad_w, pad_h), bgcolor)
             label = ImageOps.expand(label, (0, 0, pad_w, pad_h))
             label_gt = ImageOps.expand(label_gt, (0, 0, pad_w, pad_h))
-            if self.cell_level:
-                label_e = Image.fromarray(get_contour(sample['uid'], np.asarray(label)))
-            else:
-                label_e, weight = get_instances_contour(sample['uid'], np.asarray(label_gt))
-                label_e = Image.fromarray(label_e)
-        else:
+            if self.detect_contour:
+                if self.cell_level:
+                    label_e = Image.fromarray(get_contour(sample['uid'], np.asarray(label)))
+                else:
+                    label_e, weight = get_instances_contour(sample['uid'], np.asarray(label_gt))
+                    label_e = Image.fromarray(label_e)
+
+        else: # resize down image
             image, label = [tx.resize(x, self.size) for x in (image, label)]
-            if self.preciseContour:
+            if self.precise_contour:
                 pil_masks = [tx.resize(m, self.size) for m in pil_masks]
                 label_gt = compose_mask(pil_masks, pil=True)
             else:
                 label_gt = tx.resize(label_gt, self.size, interpolation=Image.NEAREST)
-            if self.cell_level:
-                label_e = Image.fromarray(get_contour(sample['uid'], np.asarray(label)))
-            else:
-                label_e, weight = get_instances_contour(sample['uid'], np.asarray(label_gt))
-                label_e = Image.fromarray(label_e)
+            if self.detect_contour:
+                if self.cell_level:
+                    label_e = Image.fromarray(get_contour(sample['uid'], np.asarray(label)))
+                else:
+                    label_e, weight = get_instances_contour(sample['uid'], np.asarray(label_gt))
+                    label_e = Image.fromarray(label_e)
 
         # Due to resize algorithm may introduce anti-alias edge, aka. non binary value,
         # thereafter map every pixel back to 0 and 255
-        if self.toBinary:
+        if self.label_binary:
             label, label_e = [x.point(lambda p, threhold=100: 255 if p > threhold else 0)
                                 for x in (label, label_e)]
             # For single cell level example, label_gt is awkward after 'nearest' interpolation
@@ -403,15 +407,13 @@ class Compose():
                 label_gt = label
             # For train contour only, leverage the merged instances contour label (label_e)
             # the side effect is losing instance count information
-            if self.onlyContour:
+            if self.only_contour:
                 label_gt = label_e
 
         # perform ToTensor()
-        if self.toTensor:
+        if self.tensor:
             image, label, label_e, label_gt = [tx.to_tensor(x) for x in (image, label, label_e, label_gt)]
-
-        # perform Normalize()
-        if self.toTensor:
+            # perform Normalize()
             image = tx.normalize(image, self.mean, self.std)
 
         # prepare a shadow copy of composed data to avoid screwup cached data 
