@@ -49,13 +49,19 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 * Post-process
   - [x] Segmentation group by scipy watershed algorithm
   - [x] Segmentation group by scipy watershed algorithm with contour-based markers
+  - Prediction datafeed
+    + [x] Resize and regrowth 
+    + [x] Origin image size with border padding (black/white constant color)
+    + [ ] Origin image size with border padding (replicate border color)
+    + [ ] Tile-based with overlap
   - [ ] Fill hole inside each segment group
   - [ ] ...
 * Computation performance
   - [x] CPU
   - [x] GPU 
   - [x] Multiple subprocess workers (IPC) 
-  - [x] Pretech / cache images
+  - [x] Cache images
+  - [ ] Redundant extra contour loop in dataset / preprocess (~ 50% time cost)
 * Statistics and error analysis
   - [x] Mini-batch time cost (IO and compute)
   - [x] Mini-batch loss
@@ -231,24 +237,28 @@ n_batch = 64
 
 ## Benchmark 
 
-| Score | Data | Width | Model | Cost Fn. | Epoch | Learning Rate | CV  | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | Watershed | Fill hole | 
-| ----- | ---- | ----- | ----- | -------- | ----- | ------------- | --- | - | - | - | - | - | - | - | - | - |
-| 0.334 | Orig | 256   | UNet  | BCE      | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V |   |   |   |   |   |
-| 0.344 | Orig | 256   | UNet  | IOU+BCE  | 600   | 1e-4 > 3e-5   | 10% | V | V |   | V | V |   |   |   |   |
-| (TBA) | Orig | 256   | UNet  | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |   |
-| 0.326 | v2   | 256   | UNet  | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% |   |   |   |   |   |   |   |   |   |
-| 0.348 | v2   | 256   | UNet  | IOU+BCE  | 300   | 1e-4          | 10% | V | V |   | V | V |   |   |   |   |
-| 0.361 | v2   | 256   | UNet  | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   |   |   |
-| 0.355 | v2   | 256   | UNet  | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V | V |   |   |   |
-| 0.350 | v2   | 512   | UNet  | IOU+BCE  | 1200  | 1e-4 >> 3e-6  |  0% | V | V |   | V | V |   |   |   |   |
-| 0.353 | v2   | 256   | UNet  | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   | V |   |   |
-| 0.413 | v2   | 256   | UNet  | IOU+BCE  | 600   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   | V1|   |
-| 0.421 | v3   | 256   | UNet  | IOU+BCE  | 400   | 1e-4 > 3e-5   |  0% | V | V |   | V | V |   |   | V1|   |
-| 0.437 | v3   | 256   | UNet  | IOU+BCE  | 900   | 1e-4          |  0% | V | V |   | V | V |   |   | V1|   |
-| 0.460 | v4   | 256   | CAUNet| IOU+BCE(weight)  |  900  | 1e-4  |  0% | V | V |   | V | V |   |   | V2|   |
-| 0.459 | v5   | 256   | CAUNet| IOU+BCE(weight)  | 1200  | 1e-4  |  0% | V | V |   | V | V |   |   | V2|   |
-| 0.447 | v4   | 256   | CAUNet| IOU+BCE          | 1800  | 1e-4  |  0% | V | V |   | V | V |   |   | V2|   |
-| 0.465 | v4   | 256   | CAUNet| IOU+BCE(weight)  | 1800  | 1e-4  |  0% | V | V |   | V | V |   |   | V2|   |
+| Score | Data | Model | Cost Fn. | Epoch | Marker | Watershed | TP | Learn Rate | CV | Width | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | 
+| ----- | ---- | -----  | -------- | ---- | ------- | - | -- | ----------- | --- | --- | - | - | - | - | - | - | - |
+| 0.334 | Orig | UNet   | BCE      | 600  |         |   | .5 | 1e-4 > 3e-5 | 10% | 256 | V | V |   | V |   |   |   |
+| 0.344 | Orig | UNet   | IOU+BCE  | 600  |         |   | .5 | 1e-4 > 3e-5 | 10% | 256 | V | V |   | V | V |   |   |
+| (TBA) | Orig | UNet   | IOU+BCE  | 600  |         |   | .5 | 1e-4 > 3e-5 |  0% | 256 | V | V |   | V | V |   |   |
+| 0.326 | v2   | UNet   | IOU+BCE  | 600  |         |   | .5 | 1e-4 > 3e-5 |  0% | 256 |   |   |   |   |   |   |   |
+| 0.348 | v2   | UNet   | IOU+BCE  | 300  |         |   | .5 | 1e-4        | 10% | 256 | V | V |   | V | V |   |   |
+| 0.361 | v2   | UNet   | IOU+BCE  | 600  |         |   | .5 | 1e-4 > 3e-5 |  0% | 256 | V | V |   | V | V |   |   |
+| 0.355 | v2   | UNet   | IOU+BCE  | 600  |         |   | .5 | 1e-4 > 3e-5 |  0% | 256 | V | V |   | V | V | V |   |
+| 0.350 | v2   | UNet   | IOU+BCE  | 1200 |         |   | .5 | 1e-4 > 3e-6 |  0% | 512 | V | V |   | V | V |   |   |
+| 0.353 | v2   | UNet   | IOU+BCE  | 600  |         |   | .5 | 1e-4 > 3e-5 |  0% | 256 | V | V |   | V | V |   | V |
+| 0.413 | v2   | UNet   | IOU+BCE  | 600  | cluster | V | .5 | 1e-4 > 3e-5 |  0% | 256 | V | V |   | V | V |   |   |
+| 0.421 | v3   | UNet   | IOU+BCE  | 400  | cluster | V | .5 | 1e-4 > 3e-5 |  0% | 256 | V | V |   | V | V |   |   |
+| 0.437 | v3   | UNet   | IOU+BCE  | 900  | cluster | V | .5 | 1e-4        |  0% | 256 | V | V |   | V | V |   |   |
+| 0.460 | v4   | CAUNet | IOU+WBCE | 900  | contour | V | .5 | 1e-4        |  0% | 256 | V | V |   | V | V |   |   |
+| 0.447 | v4   | CAUNet | IOU+BCE  | 1800 | contour | V | .5 | 1e-4        |  0% | 256 | V | V |   | V | V |   |   |
+| 0.465 | v4   | CAUNet | IOU+WBCE | 1800 | contour | V | .5 | 1e-4        |  0% | 256 | V | V |   | V | V |   |   |
+| 0.459 | v5   | CAUNet | IOU+WBCE | 1200 | contour | V | .5 | 1e-4        |  0% | 256 | V | V |   | V | V |   |   |
+| 0.369 | v5   | CAUNet | IOU+WBCE | 1200 | contour | V | .8 | 1e-4        |  0% | 256 | V | V |   | V | V |   |   |
+| 0.477 | v5   | CAUNet | IOU+WBCE | 1200 | contour | V | .3 | 1e-4        |  0% | 256 | V | V |   | V | V |   |   |
+| (TBA) | v6   | CAUNet | IOU+WBCE | 1200 | contour | V | .5 | 1e-4        |  0% | 256 | V | V |   | V | V |   |   |
+| (TBA) | Orig | CAUNet | IOU+WBCE | 1800 | contour | V | .5 | 1e-4        |  0% | 256 | V | V |   | V | V |   |   |
 
 Note:
 - Dataset (training): 
@@ -256,10 +266,16 @@ Note:
     * V2: Feb 06, modified by Jimmy and Ryk
     * V3: V2 + TCGA 256
     * V4: V2 + TCGA 256 (Non overlapped)
-    * V5: [lopuhin Github](https://github.com/lopuhin/kaggle-dsbowl-2018-dataset-fixes) + TCGA 256 (Non overlapped)
+    * V5: V2 + TCGA 256 (Non overlapped) + Feb. labeled test set
+    * V6: [lopuhin Github](https://github.com/lopuhin/kaggle-dsbowl-2018-dataset-fixes) + TCGA 256 (Non overlapped)
 - Score is public score on kaggle site
 - Zero CV rate means all data were used for training, none reserved
 - Adjust learning rate per 300 epoch
+- Cost Function:
+    * BCE: pixel wise binary cross entropy
+    * WBCE: pixel wise binary cross entropy with weight
+    * IOU: pixel wise IoU, no instance weight
+- TP: threshold of prediction probability 
 
 ## Known Issues
 
