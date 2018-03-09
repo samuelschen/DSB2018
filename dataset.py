@@ -140,137 +140,11 @@ class KaggleDataset(Dataset):
         return indices[split:], indices[:split]
 
 
-class NuclearDataset(Dataset):
-    """Single nuclei centric dataset. Deprecated!"""
-
-    def __init__(self, root, transform=None, cache=None, category=None):
-        """
-        Args:
-            root_dir (string): Directory of data (train or test).
-            transform (callable, optional): Optional transform to be applied on a sample.
-        """
-        self.root = root
-        self.transform = transform
-        if os.path.isfile(root + '.csv'):
-            df = pd.read_csv(root + '.csv')
-            ok = df['discard'] != 1
-            if category is not None:
-                # filter only sub-category
-                ok &= df['category'] == category
-            df = df[ok]
-            cids = list(df['image_id'])
-        else:
-            cids = next(os.walk(root))[1]
-        self.ids = []
-        for cid in cids:
-            mask_dir = os.path.join(root, cid, 'masks')
-            for mask in next(os.walk(mask_dir))[2]:
-                self.ids.append(cid + '/' + mask)
-        self.ids.sort()
-        self.cache = cache
-
-    def __len__(self):
-        return len(self.ids)
-
-    def _bbox(self, img_array):
-        model_name = config['param']['model']
-        margin = config[model_name].getint('bbox_margin')
-        h, w = img_array.shape
-        rows = np.any(img_array, axis=1)
-        cols = np.any(img_array, axis=0)
-        rmin, rmax = np.where(rows)[0][[0, -1]]
-        cmin, cmax = np.where(cols)[0][[0, -1]]
-        cmin = max(0, cmin-margin)
-        rmin = max(0, rmin-margin)
-        cmax = min(w, cmax+margin)
-        rmax = min(h, rmax+margin)
-        return cmin, rmin, cmax+1, rmax+1
-
-    def _crop_example(self, image, img_id, mask_id):
-        min_object_size = config['pre'].getint('min_object_size')
-        fill_holes = config['pre'].getboolean('fill_holes')
-
-        mask_name = os.path.join(self.root, img_id, 'masks', mask_id)
-        mask = imread(mask_name)
-        if (mask.ndim > 2):
-            mask = np.mean(mask, -1).astype(np.uint8)
-        mask = remove_small_objects(mask, min_object_size)
-        if fill_holes:
-            mask = binary_fill_holes(mask).astype(np.uint8)*255
-        left, top, right, bottom = self._bbox(mask)
-        def crop(img_array, left, top, right, bottom):
-            return img_array[top:bottom, left:right, :] if img_array.ndim > 2 else img_array[top:bottom, left:right]
-        crop_img = crop(np.asarray(image), left, top, right, bottom)
-        crop_mask = crop(mask, left, top, right, bottom)
-        return crop_img, crop_mask
-
-    def __getitem__(self, idx):
-        try:
-            uid = self.ids[idx]
-        except:
-            raise IndexError()
-
-        img_id, mask_id = uid.split('/')
-        if self.cache is not None and uid in self.cache:
-            sample = self.cache[uid]
-        elif self.cache is not None and img_id in self.cache:
-            image = self.cache[img_id]
-            crop_img, crop_mask = self._crop_example(image, img_id, mask_id)
-            crop_img = Image.fromarray(crop_img, 'RGB')
-            crop_edge, _ = get_contour_interior(uid, crop_mask)
-            crop_edge = Image.fromarray(crop_edge, 'L')
-            crop_mask = Image.fromarray(crop_mask, 'L')
-            w, h = crop_img.size
-            sample = {'image': crop_img, 'label': crop_mask, 'label_c': crop_edge, 'uid': uid, 'size': image.size}
-            if config['contour'].getboolean('exclusive'):
-                sample['label_gt'] = crop_edge
-            else:
-                sample['label_gt'] = crop_mask
-            if self.cache is not None:
-                self.cache[uid] = sample
-        else:
-            img_name = os.path.join(self.root, img_id, 'images', img_id + '.png')
-            image = Image.open(img_name)
-            if image.mode != 'RGB':
-                image = image.convert('RGB')
-            crop_img, crop_mask = self._crop_example(image, img_id, mask_id)
-            crop_img = Image.fromarray(crop_img, 'RGB')
-            crop_edge, _ = get_contour_interior(uid, crop_mask)
-            crop_edge = Image.fromarray(crop_edge, 'L')
-            crop_mask = Image.fromarray(crop_mask, 'L')
-            w, h = crop_img.size
-            sample = {'image': crop_img, 'label': crop_mask, 'label_c': crop_edge, 'uid': uid, 'size': image.size}
-            if config['contour'].getboolean('exclusive'):
-                sample['label_gt'] = crop_edge
-            else:
-                sample['label_gt'] = crop_mask
-            if self.cache is not None:
-                self.cache[uid] = sample
-                self.cache[img_id] = image
-        if self.transform:
-            sample = self.transform(sample)
-        return sample
-
-    def split(self):
-        # get list of dataset index
-        n = len(self.ids)
-        indices = list(range(n))
-        # random shuffle the list
-        s = random.getstate()
-        random.seed(config['param'].getint('cv_seed'))
-        random.shuffle(indices)
-        random.setstate(s)
-        # return splitted lists
-        split = int(np.floor(config['param'].getfloat('cv_ratio') * n))
-        return indices[split:], indices[:split]
-
-
 class Compose():
     def __init__(self, augment=True, padding=False, tensor=True):
         model_name = config['param']['model']
         width = config[model_name].getint('width')
         self.size = (width, width)
-        self.cell_level = config['param'].getboolean('cell_level')
         self.weight_bce = config['param'].getboolean('weight_bce')
         self.gcd_depth = config['param'].getint('gcd_depth')
 
@@ -357,12 +231,8 @@ class Compose():
 
             # replaced with 'thinner' contour based on augmented/transformed mask
             if self.detect_contour:
-                if self.cell_level:
-                    label_c, label_m = get_contour_interior(sample['uid'], np.asarray(label))
-                    label_c, label_m = Image.fromarray(label_c), Image.fromarray(label_m)
-                else:
-                    label_c, label_m, weight = get_instances_contour_interior(sample['uid'], np.asarray(label_gt))
-                    label_c, label_m = Image.fromarray(label_c), Image.fromarray(label_m)
+                label_c, label_m, weight = get_instances_contour_interior(sample['uid'], np.asarray(label_gt))
+                label_c, label_m = Image.fromarray(label_c), Image.fromarray(label_m)
 
             # perform random color invert, assuming 3 channels (rgb) images
             if self.color_invert and random.random() > 0.5:
@@ -389,12 +259,8 @@ class Compose():
             label_m = ImageOps.expand(label_m, (0, 0, pad_w, pad_h))
             label_gt = ImageOps.expand(label_gt, (0, 0, pad_w, pad_h))
             if self.detect_contour:
-                if self.cell_level:
-                    label_c, label_m = get_contour_interior(sample['uid'], np.asarray(label))
-                    label_c, label_m = Image.fromarray(label_c), Image.fromarray(label_m)
-                else:
-                    label_c, label_m, weight = get_instances_contour_interior(sample['uid'], np.asarray(label_gt))
-                    label_c, label_m = Image.fromarray(label_c), Image.fromarray(label_m)
+                label_c, label_m, weight = get_instances_contour_interior(sample['uid'], np.asarray(label_gt))
+                label_c, label_m = Image.fromarray(label_c), Image.fromarray(label_m)
 
         else: # resize down image
             image, label, label_c, label_m = [tx.resize(x, self.size) for x in (image, label, label_c, label_m)]
@@ -404,21 +270,14 @@ class Compose():
             else:
                 label_gt = tx.resize(label_gt, self.size, interpolation=Image.NEAREST)
             if self.detect_contour:
-                if self.cell_level:
-                    label_c, label_m = get_contour_interior(sample['uid'], np.asarray(label))
-                    label_c, label_m = Image.fromarray(label_c), Image.fromarray(label_m)
-                else:
-                    label_c, label_m, weight = get_instances_contour_interior(sample['uid'], np.asarray(label_gt))
-                    label_c, label_m = Image.fromarray(label_c), Image.fromarray(label_m)
+                label_c, label_m, weight = get_instances_contour_interior(sample['uid'], np.asarray(label_gt))
+                label_c, label_m = Image.fromarray(label_c), Image.fromarray(label_m)
 
         # Due to resize algorithm may introduce anti-alias edge, aka. non binary value,
         # thereafter map every pixel back to 0 and 255
         if self.label_binary:
             label, label_c, label_m = [x.point(lambda p, threhold=100: 255 if p > threhold else 0)
                                         for x in (label, label_c, label_m)]
-            # For single cell level example, label_gt is awkward after 'nearest' interpolation
-            if self.cell_level:
-                label_gt = label
             # For train contour only, leverage the merged instances contour label (label_c)
             # the side effect is losing instance count information
             if self.only_contour:
@@ -487,12 +346,9 @@ def decompose_mask(mask):
 
 # TODO: the algorithm MUST guarantee (interior + contour = instance mask) & (interior within contour)
 def get_contour_interior(uid, mask):
-    cell_level = config['param'].getboolean('cell_level')
-    id_list = uid.split('/')
-    img_id = id_list[0]
     contour = filters.scharr(mask)
     scharr_threshold = np.amax(abs(contour)) / 2.
-    if not cell_level and (img_id in bright_field_list):
+    if uid in bright_field_list:
         scharr_threshold = 0. # nuclei are much smaller than others in bright_field slice
     contour = (np.abs(contour) > scharr_threshold).astype(np.uint8)*255
     interior = (mask - contour > 0).astype(np.uint8)*255
@@ -563,13 +419,8 @@ class ElasticDistortion():
         return self.transform(img, indices)
 
 if __name__ == '__main__':
-    cell_level = config['param'].getboolean('cell_level')
-
     compose = Compose(augment=True)
-    if cell_level:
-        train = NuclearDataset('data/stage1_train', category='Histology')
-    else:
-        train = KaggleDataset('data/stage1_train', category='Histology')
+    train = KaggleDataset('data/stage1_train', category='Histology')
     idx = random.randint(0, len(train)-1)
     sample = train[idx]
     print(sample['uid'])

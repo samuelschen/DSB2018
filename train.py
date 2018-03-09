@@ -24,7 +24,6 @@ def main(resume=True, n_epoch=None, learn_rate=None):
     if learn_rate is None:
         learn_rate = config['param'].getfloat('learn_rate')
     width = config[model_name].getint('width')
-    cell_level = config['param'].getboolean('cell_level')
     weight_bce = config['param'].getboolean('weight_bce')
     c = config['train']
     log_name = c.get('log_name')
@@ -59,11 +58,8 @@ def main(resume=True, n_epoch=None, learn_rate=None):
     manager = Manager()
     cache = manager.dict()
     # prepare dataset and loader
-    if cell_level:
-        dataset = NuclearDataset('data/stage1_train', transform=Compose(), cache=cache)
-    else:
-        dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache)
-        # dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache, category='Histology')
+    dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache)
+    # dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache, category='Histology')
     train_idx, valid_idx = dataset.split()
     train_loader = DataLoader(
         dataset, sampler=SubsetRandomSampler(train_idx),

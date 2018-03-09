@@ -21,7 +21,6 @@ from helper import config, load_ckpt, prob_to_rles, seg_ws, seg_ws_by_edge, iou_
 
 def main(tocsv=False, save=False, mask=False, valid_train=False):
     model_name = config['param']['model']
-    cell_level = config['param'].getboolean('cell_level')
     use_padding = config['valid'].getboolean('pred_orig_size')
 
     if model_name == 'unet_vgg16':
@@ -48,11 +47,8 @@ def main(tocsv=False, save=False, mask=False, valid_train=False):
     # prepare dataset
     compose = Compose(augment=False, padding=use_padding)
     data_dir = 'data/stage1_train' if valid_train else 'data/stage1_test'
-    if cell_level:
-        dataset = NuclearDataset(data_dir, transform=compose)
-    else:
-        dataset = KaggleDataset(data_dir, transform=compose)
-        # dataset = KaggleDataset(data_dir, transform=compose, category='Histology')
+    dataset = KaggleDataset(data_dir, transform=compose)
+    # dataset = KaggleDataset(data_dir, transform=compose, category='Histology')
     iter = predict(model, dataset, compose, not use_padding)
 
     if tocsv:
