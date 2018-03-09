@@ -78,7 +78,7 @@ def predict(model, dataset, compose, regrowth=True):
         uid = data['uid']
         size = data['size']
         inputs = x = data['image']
-        gt_s, gt_c, gt = data['label'], data['label_e'], data['label_gt']
+        gt_s, gt_c, gt = data['label'], data['label_c'], data['label_gt']
         inputs = inputs.unsqueeze(0)
         if torch.cuda.is_available():
             inputs = inputs.cuda()

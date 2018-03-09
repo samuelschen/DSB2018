@@ -135,11 +135,11 @@ def train(loader, model, optimizer, epoch, writer):
         # measure data loading time
         data_time.update(time.time() - end)
         # split sample data
-        inputs, labels, labels_e = data['image'], data['label'], data['label_e']
+        inputs, labels, labels_c = data['image'], data['label'], data['label_c']
         if torch.cuda.is_available():
-            inputs, labels, labels_e = inputs.cuda(async=True), labels.cuda(async=True), labels_e.cuda(async=True)
+            inputs, labels, labels_c = inputs.cuda(async=True), labels.cuda(async=True), labels_c.cuda(async=True)
         # wrap them in Variable
-        inputs, labels, labels_e = Variable(inputs), Variable(labels), Variable(labels_e)
+        inputs, labels, labels_c = Variable(inputs), Variable(labels), Variable(labels_c)
         # get loss weight
         weights = None
         if weight_bce and 'weight' in data:
@@ -155,15 +155,15 @@ def train(loader, model, optimizer, epoch, writer):
             outputs, outputs_c = outputs
         # compute loss
         if only_contour:
-            loss = contour_criterion(outputs, labels_e)
+            loss = contour_criterion(outputs, labels_c)
         else:
             # weight_criterion equals to segment_criterion if weights is none
             loss = weight_criterion(outputs, labels, weights)
             if isinstance(model, DCAN) or isinstance(model, CAUNet):
                 if weight_bce:
-                    loss += weight_criterion(outputs_c, labels_e, weights)
+                    loss += weight_criterion(outputs_c, labels_c, weights)
                 else:
-                    loss += contour_criterion(outputs_c, labels_e)
+                    loss += contour_criterion(outputs_c, labels_c)
         # compute gradient and do backward step
         loss.backward()
         optimizer.step()
@@ -174,12 +174,12 @@ def train(loader, model, optimizer, epoch, writer):
         # NOT instance-level IoU in training phase, for better speed & instance separation handled in post-processing
         losses.update(loss.data[0], inputs.size(0))
         if only_contour:
-            batch_iou = iou_mean(outputs, labels_e)
+            batch_iou = iou_mean(outputs, labels_c)
         else:
             batch_iou = iou_mean(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
-            batch_iou_c = iou_mean(outputs_c, labels_e)
+            batch_iou_c = iou_mean(outputs_c, labels_c)
             iou_c.update(batch_iou_c, inputs.size(0))
         # log to summary
         step = i + epoch * n_step
@@ -214,11 +214,11 @@ def valid(loader, model, epoch, writer, n_step):
     model.eval()
     for i, data in enumerate(loader):
         # get the inputs
-        inputs, labels, labels_e = data['image'], data['label'], data['label_e']
+        inputs, labels, labels_c = data['image'], data['label'], data['label_c']
         if torch.cuda.is_available():
-            inputs, labels, labels_e = inputs.cuda(), labels.cuda(), labels_e.cuda()
+            inputs, labels, labels_c = inputs.cuda(), labels.cuda(), labels_c.cuda()
         # wrap them in Variable
-        inputs, labels, labels_e = Variable(inputs), Variable(labels), Variable(labels_e)
+        inputs, labels, labels_c = Variable(inputs), Variable(labels), Variable(labels_c)
         # get loss weight
         weights = None
         if weight_bce and 'weight' in data:
@@ -232,24 +232,24 @@ def valid(loader, model, epoch, writer, n_step):
             outputs, outputs_c = outputs
         # compute loss
         if only_contour:
-            loss = contour_criterion(outputs, labels_e)
+            loss = contour_criterion(outputs, labels_c)
         else:
             # weight_criterion equals to segment_criterion if weights is none
             loss = weight_criterion(outputs, labels, weights)
             if isinstance(model, DCAN) or isinstance(model, CAUNet):
                 if weight_bce:
-                    loss += weight_criterion(outputs_c, labels_e, weights)
+                    loss += weight_criterion(outputs_c, labels_c, weights)
                 else:
-                    loss += contour_criterion(outputs_c, labels_e)
+                    loss += contour_criterion(outputs_c, labels_c)
         # measure accuracy and record loss (Non-instance level IoU)
         losses.update(loss.data[0], inputs.size(0))
         if only_contour:
-            batch_iou = iou_mean(outputs, labels_e)
+            batch_iou = iou_mean(outputs, labels_c)
         else:
             batch_iou = iou_mean(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
         if isinstance(model, DCAN) or isinstance(model, CAUNet):
-            batch_iou_c = iou_mean(outputs_c, labels_e)
+            batch_iou_c = iou_mean(outputs_c, labels_c)
             iou_c.update(batch_iou_c, inputs.size(0))
     # end of loop, dump epoch summary
     writer.add_scalar('CV/epoch_loss', losses.avg, epoch)
