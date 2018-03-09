@@ -17,7 +17,7 @@ from PIL import Image
 # own code
 from model import UNet, UNetVgg16, DCAN, CAUNet, CAMUNet
 from dataset import KaggleDataset, Compose
-from helper import config, load_ckpt, prob_to_rles, seg_ws, seg_ws_by_edge, seg_ws_by_mark, iou_metric
+from helper import config, load_ckpt, prob_to_rles, seg_ws, seg_ws_by_edge, seg_ws_by_marker, iou_metric
 
 def main(tocsv=False, save=False, mask=False, valid_train=False):
     model_name = config['param']['model']
@@ -29,6 +29,8 @@ def main(tocsv=False, save=False, mask=False, valid_train=False):
         model = DCAN(3, 1)
     elif model_name == 'caunet':
         model = CAUNet()
+    elif model_name == 'camunet':
+        model = CAMUNet()
     else:
         model = UNet()
 

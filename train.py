@@ -40,6 +40,8 @@ def main(resume=True, n_epoch=None, learn_rate=None):
         model = DCAN(3, 1)
     elif model_name == 'caunet':
         model = CAUNet()
+    elif model_name == 'camunet':
+        model = CAMUNet()
     else:
         model = UNet()
 
