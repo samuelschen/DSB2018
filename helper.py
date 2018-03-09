@@ -124,13 +124,15 @@ def rle_encoding(y):
         prev = b
     return run_lengths
 
-def prob_to_rles(y, y_c):
+def prob_to_rles(y, y_c, y_m):
     segmentation = config['post'].getboolean('segmentation')
     remove_objects = config['post'].getboolean('remove_objects')
     min_object_size = config['post'].getint('min_object_size')
 
     if segmentation:
-        if y_c is not None:
+        if y_m is not None:
+            y, _ = seg_ws_by_marker(y, y_m)
+        elif y_c is not None:
             y, _ = seg_ws_by_edge(y, y_c)
         else:
             y, _ = seg_ws(y)
@@ -256,3 +258,10 @@ def seg_ws_by_edge(raw_bodies, raw_edges):
     dropped = np.where(dropped > 0, dropped + marker_count, 0)
     final_labels = np.add(ws_labels, dropped)
     return final_labels, markers
+
+# TODO: NOT IMPLEMENTED COMPLETELY YET
+def seg_ws_by_marker(raw_bodies, raw_markers):
+    bodies = raw_bodies > threshold
+    markers = raw_markers > threshold
+    ws_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
+    return ws_labels, markers
