@@ -14,13 +14,12 @@ import torchvision.transforms.functional as tx
 from PIL import Image, ImageOps
 from skimage.io import imread
 from skimage import filters, img_as_ubyte
-from skimage.morphology import remove_small_objects
+from skimage.morphology import remove_small_objects, dilation, erosion
 from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.morphology import binary_fill_holes
 from scipy.ndimage.filters import gaussian_filter
 from skimage.exposure import equalize_adapthist
 from skimage.filters import gaussian
-from skimage.segmentation import find_boundaries
 
 # Ignore skimage convertion warnings
 import warnings
@@ -354,10 +353,14 @@ def decompose_mask(mask):
 #     contour = (np.abs(contour) > scharr_threshold).astype(np.uint8)*255
 #     interior = (mask - contour > 0).astype(np.uint8)*255
 #     return contour, interior
-# TODO: make contour thicker, the contour pixels are still inside object!
 def get_contour_interior(uid, mask):
-    contour = find_boundaries(mask, connectivity=1, mode='inner')
-    contour = (contour > 0).astype(np.uint8)*255
+    # Note: find_boundaries() only have 1-pixel wide contour,
+    #       use "dilation - twice erosion" to have 2-pixel wide contour
+    # contour = find_boundaries(mask, connectivity=1, mode='inner')
+    boundaries = dilation(mask) != erosion(erosion(mask))
+    foreground_image = (mask != 0)
+    boundaries &= foreground_image
+    contour = (boundaries > 0).astype(np.uint8)*255
     interior = (mask - contour > 0).astype(np.uint8)*255
     return contour, interior
 
