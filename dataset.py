@@ -18,6 +18,7 @@ from scipy.ndimage.morphology import binary_fill_holes
 from scipy.ndimage.filters import gaussian_filter
 from skimage.exposure import equalize_adapthist
 from skimage.filters import gaussian
+from skimage.segmentation import find_boundaries
 import pandas as pd
 # Ignore skimage convertion warnings
 import warnings
@@ -290,7 +291,7 @@ class Compose():
             # perform Normalize()
             image = tx.normalize(image, self.mean, self.std)
 
-        # prepare a shadow copy of composed data to avoid screwup cached data 
+        # prepare a shadow copy of composed data to avoid screwup cached data
         x = sample.copy()
         x['image'], x['label'], x['label_c'], x['label_m'], x['label_gt'] = \
                 image, label, label_c, label_m, label_gt
@@ -344,13 +345,19 @@ def decompose_mask(mask):
         result.append(m)
     return result
 
-# TODO: the algorithm MUST guarantee (interior + contour = instance mask) & (interior within contour)
+# Note: the algorithm MUST guarantee (interior + contour = instance mask) & (interior within contour)
+# def get_contour_interior(uid, mask):
+#     contour = filters.scharr(mask)
+#     scharr_threshold = np.amax(abs(contour)) / 2.
+#     if uid in bright_field_list:
+#         scharr_threshold = 0. # nuclei are much smaller than others in bright_field slice
+#     contour = (np.abs(contour) > scharr_threshold).astype(np.uint8)*255
+#     interior = (mask - contour > 0).astype(np.uint8)*255
+#     return contour, interior
+# TODO: make contour thicker, the contour pixels are still inside object!
 def get_contour_interior(uid, mask):
-    contour = filters.scharr(mask)
-    scharr_threshold = np.amax(abs(contour)) / 2.
-    if uid in bright_field_list:
-        scharr_threshold = 0. # nuclei are much smaller than others in bright_field slice
-    contour = (np.abs(contour) > scharr_threshold).astype(np.uint8)*255
+    contour = find_boundaries(mask, connectivity=1, mode='inner')
+    contour = (contour > 0).astype(np.uint8)*255
     interior = (mask - contour > 0).astype(np.uint8)*255
     return contour, interior
 
