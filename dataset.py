@@ -1,7 +1,9 @@
 import os
 import random
-import numpy as np
 import json
+
+import numpy as np
+import pandas as pd
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -19,12 +21,12 @@ from scipy.ndimage.filters import gaussian_filter
 from skimage.exposure import equalize_adapthist
 from skimage.filters import gaussian
 from skimage.segmentation import find_boundaries
-import pandas as pd
+
 # Ignore skimage convertion warnings
 import warnings
 warnings.filterwarnings("ignore")
 
-from helper import config
+from helper import config, pad_image
 
 bright_field_list = [
     '091944f1d2611c916b98c020bd066667e33f4639159b2a92407fe5a40788856d',
@@ -252,9 +254,7 @@ class Compose():
                 pad_w = gcd - (w % gcd)
             if 0 != (h % gcd):
                 pad_h = gcd - (h % gcd)
-            # padding color should honor each image background, default is black (0)
-            bgcolor = 'black' if np.median(image) < 100 else 'white'
-            image = ImageOps.expand(image, (0, 0, pad_w, pad_h), bgcolor)
+            image = pad_image(image, pad_w, pad_h)
             label = ImageOps.expand(label, (0, 0, pad_w, pad_h))
             label_c = ImageOps.expand(label_c, (0, 0, pad_w, pad_h))
             label_m = ImageOps.expand(label_m, (0, 0, pad_w, pad_h))
