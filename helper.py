@@ -263,8 +263,14 @@ def seg_ws_by_edge(raw_bodies, raw_edges):
 
 # TODO: NOT IMPLEMENTED COMPLETELY YET
 def seg_ws_by_marker(raw_bodies, raw_markers):
+    threshold=config['param'].getfloat('threshold')
+    model_name = config['param']['model']
+    if model_name == 'camunet':
+        threshold_marker = config[model_name].getfloat('threshold_mark')
+
     bodies = raw_bodies > threshold
-    markers = raw_markers > threshold
+    markers = raw_markers > threshold_marker
+    markers = label(markers)
     ws_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
     return ws_labels, markers
 
