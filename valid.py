@@ -201,7 +201,7 @@ def show(uid, x, y, y_c, y_m, save=False):
     ax1[0].imshow(x, aspect='auto')
     if segmentation:
         if y_m is not None:
-            y, markers = seg_ws_by_mark(y, y_m)
+            y, markers = seg_ws_by_marker(y, y_m)
         elif y_c is not None:
             y, markers = seg_ws_by_edge(y, y_c)
         else:
@@ -253,7 +253,7 @@ def show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save=False):
     ax1[0].imshow(x, aspect='auto')
     if segmentation :
         if y_m is not None:
-            y, markers = seg_ws_by_mark(y, y_m)
+            y, markers = seg_ws_by_marker(y, y_m)
         elif y_c is not None:
             y, markers = seg_ws_by_edge(y, y_c)
         else:
@@ -327,7 +327,7 @@ def save_mask(uid, y, y_c, y_m):
 
     if segmentation:
         if y_m is not None:
-            y, _ = seg_ws_by_mark(y, y_m)
+            y, _ = seg_ws_by_marker(y, y_m)
         elif y_c is not None:
             y, _ = seg_ws_by_edge(y, y_c)
         else:
