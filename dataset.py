@@ -231,6 +231,10 @@ class Compose():
             if random.random() > 0.5:
                 image, label, label_c, label_m, label_gt = [tx.vflip(x) for x in (image, label, label_c, label_m, label_gt)]
 
+            # perform Random Rotation (0, 90, 180, and 270 degrees)
+            random_degree = random.randint(0, 3) * 90
+            image, label, label_c, label_m, label_gt = [tx.rotate(x, random_degree) for x in (image, label, label_c, label_m, label_gt)]
+
             # replaced with 'thinner' contour based on augmented/transformed mask
             if self.detect_contour:
                 label_c, label_m, weight = get_instances_contour_interior(sample['uid'], np.asarray(label_gt))
