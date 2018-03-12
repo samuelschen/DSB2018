@@ -10,11 +10,13 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Ubuntu
 * Explore model architecture
   - [x] UNet
-    - [x] Effectiveness for contour detection
+    - [x] Contour Aware model (2 tasks)
+    - [ ] Contour Aware Marker model (3 tasks)
     - [ ] Boundaries detection for adjacent nuclei only?
   - [x] DCAN (switch to multitask UNet judged bt experimental results)
     - [x] Training efficiency for contour detection
   - [ ] Mask RCNN
+  - [ ] Dilated Convolution
   - [x] Dropout
   - [x] Batch normalization
   - [x] Transfer learning
@@ -59,6 +61,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 * Post-process
   - [x] Segmentation group by scipy watershed algorithm
   - [x] Segmentation group by scipy watershed algorithm with contour-based markers
+  - [ ] Segmentation group by scipy watershed algorithm with model predicting markers
   - [ ] Fill hole inside each segment group
   - [ ] ...
 * Computation performance
