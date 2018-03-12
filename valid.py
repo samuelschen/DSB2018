@@ -57,8 +57,8 @@ def main(tocsv=False, save=False, mask=False, valid_train=False):
         with open('result.csv', 'w') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(['ImageId', 'EncodedPixels'])
-            for uid, _, y, y_c, _, _, _ in iter:
-                for rle in prob_to_rles(y, y_c):
+            for uid, _, y, y_c, y_m, _, _, _, _ in iter:
+                for rle in prob_to_rles(y, y_c, y_m):
                     writer.writerow([uid, ' '.join([str(i) for i in rle])])
     else:
         for uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m in tqdm(iter):

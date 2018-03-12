@@ -272,7 +272,11 @@ n_batch = 64
 | 0.457 | v6   | CAUNet | IOU+WBCE | 1800 | contour | V | .2 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
 | 0.473 | v6   | CAUNet | IOU+WBCE | 1800 | contour | V | .35| 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
 | 0.467 | v6   | CAUNet | IOU+WBCE | 1800 | contour | V | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| (TBA) | Orig | CAUNet | IOU+WBCE | 1800 | contour | V | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.465 | v6   | CAUNet | IOU+WBCE | 5000 | contour | V | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.480 | v6   | CAUNet | IOU+WBCE | 5000 | contour | V | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.461 | v6   | CAUNet | IOU+WBCE | 5000 | contour | V | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.458 | v6   | CAUNet | IOU+WBCE | 5000 | contour | V | .5 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.435 | Orig | CAUNet | IOU+WBCE | 1800 | contour | V | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
 
 Note:
 - Dataset (training): 
