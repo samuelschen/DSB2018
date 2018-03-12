@@ -19,7 +19,7 @@ from model import UNet, UNetVgg16, DCAN, CAUNet, CAMUNet
 from dataset import KaggleDataset, Compose
 from helper import config, load_ckpt, prob_to_rles, seg_ws, seg_ws_by_edge, seg_ws_by_marker, iou_metric
 
-def main(tocsv=False, save=False, mask=False, valid_train=False):
+def main(tocsv=False, save=False, mask=False, valid_train=False, toiou=False):
     model_name = config['param']['model']
     use_padding = config['valid'].getboolean('pred_orig_size')
 
@@ -60,6 +60,13 @@ def main(tocsv=False, save=False, mask=False, valid_train=False):
             for uid, _, y, y_c, y_m, _, _, _, _ in iter:
                 for rle in prob_to_rles(y, y_c, y_m):
                     writer.writerow([uid, ' '.join([str(i) for i in rle])])
+    elif toiou and valid_train:
+        with open('iou.csv', 'w') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['ImageId', 'IoU'])
+            for uid, _, y, y_c, y_m, gt, _, _, _ in tqdm(iter):
+                iou = get_iou(y, y_c, y_m, gt)
+                writer.writerow([uid, iou])
     else:
         for uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m in tqdm(iter):
             if valid_train:
@@ -347,6 +354,29 @@ def save_mask(uid, y, y_c, y_m):
         img = Image.fromarray(mask, mode='L')
         img.save(os.path.join(dir, str(uuid.uuid4()) + '.png'), 'PNG')
 
+
+def get_iou(y, y_c, y_m, gt):
+    segmentation = config['post'].getboolean('segmentation')
+    remove_objects = config['post'].getboolean('remove_objects')
+    min_object_size = config['post'].getint('min_object_size')
+    only_contour = config['contour'].getboolean('exclusive')
+
+    if segmentation :
+        if y_m is not None:
+            y, markers = seg_ws_by_marker(y, y_m)
+        elif y_c is not None:
+            y, markers = seg_ws_by_edge(y, y_c)
+        else:
+            y, markers = seg_ws(y)
+    if remove_objects:
+        y = remove_small_objects(y, min_size=min_object_size)
+    if only_contour:
+        iou = iou_metric(y, gt)
+    else:
+        iou = iou_metric(y, gt, instance_level=True)
+    return iou
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', action='store', choices=['train', 'test'], help='dataset to eval')
@@ -354,10 +384,11 @@ if __name__ == '__main__':
     parser.add_argument('--show', dest='csv', action='store_false')
     parser.add_argument('--save', action='store_true')
     parser.add_argument('--mask', action='store_true')
-    parser.set_defaults(csv=False, save=False, mask=False, dataset='test')
+    parser.add_argument('--iou', action='store_true')
+    parser.set_defaults(csv=False, save=False, mask=False, dataset='test', iou=False)
     args = parser.parse_args()
 
-    if not args.csv:
+    if not args.csv and not args.iou:
         try:
             import matplotlib
             import matplotlib.pyplot as plt
@@ -372,4 +403,4 @@ if __name__ == '__main__':
             if not os.path.exists(dir):
                 os.makedirs(dir)
 
-    main(args.csv, args.save, args.mask, args.dataset == 'train')
+    main(args.csv, args.save, args.mask, args.dataset == 'train', args.iou)
