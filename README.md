@@ -339,4 +339,10 @@ Note:
 * Image border padding: constant vs replicate. Used in origin size prediction.
 
     ![color_equalize](docs/image_border_padding.jpg) 
-    
+
+## Learning curve
+
+* Visualization via TensorBoard  
+
+    ![learn_curve](docs/learn_curve.jpg)  
+
