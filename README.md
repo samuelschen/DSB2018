@@ -18,8 +18,14 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Dropout
   - [x] Batch normalization
   - [x] Transfer learning
-  - [x] Cost function
   - [x] Score function
+  - Cost functions
+    + [x] binary cross entropy
+    + [x] pixel wise IoU, regardless of instances
+    + [x] loss weight per distance of instances's boundary 
+    + [ ] Focal loss (attention on imbalance loss)
+    + [ ] Distance transform based weight map
+    + [ ] Shape aware weight map
 * Hyper-parameter tunning
   - [ ] Learning rate
   - [ ] Input size
@@ -33,7 +39,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Random color invert
   - [x] Random elastic distortion
   - [x] Contrast limited adaptive histogram equalization
-  - [ ] Random rotate
+  - [x] Random rotate
 * Public dataset extension
   - [ ] ... 
 * Pre-process 
@@ -43,17 +49,16 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Verify training data whether png masks aligned with cvs mask. 
   - [x] Blacklist mechanism to filter noisy label(s)
   - [x] Annotate edge as soft label, hint model less aggressive on nuclei edge
+  - Prediction datafeed (aka. arbitrary size of image prediction)
+    + [x] Resize and regrowth 
+    + [x] Origin image size with border padding (black/white constant color)
+    + [x] Origin image size with border padding (replicate border color)
+    + [ ] Tile-based with overlap
   - [ ] Convert input data to CIELAB color space instead of RGB
-  - [ ] Arbitrary image size handling, eg. brige & up-sample size alignment
   - [ ] Use [color map algorithm](https://stackoverflow.com/questions/42863543/applying-the-4-color-theorem-to-list-of-neighbor-polygons-stocked-in-a-graph-arr) to generate ground truth of limited label (4-), in order to prevent cross-talking 
 * Post-process
   - [x] Segmentation group by scipy watershed algorithm
   - [x] Segmentation group by scipy watershed algorithm with contour-based markers
-  - Prediction datafeed
-    + [x] Resize and regrowth 
-    + [x] Origin image size with border padding (black/white constant color)
-    + [ ] Origin image size with border padding (replicate border color)
-    + [ ] Tile-based with overlap
   - [ ] Fill hole inside each segment group
   - [ ] ...
 * Computation performance
@@ -62,6 +67,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Multiple subprocess workers (IPC) 
   - [x] Cache images
   - [ ] Redundant extra contour loop in dataset / preprocess (~ 50% time cost)
+  - [ ] Parallel CPU/GPU pipeline, queue or double buffer
 * Statistics and error analysis
   - [x] Mini-batch time cost (IO and compute)
   - [x] Mini-batch loss
@@ -77,20 +83,15 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 
 ## Setup development environment
 
-* Install Python 3.5 and pip
+* Install Python 3.6 (conda recommanded)
 * Install [PyTorch](http://pytorch.org/)
     ```
-    // macOS
-    $ pip3 install http://download.pytorch.org/whl/torch-0.3.0.post4-cp35-cp35m-macosx_10_6_x86_64.whl 
-    $ pip3 install torchvision 
-    // Ubuntu
-    $ pip3 install http://download.pytorch.org/whl/cu80/torch-0.3.0.post4-cp35-cp35m-linux_x86_64.whl 
-    $ pip3 install torchvision
+    conda install pytorch torchvision -c pytorch
     ```
 
 * Install dependency python packages
     ```
-    $ pip3 install -r requirements.txt
+    $ conda install --file requirements.txt
     ```
 
 ## Prepare data
