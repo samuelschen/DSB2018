@@ -147,7 +147,7 @@ class Compose():
         model_name = config['param']['model']
         width = config[model_name].getint('width')
         self.size = (width, width)
-        self.weight_bce = config['param'].getboolean('weight_bce')
+        self.weight_map = config['param'].getboolean('weight_map')
         self.gcd_depth = config['param'].getint('gcd_depth')
 
         c = config['pre']
@@ -299,7 +299,7 @@ class Compose():
         x['image'], x['label'], x['label_c'], x['label_m'], x['label_gt'] = \
                 image, label, label_c, label_m, label_gt
 
-        if self.weight_bce and weight is not None:
+        if self.weight_map and weight is not None:
             weight = np.expand_dims(weight, 0)
             x['weight'] = torch.from_numpy(weight)
 

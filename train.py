@@ -24,7 +24,7 @@ def main(resume=True, n_epoch=None, learn_rate=None):
     if learn_rate is None:
         learn_rate = config['param'].getfloat('learn_rate')
     width = config[model_name].getint('width')
-    weight_bce = config['param'].getboolean('weight_bce')
+    weight_map = config['param'].getboolean('weight_map')
     c = config['train']
     log_name = c.get('log_name')
     n_batch = c.getint('n_batch')
@@ -124,7 +124,7 @@ def train(loader, model, optimizer, epoch, writer):
     iou_m = AverageMeter() # marker IoU
     print_freq = config['train'].getfloat('print_freq')
     only_contour = config['contour'].getboolean('exclusive')
-    weight_bce = config['param'].getboolean('weight_bce')
+    weight_map = config['param'].getboolean('weight_map')
 
     # Sets the module in training mode.
     model.train()
@@ -142,7 +142,7 @@ def train(loader, model, optimizer, epoch, writer):
         inputs, labels, labels_c, labels_m = Variable(inputs), Variable(labels), Variable(labels_c), Variable(labels_m)
         # get loss weight
         weights = None
-        if weight_bce and 'weight' in data:
+        if weight_map and 'weight' in data:
             weights = data['weight']
             if torch.cuda.is_available():
                 weights = weights.cuda(async=True)
@@ -216,7 +216,7 @@ def valid(loader, model, epoch, writer, n_step):
     iou_m = AverageMeter() # marker IoU
     losses = AverageMeter()
     only_contour = config['contour'].getboolean('exclusive')
-    weight_bce = config['param'].getboolean('weight_bce')
+    weight_map = config['param'].getboolean('weight_map')
 
     # Sets the model in evaluation mode.
     model.eval()
@@ -229,7 +229,7 @@ def valid(loader, model, epoch, writer, n_step):
         inputs, labels, labels_c, labels_m = Variable(inputs), Variable(labels), Variable(labels_c), Variable(labels_m)
         # get loss weight
         weights = None
-        if weight_bce and 'weight' in data:
+        if weight_map and 'weight' in data:
             weights = data['weight']
             if torch.cuda.is_available():
                 weights = weights.cuda(async=True)
