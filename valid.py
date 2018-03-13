@@ -312,17 +312,17 @@ def show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save=False):
         ax2[3].set_title('Contour Lbls, #={}'.format(count))
         ax2[3].imshow(gt_c, cmap='gray', aspect='auto')
 
+    _, count = label(markers, return_num=True)
+    ax3[0].set_title('Final Markers, #={}'.format(count))
+    ax3[0].imshow(markers, cmap='gray', aspect='auto')
     if y_m is not None:
         y_m = y_m > threshold_mark
         _, count = label(y_m, return_num=True)
-        ax3[0].set_title('Marker Predict, #={}'.format(count))
-        ax3[0].imshow(y_m, cmap='gray', aspect='auto')
+        ax3[1].set_title('Marker Predict, #={}'.format(count))
+        ax3[1].imshow(y_m, cmap='gray', aspect='auto')
         _, count = label(gt_m, return_num=True)
-        ax3[1].set_title('Marker Lbls, #={}'.format(count))
-        ax3[1].imshow(gt_m, cmap='gray', aspect='auto')
-        _, count = label(markers, return_num=True)
-        ax3[2].set_title('Final Markers, #={}'.format(count))
-        ax3[2].imshow(markers, cmap='gray', aspect='auto')
+        ax3[2].set_title('Marker Lbls, #={}'.format(count))
+        ax3[2].imshow(gt_m, cmap='gray', aspect='auto')
 
     plt.tight_layout()
 
