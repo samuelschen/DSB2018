@@ -15,7 +15,7 @@ from tensorboardX import SummaryWriter
 from model import UNet, UNetVgg16, CAUNet, CAMUNet, DCAN
 from dataset import KaggleDataset, Compose
 from helper import config, AverageMeter, iou_mean, save_ckpt, load_ckpt
-from loss import criterion, segment_criterion, contour_criterion, weight_criterion
+from loss import contour_criterion, focal_criterion
 
 
 def main(resume=True, n_epoch=None, learn_rate=None):
@@ -160,11 +160,12 @@ def train(loader, model, optimizer, epoch, writer):
             loss = contour_criterion(outputs, labels_c)
         else:
             # weight_criterion equals to segment_criterion if weights is none
-            loss = weight_criterion(outputs, labels, weights)
+            loss = focal_criterion(outputs, labels, weights)
             if isinstance(model, CAMUNet):
-                loss += weight_criterion(outputs_c, labels_c, weights) + weight_criterion(outputs_m, labels_m, weights)
+                loss += focal_criterion(outputs_c, labels_c, weights)
+                loss += focal_criterion(outputs_m, labels_m, weights)
             elif isinstance(model, DCAN) or isinstance(model, CAUNet):
-                loss += weight_criterion(outputs_c, labels_c, weights)
+                loss += focal_criterion(outputs_c, labels_c, weights)
         # compute gradient and do backward step
         loss.backward()
         optimizer.step()
@@ -245,11 +246,12 @@ def valid(loader, model, epoch, writer, n_step):
             loss = contour_criterion(outputs, labels_c)
         else:
             # weight_criterion equals to segment_criterion if weights is none
-            loss = weight_criterion(outputs, labels, weights)
+            loss = focal_criterion(outputs, labels, weights)
             if isinstance(model, CAMUNet):
-                loss += weight_criterion(outputs_c, labels_c, weights) + weight_criterion(outputs_m, labels_m, weights)
+                loss += focal_criterion(outputs_c, labels_c, weights)
+                loss += focal_criterion(outputs_m, labels_m, weights)
             if isinstance(model, DCAN) or isinstance(model, CAUNet):
-                loss += weight_criterion(outputs_c, labels_c, weights)
+                loss += focal_criterion(outputs_c, labels_c, weights)
         # measure accuracy and record loss (Non-instance level IoU)
         losses.update(loss.data[0], inputs.size(0))
         if only_contour:
