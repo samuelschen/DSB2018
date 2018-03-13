@@ -47,14 +47,14 @@ class AverageMeter():
         self.avg = self.sum / self.count
 
 # copy from https://www.kaggle.com/aglotero/another-iou-metric
-def iou_metric(y_pred_in, y_true_in, instance_level=False, print_table=False):
-    threshold = config['param'].getfloat('threshold')
-
-    y_pred = label(y_pred_in > threshold)
+# y_pred_in & y_true_in are all 'labelled' numpy arrays
+def iou_metric(y_pred_in, y_true_in, instance_level=False, print_table=True):
     if instance_level:
         labels = y_true_in
+        y_pred = y_pred_in
     else:
-        labels = label(y_true_in > threshold)
+        labels = label(y_true_in > 0)
+        y_pred = label(y_pred_in > 0)
 
     true_objects = len(np.unique(labels))
     pred_objects = len(np.unique(y_pred))
