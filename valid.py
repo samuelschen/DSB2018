@@ -286,9 +286,9 @@ def show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save=False):
     gt_c2, cmap = _make_overlay(gt_c)
     ax1[2].imshow(gt_c2, cmap=cmap, alpha=0.7, aspect='auto')
     if only_contour: # can not tell from instances in this case
-        iou = iou_metric(y, gt)
+        iou = iou_metric(y, label(gt > 0))
     else:
-        iou = iou_metric(y, gt, instance_level=True)
+        iou = iou_metric(y, gt)
     ax1[3].set_title('Overlay, IoU={:.3f}'.format(iou))
     ax1[3].imshow(gt_s, cmap='gray', aspect='auto')
     y, cmap = _make_overlay(y)
@@ -380,9 +380,9 @@ def get_iou(y, y_c, y_m, gt):
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
     if only_contour:
-        iou = iou_metric(y, gt)
+        iou = iou_metric(y, label(gt > 0))
     else:
-        iou = iou_metric(y, gt, instance_level=True)
+        iou = iou_metric(y, gt)
     return iou
 
 

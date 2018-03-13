@@ -48,15 +48,8 @@ class AverageMeter():
         self.avg = self.sum / self.count
 
 # copy from https://www.kaggle.com/aglotero/another-iou-metric
-# y_pred_in & y_true_in are all 'labelled' numpy arrays
-def iou_metric(y_pred_in, y_true_in, instance_level=False, print_table=False):
-    if instance_level:
-        labels = y_true_in
-        y_pred = y_pred_in
-    else:
-        labels = label(y_true_in > 0)
-        y_pred = label(y_pred_in > 0)
-
+# y_pred & labels are all 'labelled' numpy arrays
+def iou_metric(y_pred, labels, print_table=False):
     true_objects = len(np.unique(labels))
     pred_objects = len(np.unique(y_pred))
 
@@ -106,13 +99,17 @@ def iou_metric(y_pred_in, y_true_in, instance_level=False, print_table=False):
         print("AP\t-\t-\t-\t{:1.3f}".format(np.mean(prec)))
     return np.mean(prec)
 
-def iou_mean(y_pred_in, y_true_in, instance_level=False):
+def iou_mean(y_pred_in, y_true_in):
+    threshold=config['param'].getfloat('threshold')
+
     y_pred_in = y_pred_in.data.cpu().numpy()
     y_true_in = y_true_in.data.cpu().numpy()
     batch_size = y_true_in.shape[0]
     metric = []
-    for batch in range(batch_size):
-        value = iou_metric(y_pred_in[batch], y_true_in[batch], instance_level=instance_level)
+    for idx in range(batch_size):
+        y_pred = label(y_pred_in[idx] > threshold)
+        y_true = label(y_true_in[idx] > 0)
+        value = iou_metric(y_pred, y_true)
         metric.append(value)
     return np.mean(metric)
 
