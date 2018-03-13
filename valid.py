@@ -50,7 +50,6 @@ def main(tocsv=False, save=False, mask=False, valid_train=False, toiou=False):
     compose = Compose(augment=False, padding=use_padding)
     data_dir = 'data/stage1_train' if valid_train else 'data/stage1_test'
     dataset = KaggleDataset(data_dir, transform=compose)
-    # dataset = KaggleDataset(data_dir, transform=compose, category='Histology')
     iter = predict(model, dataset, compose, not use_padding)
 
     if tocsv:

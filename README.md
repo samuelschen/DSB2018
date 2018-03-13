@@ -25,7 +25,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     + [x] binary cross entropy
     + [x] pixel wise IoU, regardless of instances
     + [x] loss weight per distance of instances's boundary 
-    + [ ] Focal loss (attention on imbalance loss)
+    + [x] Focal loss (attention on imbalance loss)
     + [ ] Distance transform based weight map
     + [ ] Shape aware weight map
 * Hyper-parameter tunning
@@ -51,6 +51,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Verify training data whether png masks aligned with cvs mask. 
   - [x] Blacklist mechanism to filter noisy label(s)
   - [x] Annotate edge as soft label, hint model less aggressive on nuclei edge
+  - [x] Whitelist configure option of sub-category(s) for training / validation 
   - Prediction datafeed (aka. arbitrary size of image prediction)
     + [x] Resize and regrowth 
     + [x] Origin image size with border padding (black/white constant color)
@@ -113,35 +114,6 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
         └── ...
 ```
 
-* (Optional) Experiment model per image category, eg. Histology
-    - Open [Test](https://docs.google.com/spreadsheets/d/11Ykxp7uW763WXvhNoK_LvhnDV7Q6yT7Hr0f-vDAd-mo/edit?usp=drive_web&ouid=111494078798053745646) and [Train](https://docs.google.com/spreadsheets/d/1Yw-x8T4p2oChaWlLem1yyE7qN6XU3tnedj6rCCqLg4M/edit#gid=537769059) Google sheet 
-    - Download CSV format (File > Download as > Common-separated values)
-    - Rename and copy to `data` folder as below
-        ```
-        .
-        ├── README.md
-        ├── data
-            ├── stage1_test.csv <--- rename to this
-            ├── stage1_test
-            │   ├── 0114f484a16c152baa2d82fdd43740880a762c93f436c8988ac461c5c9dbe7d5
-            │   └── ...
-            ├── stage1_train.csv <--- rename to this
-            └── stage1_train
-                ├── 00071198d059ba7f5914a526d124d28e6d010c92466da21d4a04cd5413362552
-                └── ...
-        ```
-
-    - Uncomment below code in `train.py` and `valid.py`
-        ```Python
-        # train.py 
-        dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache)
-        # dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache, category='Histology')
-
-        # valid.py 
-        dataset = KaggleDataset('data/stage1_test', transform=compose)
-        # dataset = KaggleDataset('data/stage1_test', transform=compose, category='Histology')
-        ```
-
 * (Optional) prepare V4 dataset
     - Download [V2](https://drive.google.com/open?id=1UyIxGrVzzo7IUXRJnDRpqT3C_rXOe1s1) and uncompress to `data` folder
     - Download [TCGA no overlap](https://drive.google.com/open?id=1YB_jnDfLpZhnIj0b3wRLiiDrCtb9zNxo) and uncompress to `data` folder
@@ -162,20 +134,40 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     $ mv external_TCGA_train_split/* stage1_train/
     ```
 
-## Change default configuration
+## Hyper-parameter tunning and dataset filter
 
-Create a ` config.ini ` file, in which you may overwrite any setting in config_default.ini
-```
-; copy and modify customer setting, for example
-;
-[param]
-model = unet_nuclei
-cv_ratio = 0
+* Create a ` config.ini ` file to overwrite any setting in config_default.ini
+    ```
+    [param]
+    weight_map = True
+    model = caunet
+    category = Flouresence
 
-[train]
-n_batch = 64
-```
+    [contour]
+    detect = True
 
+    [valid]
+    pred_orig_size = True
+    ```
+
+* Configure whitelist of sub-category, eg. ` Flouresence ` in ` config.ini `
+    - Open [Test](https://docs.google.com/spreadsheets/d/11Ykxp7uW763WXvhNoK_LvhnDV7Q6yT7Hr0f-vDAd-mo/edit?usp=drive_web&ouid=111494078798053745646) and [Train](https://docs.google.com/spreadsheets/d/1Yw-x8T4p2oChaWlLem1yyE7qN6XU3tnedj6rCCqLg4M/edit#gid=537769059) Google sheet 
+    - Download CSV format (File > Download as > Common-separated values)
+    - Code would check column ` discard ` and ` category ` in csv file(s)
+    - Rename and copy to `data` folder as below
+        ```
+        .
+        ├── README.md
+        ├── data
+            ├── stage1_test.csv <--- rename to this
+            ├── stage1_test
+            │   ├── 0114f484a16c152baa2d82fdd43740880a762c93f436c8988ac461c5c9dbe7d5
+            │   └── ...
+            ├── stage1_train.csv <--- rename to this
+            └── stage1_train
+                ├── 00071198d059ba7f5914a526d124d28e6d010c92466da21d4a04cd5413362552
+                └── ...
+        ```
 
 ## Command line usage
 

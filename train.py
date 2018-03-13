@@ -61,7 +61,6 @@ def main(resume=True, n_epoch=None, learn_rate=None):
     cache = manager.dict()
     # prepare dataset and loader
     dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache)
-    # dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache, category='Histology')
     train_idx, valid_idx = dataset.split()
     train_loader = DataLoader(
         dataset, sampler=SubsetRandomSampler(train_idx),

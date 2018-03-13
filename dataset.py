@@ -47,7 +47,7 @@ bright_field_list = [
 class KaggleDataset(Dataset):
     """Kaggle dataset."""
 
-    def __init__(self, root, transform=None, cache=None, category=None):
+    def __init__(self, root, transform=None, cache=None):
         """
         Args:
             root_dir (string): Directory of data (train or test).
@@ -58,9 +58,12 @@ class KaggleDataset(Dataset):
         if os.path.isfile(root + '.csv'):
             df = pd.read_csv(root + '.csv')
             ok = df['discard'] != 1
-            if category is not None:
+            # check config filter
+            cat = config['param'].get('category')
+            if cat is not None:
+                cat = [e.strip() for e in cat.split(',')]
                 # filter only sub-category
-                ok &= df['category'] == category
+                ok &= df['category'].isin(cat)
             df = df[ok]
             self.ids = list(df['image_id'])
         else:
