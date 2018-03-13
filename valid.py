@@ -17,7 +17,7 @@ from PIL import Image
 # own code
 from model import UNet, UNetVgg16, DCAN, CAUNet, CAMUNet
 from dataset import KaggleDataset, Compose
-from helper import config, load_ckpt, prob_to_rles, seg_ws, seg_ws_by_edge, seg_ws_by_marker, iou_metric
+from helper import config, load_ckpt, prob_to_rles, seg_ws, seg_ws_by_edge, seg_ws_by_marker, iou_metric, clahe
 
 def main(tocsv=False, save=False, mask=False, valid_train=False, toiou=False):
     model_name = config['param']['model']
@@ -192,7 +192,9 @@ def show(uid, x, y, y_c, y_m, save=False):
     segmentation = config['post'].getboolean('segmentation')
     remove_objects = config['post'].getboolean('remove_objects')
     min_object_size = config['post'].getint('min_object_size')
+    view_color_equalize = config['valid'].getboolean('view_color_equalize')
     model_name = config['param']['model']
+
     if model_name == 'camunet':
         threshold_edge = config[model_name].getfloat('threshold_edge')
         threshold_mark = config[model_name].getfloat('threshold_mark')
@@ -201,10 +203,13 @@ def show(uid, x, y, y_c, y_m, save=False):
 
     fig, (ax1, ax2) = plt.subplots(2, 3, sharey=True, figsize=(10, 8))
     fig.suptitle(uid, y=1)
-    ax1[0].set_title('Image')
     ax1[1].set_title('Final Pred, P > {}'.format(threshold))
     ax1[2].set_title('Overlay, P > {}'.format(threshold))
     y_bw = y > threshold
+
+    if view_color_equalize:
+        x = clahe(x)
+    ax1[0].set_title('Image')
     ax1[0].imshow(x, aspect='auto')
     if segmentation:
         if y_m is not None:
@@ -245,7 +250,9 @@ def show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save=False):
     remove_objects = config['post'].getboolean('remove_objects')
     min_object_size = config['post'].getint('min_object_size')
     only_contour = config['contour'].getboolean('exclusive')
+    view_color_equalize = config['valid'].getboolean('view_color_equalize')
     model_name = config['param']['model']
+
     if model_name == 'camunet':
         threshold_edge = config[model_name].getfloat('threshold_edge')
         threshold_mark = config[model_name].getfloat('threshold_mark')
@@ -256,6 +263,9 @@ def show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save=False):
     fig.suptitle(uid, y=1)
 
     y_s = y # to show pure semantic predict later
+
+    if view_color_equalize:
+        x = clahe(x)
     ax1[0].set_title('Image')
     ax1[0].imshow(x, aspect='auto')
     if segmentation :
