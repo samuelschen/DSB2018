@@ -15,7 +15,7 @@ from tensorboardX import SummaryWriter
 from model import UNet, UNetVgg16, CAUNet, CAMUNet, DCAN
 from dataset import KaggleDataset, Compose
 from helper import config, AverageMeter, iou_mean, save_ckpt, load_ckpt
-from loss import criterion, segment_criterion, contour_criterion, weight_criterion
+from loss import contour_criterion, focal_criterion
 
 
 def main(resume=True, n_epoch=None, learn_rate=None):
@@ -24,7 +24,7 @@ def main(resume=True, n_epoch=None, learn_rate=None):
     if learn_rate is None:
         learn_rate = config['param'].getfloat('learn_rate')
     width = config[model_name].getint('width')
-    weight_bce = config['param'].getboolean('weight_bce')
+    weight_map = config['param'].getboolean('weight_map')
     c = config['train']
     log_name = c.get('log_name')
     n_batch = c.getint('n_batch')
@@ -124,7 +124,7 @@ def train(loader, model, optimizer, epoch, writer):
     iou_m = AverageMeter() # marker IoU
     print_freq = config['train'].getfloat('print_freq')
     only_contour = config['contour'].getboolean('exclusive')
-    weight_bce = config['param'].getboolean('weight_bce')
+    weight_map = config['param'].getboolean('weight_map')
 
     # Sets the module in training mode.
     model.train()
@@ -142,7 +142,7 @@ def train(loader, model, optimizer, epoch, writer):
         inputs, labels, labels_c, labels_m = Variable(inputs), Variable(labels), Variable(labels_c), Variable(labels_m)
         # get loss weight
         weights = None
-        if weight_bce and 'weight' in data:
+        if weight_map and 'weight' in data:
             weights = data['weight']
             if torch.cuda.is_available():
                 weights = weights.cuda(async=True)
@@ -160,11 +160,12 @@ def train(loader, model, optimizer, epoch, writer):
             loss = contour_criterion(outputs, labels_c)
         else:
             # weight_criterion equals to segment_criterion if weights is none
-            loss = weight_criterion(outputs, labels, weights)
+            loss = focal_criterion(outputs, labels, weights)
             if isinstance(model, CAMUNet):
-                loss += weight_criterion(outputs_c, labels_c, weights) + weight_criterion(outputs_m, labels_m, weights)
+                loss += focal_criterion(outputs_c, labels_c, weights)
+                loss += focal_criterion(outputs_m, labels_m, weights)
             elif isinstance(model, DCAN) or isinstance(model, CAUNet):
-                loss += weight_criterion(outputs_c, labels_c, weights)
+                loss += focal_criterion(outputs_c, labels_c, weights)
         # compute gradient and do backward step
         loss.backward()
         optimizer.step()
@@ -216,7 +217,7 @@ def valid(loader, model, epoch, writer, n_step):
     iou_m = AverageMeter() # marker IoU
     losses = AverageMeter()
     only_contour = config['contour'].getboolean('exclusive')
-    weight_bce = config['param'].getboolean('weight_bce')
+    weight_map = config['param'].getboolean('weight_map')
 
     # Sets the model in evaluation mode.
     model.eval()
@@ -229,7 +230,7 @@ def valid(loader, model, epoch, writer, n_step):
         inputs, labels, labels_c, labels_m = Variable(inputs), Variable(labels), Variable(labels_c), Variable(labels_m)
         # get loss weight
         weights = None
-        if weight_bce and 'weight' in data:
+        if weight_map and 'weight' in data:
             weights = data['weight']
             if torch.cuda.is_available():
                 weights = weights.cuda(async=True)
@@ -245,11 +246,12 @@ def valid(loader, model, epoch, writer, n_step):
             loss = contour_criterion(outputs, labels_c)
         else:
             # weight_criterion equals to segment_criterion if weights is none
-            loss = weight_criterion(outputs, labels, weights)
+            loss = focal_criterion(outputs, labels, weights)
             if isinstance(model, CAMUNet):
-                loss += weight_criterion(outputs_c, labels_c, weights) + weight_criterion(outputs_m, labels_m, weights)
+                loss += focal_criterion(outputs_c, labels_c, weights)
+                loss += focal_criterion(outputs_m, labels_m, weights)
             if isinstance(model, DCAN) or isinstance(model, CAUNet):
-                loss += weight_criterion(outputs_c, labels_c, weights)
+                loss += focal_criterion(outputs_c, labels_c, weights)
         # measure accuracy and record loss (Non-instance level IoU)
         losses.update(loss.data[0], inputs.size(0))
         if only_contour:

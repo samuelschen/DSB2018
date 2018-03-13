@@ -18,14 +18,12 @@ from skimage.morphology import remove_small_objects, dilation, erosion
 from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.morphology import binary_fill_holes
 from scipy.ndimage.filters import gaussian_filter
-from skimage.exposure import equalize_adapthist
-from skimage.filters import gaussian
 
 # Ignore skimage convertion warnings
 import warnings
 warnings.filterwarnings("ignore")
 
-from helper import config, pad_image
+from helper import config, pad_image, clahe
 
 bright_field_list = [
     '091944f1d2611c916b98c020bd066667e33f4639159b2a92407fe5a40788856d',
@@ -147,7 +145,7 @@ class Compose():
         model_name = config['param']['model']
         width = config[model_name].getint('width')
         self.size = (width, width)
-        self.weight_bce = config['param'].getboolean('weight_bce')
+        self.weight_map = config['param'].getboolean('weight_map')
         self.gcd_depth = config['param'].getint('gcd_depth')
 
         c = config['pre']
@@ -299,7 +297,7 @@ class Compose():
         x['image'], x['label'], x['label_c'], x['label_m'], x['label_gt'] = \
                 image, label, label_c, label_m, label_gt
 
-        if self.weight_bce and weight is not None:
+        if self.weight_map and weight is not None:
             weight = np.expand_dims(weight, 0)
             x['weight'] = torch.from_numpy(weight)
 
@@ -381,11 +379,6 @@ def get_instances_contour_interior(uid, instances_mask):
         weight *= (1 + gaussian_filter(contour, sigma=1) / 50)
     return result_c, result_i, weight
 
-def clahe(img):
-    x = np.asarray(img, dtype=np.uint8)
-    x = equalize_adapthist(x)
-    x = img_as_ubyte(x)
-    return Image.fromarray(x)
 
 class ElasticDistortion():
     """Elastic deformation of image as described in [Simard2003]_.

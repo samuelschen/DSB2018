@@ -2,12 +2,13 @@ import os
 import json
 import numpy as np
 import torch
-import cv2
 from PIL import Image, ImageOps
 from scipy import ndimage as ndi
+from skimage import img_as_ubyte
 from skimage.morphology import label, watershed, remove_small_objects
 from skimage.feature import peak_local_max
 from skimage.measure import regionprops
+from skimage.exposure import equalize_adapthist
 import configparser
 
 # config related handling
@@ -282,6 +283,7 @@ def pad_image(img, pad_w, pad_h, mode='replicate'):
         return img
     elif mode == 'replicate':
         # replicate each border pixel's color
+        import cv2
         x = np.asarray(img)
         x = cv2.cvtColor(x, cv2.COLOR_RGB2BGR)
         x = cv2.copyMakeBorder(x, 0, pad_h, 0, pad_w, cv2.BORDER_REPLICATE)
@@ -291,3 +293,16 @@ def pad_image(img, pad_w, pad_h, mode='replicate'):
         return x
     else:
         raise NotImplementedError()
+
+def clahe(x):
+    '''
+    return PIL image or numpy array
+    '''
+    is_pil = isinstance(x, Image.Image)
+    if is_pil:
+        x = np.asarray(x, dtype=np.uint8)
+    x = equalize_adapthist(x)
+    x = img_as_ubyte(x)
+    if is_pil:
+        x = Image.fromarray(x)
+    return x
