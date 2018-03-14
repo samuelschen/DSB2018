@@ -55,11 +55,11 @@ class KaggleDataset(Dataset):
         """
         self.root = root
         self.transform = transform
-        if os.path.isfile(root + '.csv'):
+        # check config filter
+        cat = config['param'].get('category')
+        if cat is not None and cat.strip() != '' and os.path.isfile(root + '.csv'):
             df = pd.read_csv(root + '.csv')
             ok = df['discard'] != 1
-            # check config filter
-            cat = config['param'].get('category')
             if cat is not None:
                 cat = [e.strip() for e in cat.split(',')]
                 # filter only sub-category
