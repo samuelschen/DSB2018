@@ -84,7 +84,7 @@ def iou_metric(y_pred, labels, print_table=False):
     # Loop over IoU thresholds
     prec = []
     if print_table:
-        print("Thresh\tTP\tFP\tFN\tPrec.")
+        print("\nThresh\tTP\tFP\tFN\tPrec.")
     for t in np.arange(0.5, 1.0, 0.05):
         tp, fp, fn = precision_at(t, iou)
         if (tp + fp + fn) > 0:

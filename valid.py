@@ -250,6 +250,7 @@ def show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save=False):
     min_object_size = config['post'].getint('min_object_size')
     only_contour = config['contour'].getboolean('exclusive')
     view_color_equalize = config['valid'].getboolean('view_color_equalize')
+    print_table = config['valid'].getboolean('print_table')
     model_name = config['param']['model']
 
     if model_name == 'camunet':
@@ -286,9 +287,9 @@ def show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save=False):
     gt_c2, cmap = _make_overlay(gt_c)
     ax1[2].imshow(gt_c2, cmap=cmap, alpha=0.7, aspect='auto')
     if only_contour: # can not tell from instances in this case
-        iou = iou_metric(y, label(gt > 0))
+        iou = iou_metric(y, label(gt > 0), print_table)
     else:
-        iou = iou_metric(y, gt)
+        iou = iou_metric(y, gt, print_table)
     ax1[3].set_title('Overlay, IoU={:.3f}'.format(iou))
     ax1[3].imshow(gt_s, cmap='gray', aspect='auto')
     y, cmap = _make_overlay(y)
