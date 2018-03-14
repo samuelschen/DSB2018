@@ -88,7 +88,7 @@ class KaggleDataset(Dataset):
                     masks.append(m)
                 label_gt = compose_mask(masks)
                 label = (label_gt > 0).astype(np.uint8)*255 # semantic masks, generated from merged instance mask
-                label_c, label_m, _ = get_instances_contour_interior(uid, label_gt)
+                label_c, label_m, _ = get_instances_contour_interior(label_gt)
 
             label_gt = Image.fromarray(label_gt)
             label = Image.fromarray(label, 'L') # specify it's grayscale 8-bit
@@ -217,11 +217,6 @@ class Compose():
             random_degree = random.randint(0, 3) * 90
             image, label, label_c, label_m, label_gt = [tx.rotate(x, random_degree) for x in (image, label, label_c, label_m, label_gt)]
 
-            # replaced with 'thinner' contour based on augmented/transformed mask
-            if self.detect_contour:
-                label_c, label_m, weight = get_instances_contour_interior(sample['uid'], np.asarray(label_gt))
-                label_c, label_m = Image.fromarray(label_c), Image.fromarray(label_m)
-
             # perform random color invert, assuming 3 channels (rgb) images
             if self.color_invert and random.random() > 0.5:
                 image = ImageOps.invert(image)
@@ -244,9 +239,6 @@ class Compose():
             label_c = ImageOps.expand(label_c, (0, 0, pad_w, pad_h))
             label_m = ImageOps.expand(label_m, (0, 0, pad_w, pad_h))
             label_gt = ImageOps.expand(label_gt, (0, 0, pad_w, pad_h))
-            if self.detect_contour:
-                label_c, label_m, weight = get_instances_contour_interior(sample['uid'], np.asarray(label_gt))
-                label_c, label_m = Image.fromarray(label_c), Image.fromarray(label_m)
 
         else: # resize down image
             image, label, label_c, label_m = [tx.resize(x, self.size) for x in (image, label, label_c, label_m)]
@@ -255,9 +247,11 @@ class Compose():
                 label_gt = compose_mask(pil_masks, pil=True)
             else:
                 label_gt = tx.resize(label_gt, self.size, interpolation=Image.NEAREST)
-            if self.detect_contour:
-                label_c, label_m, weight = get_instances_contour_interior(sample['uid'], np.asarray(label_gt))
-                label_c, label_m = Image.fromarray(label_c), Image.fromarray(label_m)
+
+        # replaced with 'thinner' contour based on augmented/transformed mask
+        if self.detect_contour:
+            label_c, label_m, weight = get_instances_contour_interior(np.asarray(label_gt))
+            label_c, label_m = Image.fromarray(label_c), Image.fromarray(label_m)
 
         # Due to resize algorithm may introduce anti-alias edge, aka. non binary value,
         # thereafter map every pixel back to 0 and 255
@@ -331,7 +325,7 @@ def decompose_mask(mask):
     return result
 
 # Note: the algorithm MUST guarantee (interior + contour = instance mask) & (interior within contour)
-def get_contour_interior(uid, mask):
+def get_contour_interior(mask):
     # Note: find_boundaries() only have 1-pixel wide contour,
     #       use "dilation - twice erosion" to have 2-pixel wide contour
     # contour = find_boundaries(mask, connectivity=1, mode='inner')
@@ -342,13 +336,13 @@ def get_contour_interior(uid, mask):
     interior = (mask - contour > 0).astype(np.uint8)*255
     return contour, interior
 
-def get_instances_contour_interior(uid, instances_mask):
+def get_instances_contour_interior(instances_mask):
     result_c = np.zeros_like(instances_mask, dtype=np.uint8)
     result_i = np.zeros_like(instances_mask, dtype=np.uint8)
     weight = np.ones_like(instances_mask, dtype=np.float32)
     masks = decompose_mask(instances_mask)
     for m in masks:
-        contour, interior = get_contour_interior(uid, m)
+        contour, interior = get_contour_interior(m)
         result_c = np.maximum(result_c, contour)
         result_i = np.maximum(result_i, interior)
         # magic number 50 make weight distributed to [1, 5) roughly
@@ -403,7 +397,7 @@ class ElasticDistortion():
 
 if __name__ == '__main__':
     compose = Compose(augment=True)
-    train = KaggleDataset('data/stage1_train', category='Histology')
+    train = KaggleDataset('data/stage1_train')
     idx = random.randint(0, len(train)-1)
     sample = train[idx]
     print(sample['uid'])
