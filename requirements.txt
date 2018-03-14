@@ -7,4 +7,3 @@ Pillow >= 5.0
 tensorboardX >= 1.0
 tensorflow-tensorboard >= 0.4
 tqdm >= 4.0
-opencv-python >= 3.3.0

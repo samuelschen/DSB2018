@@ -2,7 +2,7 @@ import os
 import json
 import numpy as np
 import torch
-from PIL import Image, ImageOps
+from PIL import Image
 from scipy import ndimage as ndi
 from skimage import img_as_ubyte
 from skimage.morphology import label, watershed, remove_small_objects
@@ -271,25 +271,6 @@ def seg_ws_by_marker(raw_bodies, raw_markers):
     markers = label(markers)
     ws_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
     return ws_labels, markers
-
-def pad_image(img, pad_w, pad_h, mode='replicate'):
-    if mode == 'constant':
-        # padding color should honor each image background, default is black (0)
-        bgcolor = 'black' if np.median(img) < 100 else 'white'
-        img = ImageOps.expand(img, (0, 0, pad_w, pad_h), bgcolor)
-        return img
-    elif mode == 'replicate':
-        # replicate each border pixel's color
-        import cv2
-        x = np.asarray(img)
-        x = cv2.cvtColor(x, cv2.COLOR_RGB2BGR)
-        x = cv2.copyMakeBorder(x, 0, pad_h, 0, pad_w, cv2.BORDER_REPLICATE)
-        x = cv2.cvtColor(x, cv2.COLOR_BGR2RGB)
-        if isinstance(img, Image.Image):
-            x = Image.fromarray(x)
-        return x
-    else:
-        raise NotImplementedError()
 
 def clahe(x):
     '''

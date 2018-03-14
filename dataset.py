@@ -23,7 +23,7 @@ from scipy.ndimage.filters import gaussian_filter
 import warnings
 warnings.filterwarnings("ignore")
 
-from helper import config, pad_image, clahe
+from helper import config, clahe
 
 class KaggleDataset(Dataset):
     """Kaggle dataset."""
@@ -125,12 +125,15 @@ class KaggleDataset(Dataset):
 
 
 class Compose():
-    def __init__(self, augment=True, padding=False, tensor=True):
+    def __init__(self, augment=True, resize=False, tensor=True):
+        self.tensor = tensor
+        self.augment = augment
+        self.resize = resize
+
         model_name = config['param']['model']
         width = config[model_name].getint('width')
         self.size = (width, width)
         self.weight_map = config['param'].getboolean('weight_map')
-        self.gcd_depth = config['param'].getint('gcd_depth')
 
         c = config['pre']
         self.mean = json.loads(c.get('mean'))
@@ -140,9 +143,6 @@ class Compose():
         self.color_jitter = c.getboolean('color_jitter')
         self.elastic_distortion = c.getboolean('elastic_distortion')
         self.color_equalize = c.getboolean('color_equalize')
-        self.tensor = tensor
-        self.augment = augment
-        self.padding = padding
         self.min_scale = c.getfloat('min_scale')
         self.max_scale = c.getfloat('max_scale')
 
@@ -226,21 +226,7 @@ class Compose():
                 color = transforms.ColorJitter.get_params(0.5, 0.5, 0.5, 0.25)
                 image = color(image)
 
-        elif self.padding: # add border padding
-            w, h = sample['size']
-            gcd = self.gcd_depth
-            pad_w = pad_h = 0
-            if 0 != (w % gcd):
-                pad_w = gcd - (w % gcd)
-            if 0 != (h % gcd):
-                pad_h = gcd - (h % gcd)
-            image = pad_image(image, pad_w, pad_h)
-            label = ImageOps.expand(label, (0, 0, pad_w, pad_h))
-            label_c = ImageOps.expand(label_c, (0, 0, pad_w, pad_h))
-            label_m = ImageOps.expand(label_m, (0, 0, pad_w, pad_h))
-            label_gt = ImageOps.expand(label_gt, (0, 0, pad_w, pad_h))
-
-        else: # resize down image
+        elif self.resize:  # resize down image
             image, label, label_c, label_m = [tx.resize(x, self.size) for x in (image, label, label_c, label_m)]
             if self.precise_contour:
                 pil_masks = [tx.resize(m, self.size) for m in pil_masks]
@@ -292,6 +278,12 @@ class Compose():
 
     def pil(self, tensor):
         return tx.to_pil_image(tensor)
+
+    def to_numpy(self, tensor, size=None):
+        x = tx.to_pil_image(tensor)
+        if size is not None:
+            x = x.resize(size)
+        return np.asarray(x)
 
     def show(self, sample):
         image, label, label_c, label_m, label_gt = \

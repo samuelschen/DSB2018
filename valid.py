@@ -10,7 +10,6 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from skimage.transform import resize
 from skimage.morphology import label, remove_small_objects
 from tqdm import tqdm
 from PIL import Image
@@ -21,7 +20,7 @@ from helper import config, load_ckpt, prob_to_rles, seg_ws, seg_ws_by_edge, seg_
 
 def main(tocsv=False, save=False, mask=False, valid_train=False, toiou=False):
     model_name = config['param']['model']
-    use_padding = config['valid'].getboolean('pred_orig_size')
+    resize = not config['valid'].getboolean('pred_orig_size')
 
     if model_name == 'unet_vgg16':
         model = UNetVgg16(3, 1, fixed_vgg=True)
@@ -47,10 +46,10 @@ def main(tocsv=False, save=False, mask=False, valid_train=False, toiou=False):
         return
 
     # prepare dataset
-    compose = Compose(augment=False, padding=use_padding)
+    compose = Compose(augment=False, resize=resize)
     data_dir = 'data/stage1_train' if valid_train else 'data/stage1_test'
     dataset = KaggleDataset(data_dir, transform=compose)
-    iter = predict(model, dataset, compose, not use_padding)
+    iter = predict(model, dataset, compose, resize)
 
     if tocsv:
         with open('result.csv', 'w') as csvfile:
@@ -75,93 +74,94 @@ def main(tocsv=False, save=False, mask=False, valid_train=False, toiou=False):
             else:
                 show(uid, x, y, y_c, y_m, save)
 
-def predict(model, dataset, compose, regrowth=True):
+def predict(model, dataset, compose, resize):
     ''' iterate dataset and yield ndarray result tuple per sample '''
     for data in dataset:
-        # get prediction
+        # get input data
         uid = data['uid']
         size = data['size']
         inputs = x = data['image']
         gt_s, gt_c, gt_m, gt = data['label'], data['label_c'], data['label_m'], data['label_gt']
+        # prepare input variables
         inputs = inputs.unsqueeze(0)
         if torch.cuda.is_available():
             inputs = inputs.cuda()
-        inputs = Variable(inputs)
-        if isinstance(model, CAMUNet):
-            outputs, outputs_c, outputs_m = model(inputs)
-        elif isinstance(model, DCAN) or isinstance(model, CAUNet):
-            outputs, outputs_c = model(inputs)
+        if not resize:
+            inputs = pad_tensor(inputs, size)
         else:
-            outputs = model(inputs)
-
-        # convert image to numpy array
+            inputs = Variable(inputs)
+        # predict model output
+        outputs = model(inputs)
+        # convert input to numpy array
         x = compose.denorm(x)
-        x = compose.pil(x)
-        gt_s = compose.pil(gt_s)
-        gt_c = compose.pil(gt_c)
-        gt_m = compose.pil(gt_m)
-        gt = compose.pil(gt)
-        if regrowth:
-            x = x.resize(size)
-            gt_s = gt_s.resize(size)
-            gt_c = gt_c.resize(size)
-            gt_m = gt_m.resize(size)
-            gt = gt.resize(size)
-        else:
-            rect = (0, 0, size[0], size[1])
-            x = x.crop(rect)
-            gt_s = gt_s.crop(rect)
-            gt_c = gt_c.crop(rect)
-            gt_m = gt_m.crop(rect)
-            gt = gt.crop(rect)
-
-        x = np.asarray(x)
-        gt_s = np.asarray(gt_s)
-        gt_c = np.asarray(gt_c)
-        gt_m = np.asarray(gt_m)
-        gt = np.asarray(gt)
-
+        s = size if resize else None
+        x = compose.to_numpy(x, s)
+        gt = compose.to_numpy(gt, s)
+        gt_s = compose.to_numpy(gt_s, s)
+        gt_c = compose.to_numpy(gt_c, s)
+        gt_m = compose.to_numpy(gt_m, s)
         # convert predict to numpy array
-        if torch.cuda.is_available():
-            outputs = outputs.cpu()
-            if isinstance(model, CAMUNet):
-                outputs_c, outputs_m = outputs_c.cpu(), outputs_m.cpu()
-            if isinstance(model, DCAN) or isinstance(model, CAUNet):
-                outputs_c = outputs_c.cpu()
-
-        y = outputs.data.numpy()[0]
-        y = np.transpose(y, (1, 2, 0))
-        y = np.squeeze(y)
-        if regrowth:
-            y = resize(y, size[::-1], mode='constant', preserve_range=True)
-        else:
-            w, h = size
-            y = y[:h, :w]
-
+        y = y_c = y_m = None
         if isinstance(model, CAMUNet):
-            y_c, y_m = outputs_c.data.numpy()[0], outputs_m.data.numpy()[0]
-            y_c, y_m = np.transpose(y_c, (1, 2, 0)), np.transpose(y_m, (1, 2, 0))
-            y_c, y_m = np.squeeze(y_c), np.squeeze(y_m)
-            if regrowth:
-                y_c = resize(y_c, size[::-1], mode='constant', preserve_range=True)
-                y_m = resize(y_m, size[::-1], mode='constant', preserve_range=True)
-            else:
-                w, h = size
-                y_c, y_m = y_c[:h, :w], y_m[:h, :w]
+            outputs, y_c, y_m = outputs
+            y_c = tensor_to_numpy(y_c)
+            y_m = tensor_to_numpy(y_m)
         elif isinstance(model, DCAN) or isinstance(model, CAUNet):
-            y_c = outputs_c.data.numpy()[0]
-            y_c = np.transpose(y_c, (1, 2, 0))
-            y_c = np.squeeze(y_c)
-            if regrowth:
-                y_c = resize(y_c, size[::-1], mode='constant', preserve_range=True)
-            else:
-                w, h = size
-                y_c = y_c[:h, :w]
-            y_m = None
-        else:
-            y_c = y_m = None
-
+            outputs, y_c = outputs
+            y_c = tensor_to_numpy(y_c)
+        y = tensor_to_numpy(outputs)
+        # handle size of predict result
+        y = align_size(y, size, resize)
+        y_c = align_size(y_c, size, resize)
+        y_m = align_size(y_m, size, resize)
         yield uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m
+    # end of loop
+# end of predict func
+
+def tensor_to_numpy(t):
+    t = t.cpu()
+    t = t.data.numpy()[0]
+    # channel first [C, H, W] -> channel last [H, W, C]
+    t = np.transpose(t, (1, 2, 0))
+    t = np.squeeze(t)
+    return t
+
+def pad_tensor(img_tensor, size, mode='replica'):
+    # get proper mini-width required for model input
+    # for example, 32 for 5 layers of max_pool 
+    gcd = config['param'].getint('gcd_depth')
+    # estimate border padding margin
+    # (paddingLeft, paddingRight, paddingTop, paddingBottom)
+    pad_w = pad_h = 0
+    w, h = size
+    if 0 != (w % gcd):
+        pad_w = gcd - (w % gcd)
+    if 0 != (h % gcd):
+        pad_h = gcd - (h % gcd)
+    pad = (0, pad_w, 0, pad_h)
+    # decide padding mode
+    if mode == 'replica':
+        f = nn.ReplicationPad2d(pad)
+    elif mode == 'constant':
+        # padding color should honor each image background, default is black (0)
+        bgcolor = 0 if np.median(img_tensor) < 100 else 255
+        f = nn.ConstantPad2d(pad, bgcolor)
+    elif mode == 'reflect':
+        f = nn.ReflectionPad2d(pad)
+    else:
+        raise NotImplementedError()
+    return f(img_tensor)
+
+def align_size(img_array, size, regrowth=True):
+    from skimage.transform import resize
+    if img_array is None:
+        return img_array
+    elif regrowth:
+        return resize(img_array, size[::-1], mode='constant', preserve_range=True)
+    else:
+        w, h = size
+        # crop padding
+        return img_array[:h, :w]
 
 def _make_overlay(img_array):
     img_array = img_array.astype(float)
