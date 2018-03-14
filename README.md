@@ -338,7 +338,7 @@ Note:
 
 ## Learning curve
 
-* Visualization via TensorBoard  
+* Comparison of cost functions 
 
     ![learn_curve](docs/learn_curve.jpg)  
 
