@@ -16,7 +16,7 @@ from PIL import Image
 # own code
 from model import UNet, UNetVgg16, DCAN, CAUNet, CAMUNet
 from dataset import KaggleDataset, Compose
-from helper import config, load_ckpt, prob_to_rles, seg_ws, seg_ws_by_edge, seg_ws_by_marker, iou_metric, clahe
+from helper import config, load_ckpt, prob_to_rles, partition_instances, iou_metric, clahe
 
 def main(tocsv=False, save=False, mask=False, valid_train=False, toiou=False):
     model_name = config['param']['model']
@@ -211,12 +211,7 @@ def show(uid, x, y, y_c, y_m, save=False):
     ax1[0].set_title('Image')
     ax1[0].imshow(x, aspect='auto')
     if segmentation:
-        if y_m is not None:
-            y, markers = seg_ws_by_marker(y, y_m)
-        elif y_c is not None:
-            y, markers = seg_ws_by_edge(y, y_c)
-        else:
-            y, markers = seg_ws(y)
+        y, markers = partition_instances(y, y_m, y_c)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
     y, cmap = _make_overlay(y)
@@ -269,12 +264,7 @@ def show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save=False):
     ax1[0].set_title('Image')
     ax1[0].imshow(x, aspect='auto')
     if segmentation :
-        if y_m is not None:
-            y, markers = seg_ws_by_marker(y, y_m)
-        elif y_c is not None:
-            y, markers = seg_ws_by_edge(y, y_c)
-        else:
-            y, markers = seg_ws(y)
+        y, markers = partition_instances(y, y_m, y_c)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
     _, count = label(y, return_num=True)
@@ -343,12 +333,7 @@ def save_mask(uid, y, y_c, y_m):
     min_object_size = config['post'].getint('min_object_size')
 
     if segmentation:
-        if y_m is not None:
-            y, _ = seg_ws_by_marker(y, y_m)
-        elif y_c is not None:
-            y, _ = seg_ws_by_edge(y, y_c)
-        else:
-            y, _ = seg_ws(y)
+        y, _ = partition_instances(y, y_m, y_c)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
 
@@ -372,12 +357,7 @@ def get_iou(y, y_c, y_m, gt):
     only_contour = config['contour'].getboolean('exclusive')
 
     if segmentation :
-        if y_m is not None:
-            y, markers = seg_ws_by_marker(y, y_m)
-        elif y_c is not None:
-            y, markers = seg_ws_by_edge(y, y_c)
-        else:
-            y, markers = seg_ws(y)
+        y, markers = partition_instances(y, y_m, y_c)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
     if only_contour:

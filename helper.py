@@ -130,12 +130,7 @@ def prob_to_rles(y, y_c, y_m):
     min_object_size = config['post'].getint('min_object_size')
 
     if segmentation:
-        if y_m is not None:
-            y, _ = seg_ws_by_marker(y, y_m)
-        elif y_c is not None:
-            y, _ = seg_ws_by_edge(y, y_c)
-        else:
-            y, _ = seg_ws(y)
+        y, _ = partition_instances(y, y_m, y_c)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
     idxs = np.unique(y) # sorted, 1st is background (e.g. 0)
@@ -188,7 +183,7 @@ def load_ckpt(model, optimizer=None):
     return epoch
 
 # Evaluate the average nucleus size.
-def evaluate_size(image, ratio):
+def mean_blob_size(image, ratio):
     label_image = label(image)
     label_counts = len(np.unique(label_image))
     #Sort Area sizes:
@@ -204,7 +199,74 @@ def evaluate_size(image, ratio):
     size_index = average_area ** 0.5
     return size_index
 
-# Segment image with watershed algorithm.
+def add_missed_blobs(full_mask, labeled_mask):
+    missed = label(full_mask & ~(labeled_mask > 0))
+    missed = np.where(missed > 0, missed + labeled_mask.max(), 0)
+    final_labels = np.add(labeled_mask, missed)
+    return final_labels
+
+def drop_small_blobs(mask, min_size):
+    mask = remove_small_objects(mask, min_size=min_size)
+    return label(mask)
+
+def partition_instances(raw_bodies, raw_markers=None, raw_edges=None):
+    threshold=config['param'].getfloat('threshold')
+    policy = config['post']['policy']
+    min_object_size = config['post'].getint('min_object_size')
+    model_name = config['param']['model']
+    if model_name == 'camunet':
+        threshold_marker = config[model_name].getfloat('threshold_mark')
+        threshold_edge = config[model_name].getfloat('threshold_edge')
+    elif model_name == 'dcan' or model_name == 'caunet':
+        threshold_edge = config[model_name].getfloat('threshold_edge')
+
+    bodies = raw_bodies > threshold
+    markers = None if raw_markers is None else (raw_markers > threshold_marker)
+    edges = None if raw_edges is None else (raw_edges > threshold_edge)
+
+    if markers is not None and edges is not None:
+        markers = (markers & ~edges) & bodies
+        markers = drop_small_blobs(markers, min_object_size)
+    elif markers is not None:
+        markers = (raw_markers > threshold_marker) & bodies
+        markers = label(markers)
+    elif edges is not None:
+        # to remedy error-dropped edges around the image border (1 or 2 pixels holes)
+        box_bodies = bodies.copy()
+        h, w = box_bodies.shape
+        box_bodies[0:2, :] = box_bodies[h-2:, :] = box_bodies[:, 0:2] = box_bodies[:, w-2:] = 0
+        markers = box_bodies & ~edges
+        markers = drop_small_blobs(markers, min_object_size)
+    else:
+        threshold=config['param'].getfloat('threshold')
+        size_scale=config['post'].getfloat('seg_scale')
+        ratio=config['post'].getfloat('seg_ratio')
+        size_index = mean_blob_size(image, ratio)
+        """
+        Add noise to fix min_distance bug:
+        If multiple peaks in the specified region have identical intensities,
+        the coordinates of all such pixels are returned.
+        """
+        noise = np.random.randn(image.shape[0], image.shape[1]) * 0.1
+        distance = ndi.distance_transform_edt(image)+noise
+        # 2*min_distance+1 is the minimum distance between two peaks.
+        local_maxi = peak_local_max(distance, min_distance=(size_index*size_scale), exclude_border=False,
+                                    indices=False, labels=image)
+        markers = label(local_maxi)[0]
+
+    if policy == 'ws':
+        seg_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
+    elif policy == 'rw':
+        markers[bodies == 0] = -1
+        seg_labels = random_walker(bodies, markers)
+        seg_labels[seg_labels <= 0] = 0
+        markers[markers <= 0] = 0
+    else:
+        raise NotImplementedError("Policy not implemented")
+    final_labels = add_missed_blobs(bodies, seg_labels)
+    return final_labels, markers
+
+# Following specific segmentation algorithms will be removed after general function 'partition_instances()' verified
 def seg_ws(raw_image):
     threshold=config['param'].getfloat('threshold')
     size_scale=config['post'].getfloat('seg_scale')
@@ -213,7 +275,7 @@ def seg_ws(raw_image):
     image = raw_image > threshold
     # image = label(image) # TODO: is this label necessary?
     #Calculate the average size of the image.
-    size_index = evaluate_size(image, ratio)
+    size_index = mean_blob_size(image, ratio)
     """
     Add noise to fix min_distance bug:
     If multiple peaks in the specified region have identical intensities,
@@ -230,7 +292,6 @@ def seg_ws(raw_image):
 
 def seg_ws_by_edge(raw_bodies, raw_edges):
     threshold=config['param'].getfloat('threshold')
-    k=config['post'].getfloat('edge_weight_factor')
     min_object_size = config['post'].getint('min_object_size')
     model_name = config['param']['model']
     if model_name == 'dcan' or model_name == 'caunet':
@@ -238,9 +299,60 @@ def seg_ws_by_edge(raw_bodies, raw_edges):
 
     bodies = raw_bodies > threshold
     edges = raw_edges > threshold_edge
-    # markers = ((box_bodies - k * raw_edges) > threshold)
-    # h, w = markers.shape
-    # markers[0:2, :] = markers[h-2:, :] = markers[:, 0:2] = markers[:, w-2:] = 0
+
+    # to remedy error-dropped edges around the image border (1 or 2 pixels holes)
+    box_bodies = bodies.copy()
+    h, w = box_bodies.shape
+    box_bodies[0:2, :] = box_bodies[h-2:, :] = box_bodies[:, 0:2] = box_bodies[:, w-2:] = 0
+    markers = box_bodies & ~edges
+    # remove small noisy objects (caused by non perfect bodies - edges),
+    # it might remove some legit objects, need add them back afterwards
+    markers = drop_small_blobs(markers, min_object_size)
+    ws_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
+    # add back objects which are not marked earlier
+    final_labels = add_missed_blobs(bodies, ws_labels)
+    return final_labels, markers
+
+def seg_ws_by_marker(raw_bodies, raw_markers):
+    threshold=config['param'].getfloat('threshold')
+    model_name = config['param']['model']
+    if model_name == 'camunet':
+        threshold_marker = config[model_name].getfloat('threshold_mark')
+
+    bodies = raw_bodies > threshold
+    markers = (raw_markers > threshold_marker) & bodies
+    markers = label(markers)
+    ws_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
+    final_labels = add_missed_blobs(bodies, ws_labels)
+    return ws_labels, markers
+
+def seg_ws_by_marker_edge(raw_bodies, raw_markers, raw_edges):
+    threshold=config['param'].getfloat('threshold')
+    min_object_size = config['post'].getint('min_object_size')
+    model_name = config['param']['model']
+    if model_name == 'camunet':
+        threshold_marker = config[model_name].getfloat('threshold_mark')
+        threshold_edge = config[model_name].getfloat('threshold_edge')
+
+    bodies = raw_bodies > threshold
+    markers = raw_markers > threshold_marker
+    edges = raw_edges > threshold_edge
+    markers = (markers & ~edges) & bodies
+    markers = drop_small_blobs(markers, min_object_size)
+    ws_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
+    final_labels = add_missed_blobs(bodies, ws_labels)
+    return final_labels, markers
+
+def seg_by_edge(raw_bodies, raw_edges):
+    threshold=config['param'].getfloat('threshold')
+    min_object_size = config['post'].getint('min_object_size')
+    policy = config['post']['policy']
+    model_name = config['param']['model']
+    if model_name == 'dcan' or model_name == 'caunet':
+        threshold_edge = config[model_name].getfloat('threshold_edge')
+
+    bodies = raw_bodies > threshold
+    edges = raw_edges > threshold_edge
 
     # to remedy error-dropped edges around the image border (1 or 2 pixels holes)
     box_bodies = bodies.copy()
@@ -249,27 +361,43 @@ def seg_ws_by_edge(raw_bodies, raw_edges):
     markers = box_bodies & ~edges
     # remove small noisy objects (caused by non perfect bodies - edges),
     # it might remove some legit objects, need add them back after watershed
-    markers = remove_small_objects(markers, min_size=min_object_size)
-    markers, marker_count = label(markers, return_num=True)
-    ws_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
-
+    markers = drop_small_blobs(markers, min_object_size)
+    if policy == 'ws':
+        seg_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
+    elif policy == 'rw':
+        # Transform markers image so that 0-valued pixels are to
+        # be labelled, and -1-valued pixels represent background
+        markers[bodies == 0] = -1
+        seg_labels = random_walker(bodies, markers)
+        # reassign background as 0 in rw_labels & markers
+        seg_labels[seg_labels <= 0] = 0
+        markers[markers <= 0] = 0
+    else:
+        raise NotImplementedError("Policy not implemented")
     # add back objects which are not marked earlier
-    dropped = label(bodies & ~(ws_labels > 0))
-    dropped = np.where(dropped > 0, dropped + marker_count, 0)
-    final_labels = np.add(ws_labels, dropped)
+    final_labels = add_missed_blobs(bodies, seg_labels)
     return final_labels, markers
 
-# TODO: NOT IMPLEMENTED COMPLETELY YET
-def seg_ws_by_marker(raw_bodies, raw_markers):
+def seg_by_marker(raw_bodies, raw_markers):
     threshold=config['param'].getfloat('threshold')
+    policy = config['post']['policy']
     model_name = config['param']['model']
     if model_name == 'camunet':
         threshold_marker = config[model_name].getfloat('threshold_mark')
 
     bodies = raw_bodies > threshold
-    markers = raw_markers > threshold_marker
+    markers = (raw_markers > threshold_marker) & bodies
     markers = label(markers)
-    ws_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
+    if policy == 'ws':
+        seg_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
+    elif policy == 'rw':
+        markers[bodies == 0] = -1
+        seg_labels = random_walker(bodies, markers)
+        seg_labels[seg_labels <= 0] = 0
+        markers[markers <= 0] = 0
+    else:
+        raise NotImplementedError("Policy not implemented")
+    final_labels = add_missed_blobs(bodies, seg_labels)
     return ws_labels, markers
 
 def clahe(x):
