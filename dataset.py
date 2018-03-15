@@ -318,14 +318,20 @@ def decompose_mask(mask):
 
 # Note: the algorithm MUST guarantee (interior + contour = instance mask) & (interior within contour)
 def get_contour_interior(mask):
-    # Note: find_boundaries() only have 1-pixel wide contour,
-    #       use "dilation - twice erosion" to have 2-pixel wide contour
-    # contour = find_boundaries(mask, connectivity=1, mode='inner')
-    boundaries = dilation(mask) != erosion(erosion(mask))
-    foreground_image = (mask != 0)
-    boundaries &= foreground_image
-    contour = (boundaries > 0).astype(np.uint8)*255
-    interior = (mask - contour > 0).astype(np.uint8)*255
+    if 'camunet' == config['param']['model']:
+        # Note: find_boundaries() only have 1-pixel wide contour,
+        #       use "dilation - twice erosion" to have 2-pixel wide contour
+        # contour = find_boundaries(mask, connectivity=1, mode='inner')
+        boundaries = dilation(mask) != erosion(erosion(mask))
+        foreground_image = (mask != 0)
+        boundaries &= foreground_image
+        contour = (boundaries > 0).astype(np.uint8)*255
+        interior = (mask - contour > 0).astype(np.uint8)*255
+    else:
+        contour = filters.scharr(mask)
+        scharr_threshold = np.amax(abs(contour)) / 2.
+        contour = (np.abs(contour) > scharr_threshold).astype(np.uint8)*255
+        interior = (mask - contour > 0).astype(np.uint8)*255
     return contour, interior
 
 def get_instances_contour_interior(instances_mask):
