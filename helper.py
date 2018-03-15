@@ -228,7 +228,7 @@ def partition_instances(raw_bodies, raw_markers=None, raw_edges=None):
         markers = (markers & ~edges) & bodies
         markers = drop_small_blobs(markers, min_object_size)
     elif markers is not None:
-        markers = (raw_markers > threshold_marker) & bodies
+        markers = markers & bodies
         markers = label(markers)
     elif edges is not None:
         # to remedy error-dropped edges around the image border (1 or 2 pixels holes)
