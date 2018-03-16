@@ -208,7 +208,7 @@ def add_missed_blobs(full_mask, labeled_mask):
 
 def drop_small_blobs(mask, min_size):
     mask = remove_small_objects(mask, min_size=min_size)
-    return label(mask)
+    return mask
 
 def partition_instances(raw_bodies, raw_markers=None, raw_edges=None):
     threshold=config['param'].getfloat('threshold')
@@ -221,13 +221,19 @@ def partition_instances(raw_bodies, raw_markers=None, raw_edges=None):
     elif model_name == 'dcan' or model_name == 'caunet':
         threshold_edge = config[model_name].getfloat('threshold_edge')
 
+    # Random Walker fails for a 1-pixel seed, which is exactly on top of a 1-pixel semantic mask.
+    # https://github.com/scikit-image/scikit-image/issues/1875
+    # Workaround by eliminating 1-pixel semantic mask first.
     bodies = raw_bodies > threshold
+    bodies = drop_small_blobs(bodies, 2) # bodies must be larger than 1-pixel
     markers = None if raw_markers is None else (raw_markers > threshold_marker)
     edges = None if raw_edges is None else (raw_edges > threshold_edge)
 
     if markers is not None and edges is not None:
         markers = (markers & ~edges) & bodies
+        # remove artifacts caused by non-perfect (mask - contour)
         markers = drop_small_blobs(markers, min_object_size)
+        markers = label(markers)
     elif markers is not None:
         markers = markers & bodies
         markers = label(markers)
@@ -238,6 +244,7 @@ def partition_instances(raw_bodies, raw_markers=None, raw_edges=None):
         box_bodies[0:2, :] = box_bodies[h-2:, :] = box_bodies[:, 0:2] = box_bodies[:, w-2:] = 0
         markers = box_bodies & ~edges
         markers = drop_small_blobs(markers, min_object_size)
+        markers = label(markers)
     else:
         threshold=config['param'].getfloat('threshold')
         size_scale=config['post'].getfloat('seg_scale')
