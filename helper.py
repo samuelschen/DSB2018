@@ -6,6 +6,7 @@ from PIL import Image
 from scipy import ndimage as ndi
 from skimage import img_as_ubyte
 from skimage.morphology import label, watershed, remove_small_objects
+from skimage.segmentation import random_walker
 from skimage.feature import peak_local_max
 from skimage.measure import regionprops
 from skimage.exposure import equalize_adapthist
@@ -265,140 +266,6 @@ def partition_instances(raw_bodies, raw_markers=None, raw_edges=None):
         raise NotImplementedError("Policy not implemented")
     final_labels = add_missed_blobs(bodies, seg_labels)
     return final_labels, markers
-
-# Following specific segmentation algorithms will be removed after general function 'partition_instances()' verified
-def seg_ws(raw_image):
-    threshold=config['param'].getfloat('threshold')
-    size_scale=config['post'].getfloat('seg_scale')
-    ratio=config['post'].getfloat('seg_ratio')
-
-    image = raw_image > threshold
-    # image = label(image) # TODO: is this label necessary?
-    #Calculate the average size of the image.
-    size_index = mean_blob_size(image, ratio)
-    """
-    Add noise to fix min_distance bug:
-    If multiple peaks in the specified region have identical intensities,
-    the coordinates of all such pixels are returned.
-    """
-    noise = np.random.randn(image.shape[0], image.shape[1]) * 0.1
-    distance = ndi.distance_transform_edt(image)+noise
-    #2*min_distance+1 is the minimum distance between two peaks.
-    local_maxi = peak_local_max(distance, min_distance=(size_index*size_scale), exclude_border=False, indices=False,
-                                labels=image)
-    markers = ndi.label(local_maxi)[0]
-    labels = watershed(-distance, markers, mask=image)
-    return labels, markers
-
-def seg_ws_by_edge(raw_bodies, raw_edges):
-    threshold=config['param'].getfloat('threshold')
-    min_object_size = config['post'].getint('min_object_size')
-    model_name = config['param']['model']
-    if model_name == 'dcan' or model_name == 'caunet':
-        threshold_edge = config[model_name].getfloat('threshold_edge')
-
-    bodies = raw_bodies > threshold
-    edges = raw_edges > threshold_edge
-
-    # to remedy error-dropped edges around the image border (1 or 2 pixels holes)
-    box_bodies = bodies.copy()
-    h, w = box_bodies.shape
-    box_bodies[0:2, :] = box_bodies[h-2:, :] = box_bodies[:, 0:2] = box_bodies[:, w-2:] = 0
-    markers = box_bodies & ~edges
-    # remove small noisy objects (caused by non perfect bodies - edges),
-    # it might remove some legit objects, need add them back afterwards
-    markers = drop_small_blobs(markers, min_object_size)
-    ws_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
-    # add back objects which are not marked earlier
-    final_labels = add_missed_blobs(bodies, ws_labels)
-    return final_labels, markers
-
-def seg_ws_by_marker(raw_bodies, raw_markers):
-    threshold=config['param'].getfloat('threshold')
-    model_name = config['param']['model']
-    if model_name == 'camunet':
-        threshold_marker = config[model_name].getfloat('threshold_mark')
-
-    bodies = raw_bodies > threshold
-    markers = (raw_markers > threshold_marker) & bodies
-    markers = label(markers)
-    ws_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
-    final_labels = add_missed_blobs(bodies, ws_labels)
-    return ws_labels, markers
-
-def seg_ws_by_marker_edge(raw_bodies, raw_markers, raw_edges):
-    threshold=config['param'].getfloat('threshold')
-    min_object_size = config['post'].getint('min_object_size')
-    model_name = config['param']['model']
-    if model_name == 'camunet':
-        threshold_marker = config[model_name].getfloat('threshold_mark')
-        threshold_edge = config[model_name].getfloat('threshold_edge')
-
-    bodies = raw_bodies > threshold
-    markers = raw_markers > threshold_marker
-    edges = raw_edges > threshold_edge
-    markers = (markers & ~edges) & bodies
-    markers = drop_small_blobs(markers, min_object_size)
-    ws_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
-    final_labels = add_missed_blobs(bodies, ws_labels)
-    return final_labels, markers
-
-def seg_by_edge(raw_bodies, raw_edges):
-    threshold=config['param'].getfloat('threshold')
-    min_object_size = config['post'].getint('min_object_size')
-    policy = config['post']['policy']
-    model_name = config['param']['model']
-    if model_name == 'dcan' or model_name == 'caunet':
-        threshold_edge = config[model_name].getfloat('threshold_edge')
-
-    bodies = raw_bodies > threshold
-    edges = raw_edges > threshold_edge
-
-    # to remedy error-dropped edges around the image border (1 or 2 pixels holes)
-    box_bodies = bodies.copy()
-    h, w = box_bodies.shape
-    box_bodies[0:2, :] = box_bodies[h-2:, :] = box_bodies[:, 0:2] = box_bodies[:, w-2:] = 0
-    markers = box_bodies & ~edges
-    # remove small noisy objects (caused by non perfect bodies - edges),
-    # it might remove some legit objects, need add them back after watershed
-    markers = drop_small_blobs(markers, min_object_size)
-    if policy == 'ws':
-        seg_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
-    elif policy == 'rw':
-        # Transform markers image so that 0-valued pixels are to
-        # be labelled, and -1-valued pixels represent background
-        markers[bodies == 0] = -1
-        seg_labels = random_walker(bodies, markers)
-        # reassign background as 0 in rw_labels & markers
-        seg_labels[seg_labels <= 0] = 0
-        markers[markers <= 0] = 0
-    else:
-        raise NotImplementedError("Policy not implemented")
-    # add back objects which are not marked earlier
-    final_labels = add_missed_blobs(bodies, seg_labels)
-    return final_labels, markers
-
-def seg_by_marker(raw_bodies, raw_markers):
-    threshold=config['param'].getfloat('threshold')
-    policy = config['post']['policy']
-    model_name = config['param']['model']
-    if model_name == 'camunet':
-        threshold_marker = config[model_name].getfloat('threshold_mark')
-
-    bodies = raw_bodies > threshold
-    markers = (raw_markers > threshold_marker) & bodies
-    markers = label(markers)
-    if policy == 'ws':
-        seg_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
-    elif policy == 'rw':
-        markers[bodies == 0] = -1
-        seg_labels = random_walker(bodies, markers)
-        seg_labels[seg_labels <= 0] = 0
-        markers[markers <= 0] = 0
-    else:
-        raise NotImplementedError("Policy not implemented")
-    final_labels = add_missed_blobs(bodies, seg_labels)
-    return ws_labels, markers
 
 def clahe(x):
     '''
