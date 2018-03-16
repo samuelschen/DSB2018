@@ -281,15 +281,9 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 | 0.472 | v4   | CAUNet | IOU+WBCE  | 1800 | C | RW | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
 | 0.490 | v6   | CAUNet | IOU+WBCE  | 5000 | C | RW | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
 | 0.469 | v6   | CAUNet | IOU+WBCE  | 5000 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-
-<!---
-# regression to be addressed, March 15.
-| 0.427 | v6   | CAUNet | IOU+Focal | 600  | C | WS | .5 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.429 | v6   | CAUNet | IOU+Focal | 600  | C | WS | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.424 | v6   | CAUNet | IOU+Focal | 600  | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.360 | v6   | CAUNet | IOU+Focal | 600  | C | WS | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.480 | v6   | CAUNet | IOU+WBCE  | 5000 | C | WS | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
---->
+| 0.467 | v6   | CAUNet | IOU+Focal | 1800 | C | WS | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.462 | v6   | CAUNet | IOU+Focal | 1800 | C | WS | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.472 | v6   | CAUNet | IOU+Focal | 1800 | C | RW | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
 
 Note:
 - Dataset (training): 
