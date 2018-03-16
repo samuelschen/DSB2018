@@ -313,6 +313,29 @@ Note:
     * P: local peak max of clustering
     * C: predicted contour of model output
 
+### Learning curve
+
+* Comparison of cost functions 
+
+    ![learn_curve](docs/learn_curve.jpg)  
+
+* Comparison of composition of convolutional blocks 
+    ```
+    To be updated ...     
+    ```
+
+### Graph and complexity of models 
+
+* Graph
+    ```
+    To be updated ...
+    ```
+
+* Number of model parameters
+    - UNet: 1,944,049 
+    - CAUnet: 2,707,346
+    - CAMUnet: 3,470,643
+
 ## Known Issues
 
 * Error: multiprocessing.managers.RemoteError: AttributeError: Can't get attribute 'PngImageFile'  
@@ -356,10 +379,4 @@ Note:
 * Image border padding: constant vs replicate. Used in origin size prediction.
 
     ![color_equalize](docs/image_border_padding.jpg) 
-
-## Learning curve
-
-* Comparison of cost functions 
-
-    ![learn_curve](docs/learn_curve.jpg)  
 
