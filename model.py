@@ -4,22 +4,42 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torchvision import models
 
+_MODE_CONV_BLOCK_ = None # Vanilla UNet
+
 class ConvBlock(nn.Module):
     def __init__(self, in_size, out_size, kernel_size=3, dropout_rate=0.2, activation=F.relu):
         super().__init__()
         self.conv1 = nn.Conv2d(in_size,  out_size, kernel_size, padding=1)
-        self.norm1 = nn.BatchNorm2d(out_size)
+        if _MODE_CONV_BLOCK_ == 'BAC':
+            self.norm1 = nn.BatchNorm2d(in_size)
+        else:
+            self.norm1 = nn.BatchNorm2d(out_size)
         self.conv2 = nn.Conv2d(out_size, out_size, kernel_size, padding=1)
         self.norm2 = nn.BatchNorm2d(out_size)
         self.activation = activation
         self.drop = nn.Dropout2d(p=dropout_rate)
 
     def forward(self, x):
-        x = self.activation(self.conv1(x))
-        x = self.norm1(x)
-        x = self.activation(self.conv2(x))
-        x = self.norm2(x)
-        x = self.drop(x)
+        if _MODE_CONV_BLOCK_ == 'CBA':
+            # conv -> batch normal -> activation
+            x = self.activation(self.norm1(self.conv1(x)))
+            x = self.drop(x)
+            x = self.activation(self.norm2(self.conv2(x)))
+        elif _MODE_CONV_BLOCK_ == 'BAC':
+            # batch normal -> conv -> activation
+            x = self.conv1(self.activation(self.norm1(x)))
+            x = self.drop(x)
+            x = self.conv2(self.activation(self.norm2(x)))
+        elif _MODE_CONV_BLOCK_ == 'CAB':
+            # conv -> activation -> batch normal
+            x = self.norm1(self.activation(self.conv1(x)))
+            x = self.drop(x)
+            x = self.norm2(self.activation(self.conv2(x)))
+        else:
+            # default, CAB > CAB > Dropout
+            x = self.norm1(self.activation(self.conv1(x)))
+            x = self.norm2(self.activation(self.conv2(x)))
+            x = self.drop(x)
         return x
 
 class ConvUpBlock(nn.Module):
@@ -27,7 +47,10 @@ class ConvUpBlock(nn.Module):
         super().__init__()
         self.up = nn.ConvTranspose2d(in_size, out_size, 2, stride=2)
         self.conv1 = nn.Conv2d(in_size, out_size, kernel_size, padding=1)
-        self.norm1 = nn.BatchNorm2d(out_size)
+        if _MODE_CONV_BLOCK_ == 'BAC':
+            self.norm1 = nn.BatchNorm2d(in_size)
+        else:
+            self.norm1 = nn.BatchNorm2d(out_size)
         self.conv2 = nn.Conv2d(out_size, out_size, kernel_size, padding=1)
         self.norm2 = nn.BatchNorm2d(out_size)
         self.activation = activation
@@ -36,11 +59,26 @@ class ConvUpBlock(nn.Module):
     def forward(self, x, bridge):
         x = self.up(x)
         x = torch.cat([x, bridge], 1)
-        x = self.activation(self.conv1(x))
-        x = self.norm1(x)
-        x = self.activation(self.conv2(x))
-        x = self.norm2(x)
-        x = self.drop(x)
+        if _MODE_CONV_BLOCK_ == 'CBA':
+            # conv -> batch normal -> activation
+            x = self.activation(self.norm1(self.conv1(x)))
+            x = self.drop(x)
+            x = self.activation(self.norm2(self.conv2(x)))
+        elif _MODE_CONV_BLOCK_ == 'BAC':
+            # batch normal -> conv -> activation
+            x = self.conv1(self.activation(self.norm1(x)))
+            x = self.drop(x)
+            x = self.conv2(self.activation(self.norm2(x)))
+        elif _MODE_CONV_BLOCK_ == 'CAB':
+            # conv -> activation -> batch normal
+            x = self.norm1(self.activation(self.conv1(x)))
+            x = self.drop(x)
+            x = self.norm2(self.activation(self.conv2(x)))
+        else:
+            # default, CAB > CAB > Dropout
+            x = self.norm1(self.activation(self.conv1(x)))
+            x = self.norm2(self.activation(self.conv2(x)))
+            x = self.drop(x)
         return x
     
 class UNet(nn.Module):
@@ -377,17 +415,28 @@ class DCAN(nn.Module):
         # print('outc: ', outc.size())
         return outs, outc
 
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 if __name__ == '__main__':
     net = UNet()
-    print(net)
+    #print(net)
+    print('Total number of Unet model parameters is', count_parameters(net))
     del net
+
     net = CAUNet()
-    print(net)
+    #print(net)
+    print('Total number of CAUNet model parameters is', count_parameters(net))
     del net
-    net = UNetVgg16(3, 1)
-    print(net)
+
+    net = CAMUNet()
+    #print(net)
+    print('Total number of CAMUNet model parameters is', count_parameters(net))
     del net
-    net = DCAN(3, 1)
-    print(net)
-    del net
+
+    # net = UNetVgg16(3, 1)
+    # print(net)
+    # del net
+    # net = DCAN(3, 1)
+    # print(net)
+    # del net
