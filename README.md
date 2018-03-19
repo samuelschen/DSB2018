@@ -314,9 +314,10 @@ Note:
     ![learn_curve](docs/learn_curve.jpg)  
 
 * Comparison of composition of convolutional blocks 
-    ```
-    To be updated ...     
-    ```
+
+    The topic of building block of composition of conv. blocks is highly discussed in technical forums and papers. Though it seems not a problem of one-size-fit-all. So here is performance comparison of various popular combinations, the result showed that CAB, `conv -> activation -> batch normal` take lead in benched model ` CAUnet `, in speed and accuracy. 
+
+    ![conv_block](docs/conv_block.jpg)  
 
 ### Graph and complexity of models 
 
