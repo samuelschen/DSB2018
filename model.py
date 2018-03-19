@@ -4,53 +4,31 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torchvision import models
 
-_MODE_CONV_BLOCK_ = None # Vanilla UNet
-
 class ConvBlock(nn.Module):
     def __init__(self, in_size, out_size, kernel_size=3, dropout_rate=0.2, activation=F.relu):
         super().__init__()
         self.conv1 = nn.Conv2d(in_size,  out_size, kernel_size, padding=1)
-        if _MODE_CONV_BLOCK_ == 'BAC':
-            self.norm1 = nn.BatchNorm2d(in_size)
-        else:
-            self.norm1 = nn.BatchNorm2d(out_size)
+        self.norm1 = nn.BatchNorm2d(out_size)
         self.conv2 = nn.Conv2d(out_size, out_size, kernel_size, padding=1)
         self.norm2 = nn.BatchNorm2d(out_size)
         self.activation = activation
         self.drop = nn.Dropout2d(p=dropout_rate)
+        self.pool = nn.MaxPool2d(kernel_size=2)
 
     def forward(self, x):
-        if _MODE_CONV_BLOCK_ == 'CBA':
-            # conv -> batch normal -> activation
-            x = self.activation(self.norm1(self.conv1(x)))
-            x = self.drop(x)
-            x = self.activation(self.norm2(self.conv2(x)))
-        elif _MODE_CONV_BLOCK_ == 'BAC':
-            # batch normal -> conv -> activation
-            x = self.conv1(self.activation(self.norm1(x)))
-            x = self.drop(x)
-            x = self.conv2(self.activation(self.norm2(x)))
-        elif _MODE_CONV_BLOCK_ == 'CAB':
-            # conv -> activation -> batch normal
-            x = self.norm1(self.activation(self.conv1(x)))
-            x = self.drop(x)
-            x = self.norm2(self.activation(self.conv2(x)))
-        else:
-            # default, CAB > CAB > Dropout
-            x = self.norm1(self.activation(self.conv1(x)))
-            x = self.norm2(self.activation(self.conv2(x)))
-            x = self.drop(x)
-        return x
+        # CAB: conv -> activation -> batch normal
+        x = self.norm1(self.activation(self.conv1(x)))
+        x = self.drop(x)
+        x = self.norm2(self.activation(self.conv2(x)))
+        x = self.drop(x)
+        return self.pool(x), x
 
 class ConvUpBlock(nn.Module):
     def __init__(self, in_size, out_size, kernel_size=3, dropout_rate=0.2, activation=F.relu):
         super().__init__()
         self.up = nn.ConvTranspose2d(in_size, out_size, 2, stride=2)
         self.conv1 = nn.Conv2d(in_size, out_size, kernel_size, padding=1)
-        if _MODE_CONV_BLOCK_ == 'BAC':
-            self.norm1 = nn.BatchNorm2d(in_size)
-        else:
-            self.norm1 = nn.BatchNorm2d(out_size)
+        self.norm1 = nn.BatchNorm2d(out_size)
         self.conv2 = nn.Conv2d(out_size, out_size, kernel_size, padding=1)
         self.norm2 = nn.BatchNorm2d(out_size)
         self.activation = activation
@@ -59,60 +37,41 @@ class ConvUpBlock(nn.Module):
     def forward(self, x, bridge):
         x = self.up(x)
         x = torch.cat([x, bridge], 1)
-        if _MODE_CONV_BLOCK_ == 'CBA':
-            # conv -> batch normal -> activation
-            x = self.activation(self.norm1(self.conv1(x)))
-            x = self.drop(x)
-            x = self.activation(self.norm2(self.conv2(x)))
-        elif _MODE_CONV_BLOCK_ == 'BAC':
-            # batch normal -> conv -> activation
-            x = self.conv1(self.activation(self.norm1(x)))
-            x = self.drop(x)
-            x = self.conv2(self.activation(self.norm2(x)))
-        elif _MODE_CONV_BLOCK_ == 'CAB':
-            # conv -> activation -> batch normal
-            x = self.norm1(self.activation(self.conv1(x)))
-            x = self.drop(x)
-            x = self.norm2(self.activation(self.conv2(x)))
-        else:
-            # default, CAB > CAB > Dropout
-            x = self.norm1(self.activation(self.conv1(x)))
-            x = self.norm2(self.activation(self.conv2(x)))
-            x = self.drop(x)
+        # CAB: conv -> activation -> batch normal
+        x = self.norm1(self.activation(self.conv1(x)))
+        x = self.drop(x)
+        x = self.norm2(self.activation(self.conv2(x)))
+        x = self.drop(x)
         return x
     
 class UNet(nn.Module):
     def __init__(self):
         super().__init__()
+        # down conv
         self.c1 = ConvBlock(3, 16)
-        self.p1 = nn.MaxPool2d(2)
         self.c2 = ConvBlock(16, 32)
-        self.p2 = nn.MaxPool2d(2)
         self.c3 = ConvBlock(32, 64)
-        self.p3 = nn.MaxPool2d(2)
         self.c4 = ConvBlock(64, 128)
-        self.p4 = nn.MaxPool2d(2)
-        self.c5 = ConvBlock(128, 256)
-        self.u6 = ConvUpBlock(256, 128)
-        self.u7 = ConvUpBlock(128, 64)
-        self.u8 = ConvUpBlock(64, 32)
-        self.u9 = ConvUpBlock(32, 16)
+        # bottom conv tunnel
+        self.cu = ConvBlock(128, 256)
+        # up conv
+        self.u5 = ConvUpBlock(256, 128)
+        self.u6 = ConvUpBlock(128, 64)
+        self.u7 = ConvUpBlock(64, 32)
+        self.u8 = ConvUpBlock(32, 16)
+        # final conv tunnel
         self.ce = nn.Conv2d(16, 1, 1)
 
     def forward(self, x):
-        c1 = x = self.c1(x)
-        x = self.p1(x)
-        c2 = x = self.c2(x)
-        x = self.p2(x)
-        c3 = x = self.c3(x)
-        x = self.p3(x)
-        c4 = x = self.c4(x)
-        x = self.p4(x)
-        c5 = x = self.c5(x)
-        x = self.u6(x, c4)
-        x = self.u7(x, c3)
-        x = self.u8(x, c2)
-        x = self.u9(x, c1)
+        x, c1 = self.c1(x)
+        x, c2 = self.c2(x)
+        x, c3 = self.c3(x)
+        x, c4 = self.c4(x)
+        _, x = self.cu(x) # no maxpool for U bottom
+        x = self.u5(x, c4)
+        x = self.u6(x, c3)
+        x = self.u7(x, c2)
+        x = self.u8(x, c1)
         x = self.ce(x)
         x = F.sigmoid(x)
         return x
