@@ -126,7 +126,7 @@ def tensor_to_numpy(t):
     t = np.squeeze(t)
     return t
 
-def pad_tensor(img_tensor, size, mode='replica'):
+def pad_tensor(img_tensor, size, mode='reflect'):
     # get proper mini-width required for model input
     # for example, 32 for 5 layers of max_pool 
     gcd = config['param'].getint('gcd_depth')
@@ -356,7 +356,7 @@ def get_iou(y, y_c, y_m, gt):
     min_object_size = config['post'].getint('min_object_size')
     only_contour = config['contour'].getboolean('exclusive')
 
-    if segmentation :
+    if segmentation:
         y, markers = partition_instances(y, y_m, y_c)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)

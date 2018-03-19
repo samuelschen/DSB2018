@@ -200,10 +200,21 @@ def mean_blob_size(image, ratio):
     size_index = average_area ** 0.5
     return size_index
 
-def add_missed_blobs(full_mask, labeled_mask):
-    missed = label(full_mask & ~(labeled_mask > 0))
-    missed = np.where(missed > 0, missed + labeled_mask.max(), 0)
-    final_labels = np.add(labeled_mask, missed)
+def add_missed_blobs(full_mask, labeled_mask, edges):
+    missed_mask = full_mask & ~(labeled_mask > 0)
+    missed_mask = drop_small_blobs(missed_mask, 2) # bodies must be larger than 1-pixel
+    if edges is not None:
+        missed_markers = label(missed_mask & ~edges)
+    else:
+        missed_markers = label(missed_mask)
+    if missed_markers.max() > 0:
+        missed_markers[missed_mask == 0] = -1
+        missed_labels = random_walker(missed_mask, missed_markers)
+        missed_labels[missed_labels <= 0] = 0
+        missed_labels = np.where(missed_labels > 0, missed_labels + labeled_mask.max(), 0)
+        final_labels = np.add(labeled_mask, missed_labels)
+    else:
+        final_labels = labeled_mask
     return final_labels
 
 def drop_small_blobs(mask, min_size):
@@ -271,7 +282,7 @@ def partition_instances(raw_bodies, raw_markers=None, raw_edges=None):
         markers[markers <= 0] = 0
     else:
         raise NotImplementedError("Policy not implemented")
-    final_labels = add_missed_blobs(bodies, seg_labels)
+    final_labels = add_missed_blobs(bodies, seg_labels, edges)
     return final_labels, markers
 
 def clahe(x):
