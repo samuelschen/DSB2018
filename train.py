@@ -15,7 +15,7 @@ from tensorboardX import SummaryWriter
 from model import UNet, UNetVgg16, CAUNet, CAMUNet, DCAN
 from dataset import KaggleDataset, Compose
 from helper import config, AverageMeter, iou_mean, save_ckpt, load_ckpt
-from loss import contour_criterion, focal_criterion
+from loss import contour_criterion, focal_criterion, weight_criterion
 
 
 def main(resume=True, n_epoch=None, learn_rate=None):
@@ -159,7 +159,7 @@ def train(loader, model, optimizer, epoch, writer):
             loss = contour_criterion(outputs, labels_c)
         else:
             # weight_criterion equals to segment_criterion if weights is none
-            loss = focal_criterion(outputs, labels, weights)
+            loss = weight_criterion(outputs, labels, weights)
             if isinstance(model, CAMUNet):
                 loss += focal_criterion(outputs_c, labels_c, weights)
                 loss += focal_criterion(outputs_m, labels_m, weights)
@@ -245,7 +245,7 @@ def valid(loader, model, epoch, writer, n_step):
             loss = contour_criterion(outputs, labels_c)
         else:
             # weight_criterion equals to segment_criterion if weights is none
-            loss = focal_criterion(outputs, labels, weights)
+            loss = weight_criterion(outputs, labels, weights)
             if isinstance(model, CAMUNet):
                 loss += focal_criterion(outputs_c, labels_c, weights)
                 loss += focal_criterion(outputs_m, labels_m, weights)
