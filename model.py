@@ -134,12 +134,15 @@ class CAUNet(nn.Module):
         self.c2 = ConvBlock(16, 32)
         self.c3 = ConvBlock(32, 64)
         self.c4 = ConvBlock(64, 128)
+        # bottom conv tunnel
         self.cu = ConvBlock(128, 256)
+        # segmentation up conv branch
         self.u5s = ConvUpBlock(256, 128)
         self.u6s = ConvUpBlock(128, 64)
         self.u7s = ConvUpBlock(64, 32)
         self.u8s = ConvUpBlock(32, 16)
         self.ces = nn.Conv2d(16, 1, 1)
+        # contour up conv branch
         self.u5c = ConvUpBlock(256, 128)
         self.u6c = ConvUpBlock(128, 64)
         self.u7c = ConvUpBlock(64, 32)
@@ -166,6 +169,54 @@ class CAUNet(nn.Module):
         xc = F.sigmoid(xc)
         return xs, xc
 
+# Contour Aware Dilated UNet
+class CADUNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.c1 = ConvBlock(3, 16)
+        self.c2 = ConvBlock(16, 32)
+        self.c3 = ConvBlock(32, 64)
+        self.c4 = ConvBlock(64, 128)
+        # bottom dilated conv tunnel
+        self.d1 = DilatedConvBlock(128, 256)
+        self.d2 = DilatedConvBlock(256, 256, dilation=2)
+        self.d3 = DilatedConvBlock(256, 256, dilation=4)
+        self.d4 = DilatedConvBlock(256, 256, dilation=8)
+        # segmentation up conv branch
+        self.u5s = ConvUpBlock(256, 128)
+        self.u6s = ConvUpBlock(128, 64)
+        self.u7s = ConvUpBlock(64, 32)
+        self.u8s = ConvUpBlock(32, 16)
+        self.ces = nn.Conv2d(16, 1, 1)
+        # contour up conv branch
+        self.u5c = ConvUpBlock(256, 128)
+        self.u6c = ConvUpBlock(128, 64)
+        self.u7c = ConvUpBlock(64, 32)
+        self.u8c = ConvUpBlock(32, 16)
+        self.cec = nn.Conv2d(16, 1, 1)
+
+    def forward(self, x):
+        x, c1 = self.c1(x)
+        x, c2 = self.c2(x)
+        x, c3 = self.c3(x)
+        x, c4 = self.c4(x)
+        x = self.d1(x)
+        x = self.d2(x)
+        x = self.d3(x)
+        x = self.d4(x)
+        xs = self.u5s(x, c4)
+        xs = self.u6s(xs, c3)
+        xs = self.u7s(xs, c2)
+        xs = self.u8s(xs, c1)
+        xs = self.ces(xs)
+        xs = F.sigmoid(xs)
+        xc = self.u5c(x, c4)
+        xc = self.u6c(xc, c3)
+        xc = self.u7c(xc, c2)
+        xc = self.u8c(xc, c1)
+        xc = self.cec(xc)
+        xc = F.sigmoid(xc)
+        return xs, xc
 
 # Contour Aware Marker Unet
 class CAMUNet(nn.Module):
@@ -175,21 +226,25 @@ class CAMUNet(nn.Module):
         self.c2 = ConvBlock(16, 32)
         self.c3 = ConvBlock(32, 64)
         self.c4 = ConvBlock(64, 128)
+        # bottom conv tunnel
         self.cu = ConvBlock(128, 256)
-        self.u6s = ConvUpBlock(256, 128)
-        self.u7s = ConvUpBlock(128, 64)
-        self.u8s = ConvUpBlock(64, 32)
-        self.u9s = ConvUpBlock(32, 16)
+        # segmentation up conv branch
+        self.u5s = ConvUpBlock(256, 128)
+        self.u6s = ConvUpBlock(128, 64)
+        self.u7s = ConvUpBlock(64, 32)
+        self.u8s = ConvUpBlock(32, 16)
         self.ces = nn.Conv2d(16, 1, 1)
-        self.u6c = ConvUpBlock(256, 128)
-        self.u7c = ConvUpBlock(128, 64)
-        self.u8c = ConvUpBlock(64, 32)
-        self.u9c = ConvUpBlock(32, 16)
+        # contour up conv branch
+        self.u5c = ConvUpBlock(256, 128)
+        self.u6c = ConvUpBlock(128, 64)
+        self.u7c = ConvUpBlock(64, 32)
+        self.u8c = ConvUpBlock(32, 16)
         self.cec = nn.Conv2d(16, 1, 1)
-        self.u6m = ConvUpBlock(256, 128)
-        self.u7m = ConvUpBlock(128, 64)
-        self.u8m = ConvUpBlock(64, 32)
-        self.u9m = ConvUpBlock(32, 16)
+        # marker up conv branch
+        self.u5m = ConvUpBlock(256, 128)
+        self.u6m = ConvUpBlock(128, 64)
+        self.u7m = ConvUpBlock(64, 32)
+        self.u8m = ConvUpBlock(32, 16)
         self.cem = nn.Conv2d(16, 1, 1)
 
     def forward(self, x):
@@ -198,6 +253,67 @@ class CAMUNet(nn.Module):
         x, c3 = self.c3(x)
         x, c4 = self.c4(x)
         _, x = self.cu(x) # no maxpool for U bottom
+        xs = self.u5s(x, c4)
+        xs = self.u6s(xs, c3)
+        xs = self.u7s(xs, c2)
+        xs = self.u8s(xs, c1)
+        xs = self.ces(xs)
+        xs = F.sigmoid(xs)
+        xc = self.u5c(x, c4)
+        xc = self.u6c(xc, c3)
+        xc = self.u7c(xc, c2)
+        xc = self.u8c(xc, c1)
+        xc = self.cec(xc)
+        xc = F.sigmoid(xc)
+        xm = self.u5m(x, c4)
+        xm = self.u6m(xm, c3)
+        xm = self.u7m(xm, c2)
+        xm = self.u8m(xm, c1)
+        xm = self.cem(xm)
+        xm = F.sigmoid(xm)
+        return xs, xc, xm
+
+# Contour Aware Marker Dilated Unet
+class CAMDUNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.c1 = ConvBlock(3, 16)
+        self.c2 = ConvBlock(16, 32)
+        self.c3 = ConvBlock(32, 64)
+        self.c4 = ConvBlock(64, 128)
+        # bottom dilated conv tunnel
+        self.d1 = DilatedConvBlock(128, 256)
+        self.d2 = DilatedConvBlock(256, 256, dilation=2)
+        self.d3 = DilatedConvBlock(256, 256, dilation=4)
+        self.d4 = DilatedConvBlock(256, 256, dilation=8)
+        # segmentation up conv branch
+        self.u5s = ConvUpBlock(256, 128)
+        self.u6s = ConvUpBlock(128, 64)
+        self.u7s = ConvUpBlock(64, 32)
+        self.u8s = ConvUpBlock(32, 16)
+        self.ces = nn.Conv2d(16, 1, 1)
+        # contour up conv branch
+        self.u5c = ConvUpBlock(256, 128)
+        self.u6c = ConvUpBlock(128, 64)
+        self.u7c = ConvUpBlock(64, 32)
+        self.u8c = ConvUpBlock(32, 16)
+        self.cec = nn.Conv2d(16, 1, 1)
+        # marker up conv branch
+        self.u5m = ConvUpBlock(256, 128)
+        self.u6m = ConvUpBlock(128, 64)
+        self.u7m = ConvUpBlock(64, 32)
+        self.u8m = ConvUpBlock(32, 16)
+        self.cem = nn.Conv2d(16, 1, 1)
+
+    def forward(self, x):
+        x, c1 = self.c1(x)
+        x, c2 = self.c2(x)
+        x, c3 = self.c3(x)
+        x, c4 = self.c4(x)
+        x = self.d1(x)
+        x = self.d2(x)
+        x = self.d3(x)
+        x = self.d4(x)
         xs = self.u5s(x, c4)
         xs = self.u6s(xs, c3)
         xs = self.u7s(xs, c2)
@@ -429,10 +545,16 @@ if __name__ == '__main__':
     net = DUNet()
     #print(net)
     print('Total number of DUNet model parameters is', count_parameters(net))
-    # input = torch.randn(10, 3, 256, 256)
-    # x = Variable(input)
-    # y = net(x)
-    # print(y.shape)
+    del net
+
+    net = CADUNet()
+    #print(net)
+    print('Total number of CADUNet model parameters is', count_parameters(net))
+    del net
+
+    net = CAMDUNet()
+    #print(net)
+    print('Total number of CAMDUNet model parameters is', count_parameters(net))
     del net
 
     # net = UNetVgg16(3, 1)
