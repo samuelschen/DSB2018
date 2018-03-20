@@ -14,7 +14,7 @@ from skimage.morphology import label, remove_small_objects
 from tqdm import tqdm
 from PIL import Image
 # own code
-from model import UNet, UNetVgg16, DCAN, CAUNet, CAMUNet
+from model import build_model
 from dataset import KaggleDataset, Compose
 from helper import config, load_ckpt, prob_to_rles, partition_instances, iou_metric, clahe
 
@@ -22,17 +22,7 @@ def main(tocsv=False, save=False, mask=False, valid_train=False, toiou=False):
     model_name = config['param']['model']
     resize = not config['valid'].getboolean('pred_orig_size')
 
-    if model_name == 'unet_vgg16':
-        model = UNetVgg16(3, 1, fixed_vgg=True)
-    elif model_name == 'dcan':
-        model = DCAN(3, 1)
-    elif model_name == 'caunet':
-        model = CAUNet()
-    elif model_name == 'camunet':
-        model = CAMUNet()
-    else:
-        model = UNet()
-
+    model = build_model(model_name)
     if torch.cuda.is_available():
         model = model.cuda()
         # model = torch.nn.DataParallel(model).cuda()
@@ -76,6 +66,11 @@ def main(tocsv=False, save=False, mask=False, valid_train=False, toiou=False):
 
 def predict(model, dataset, compose, resize):
     ''' iterate dataset and yield ndarray result tuple per sample '''
+
+    model_name = config['param']['model']
+    with_contour = config.getboolean(model_name, 'branch_contour', fallback=False)
+    with_marker = config.getboolean(model_name, 'branch_marker', fallback=False)
+
     for data in dataset:
         # get input data
         uid = data['uid']
@@ -102,11 +97,11 @@ def predict(model, dataset, compose, resize):
         gt_m = compose.to_numpy(gt_m, s)
         # convert predict to numpy array
         y = y_c = y_m = None
-        if isinstance(model, CAMUNet):
+        if with_contour and with_marker:
             outputs, y_c, y_m = outputs
             y_c = tensor_to_numpy(y_c)
             y_m = tensor_to_numpy(y_m)
-        elif isinstance(model, DCAN) or isinstance(model, CAUNet):
+        elif with_contour:
             outputs, y_c = outputs
             y_c = tensor_to_numpy(y_c)
         y = tensor_to_numpy(outputs)

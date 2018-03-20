@@ -526,6 +526,27 @@ class DCAN(nn.Module):
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+def build_model(model_name='unet'):
+    # initialize model
+    if model_name == 'unet_vgg16':
+        model = UNetVgg16(3, 1, fixed_vgg=True)
+    elif model_name == 'dcan':
+        model = DCAN(3, 1)
+    elif model_name == 'caunet':
+        model = CAUNet()
+    elif model_name == 'camunet':
+        model = CAMUNet()
+    elif model_name == 'dunet':
+        model = DUNet()
+    elif model_name == 'cadunet':
+        model = CAMDUNet()
+    elif model_name == 'camdunet':
+        model = CAMDUNet()
+    else:
+        model = UNet()
+    return model
+
+
 if __name__ == '__main__':
     net = UNet()
     #print(net)

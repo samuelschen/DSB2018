@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 from tensorboardX import SummaryWriter
 # own code
-from model import UNet, UNetVgg16, CAUNet, CAMUNet, DCAN
+from model import build_model
 from dataset import KaggleDataset, Compose
 from helper import config, AverageMeter, iou_mean, save_ckpt, load_ckpt
 from loss import contour_criterion, focal_criterion, weight_criterion
@@ -33,18 +33,7 @@ def main(resume=True, n_epoch=None, learn_rate=None):
     if n_epoch is None:
         n_epoch = c.getint('n_epoch')
 
-    # initialize model
-    if model_name == 'unet_vgg16':
-        model = UNetVgg16(3, 1, fixed_vgg=True)
-    elif model_name == 'dcan':
-        model = DCAN(3, 1)
-    elif model_name == 'caunet':
-        model = CAUNet()
-    elif model_name == 'camunet':
-        model = CAMUNet()
-    else:
-        model = UNet()
-
+    model = build_model(model_name)
     if torch.cuda.is_available():
         model = model.cuda()
         # model = torch.nn.DataParallel(model).cuda()
@@ -124,6 +113,9 @@ def train(loader, model, optimizer, epoch, writer):
     print_freq = config['train'].getfloat('print_freq')
     only_contour = config['contour'].getboolean('exclusive')
     weight_map = config['param'].getboolean('weight_map')
+    model_name = config['param']['model']
+    with_contour = config.getboolean(model_name, 'branch_contour', fallback=False)
+    with_marker = config.getboolean(model_name, 'branch_marker', fallback=False)
 
     # Sets the module in training mode.
     model.train()
@@ -150,9 +142,9 @@ def train(loader, model, optimizer, epoch, writer):
         optimizer.zero_grad()
         # forward step
         outputs = model(inputs)
-        if isinstance(model, CAMUNet):
+        if with_contour and with_marker:
             outputs, outputs_c, outputs_m = outputs
-        elif isinstance(model, DCAN) or isinstance(model, CAUNet):
+        elif with_contour:
             outputs, outputs_c = outputs
         # compute loss
         if only_contour:
@@ -160,11 +152,10 @@ def train(loader, model, optimizer, epoch, writer):
         else:
             # weight_criterion equals to segment_criterion if weights is none
             loss = weight_criterion(outputs, labels, weights)
-            if isinstance(model, CAMUNet):
+            if with_contour:
                 loss += focal_criterion(outputs_c, labels_c, weights)
+            if with_marker:
                 loss += focal_criterion(outputs_m, labels_m, weights)
-            elif isinstance(model, DCAN) or isinstance(model, CAUNet):
-                loss += focal_criterion(outputs_c, labels_c, weights)
         # compute gradient and do backward step
         loss.backward()
         optimizer.step()
@@ -179,13 +170,12 @@ def train(loader, model, optimizer, epoch, writer):
         else:
             batch_iou = iou_mean(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
-        if isinstance(model, CAMUNet):
-            batch_iou_c, batch_iou_m = iou_mean(outputs_c, labels_c), iou_mean(outputs_m, labels_m)
-            iou_c.update(batch_iou_c, inputs.size(0))
-            iou_m.update(batch_iou_m, inputs.size(0))
-        elif isinstance(model, DCAN) or isinstance(model, CAUNet):
+        if with_contour:
             batch_iou_c = iou_mean(outputs_c, labels_c)
             iou_c.update(batch_iou_c, inputs.size(0))
+        if with_marker:
+            batch_iou_m = iou_mean(outputs_m, labels_m)
+            iou_m.update(batch_iou_m, inputs.size(0))
         # log to summary
         step = i + epoch * n_step
         writer.add_scalar('training/loss', loss.data[0], step)
@@ -217,6 +207,9 @@ def valid(loader, model, epoch, writer, n_step):
     losses = AverageMeter()
     only_contour = config['contour'].getboolean('exclusive')
     weight_map = config['param'].getboolean('weight_map')
+    model_name = config['param']['model']
+    with_contour = config.getboolean(model_name, 'branch_contour', fallback=False)
+    with_marker = config.getboolean(model_name, 'branch_marker', fallback=False)
 
     # Sets the model in evaluation mode.
     model.eval()
@@ -236,9 +229,9 @@ def valid(loader, model, epoch, writer, n_step):
             weights = Variable(weights)
         # forward step
         outputs = model(inputs)
-        if isinstance(model, CAMUNet):
+        if with_contour and with_marker:
             outputs, outputs_c, outputs_m = outputs
-        elif isinstance(model, DCAN) or isinstance(model, CAUNet):
+        elif with_contour:
             outputs, outputs_c = outputs
         # compute loss
         if only_contour:
@@ -246,11 +239,10 @@ def valid(loader, model, epoch, writer, n_step):
         else:
             # weight_criterion equals to segment_criterion if weights is none
             loss = weight_criterion(outputs, labels, weights)
-            if isinstance(model, CAMUNet):
+            if with_contour:
                 loss += focal_criterion(outputs_c, labels_c, weights)
+            if with_marker:
                 loss += focal_criterion(outputs_m, labels_m, weights)
-            if isinstance(model, DCAN) or isinstance(model, CAUNet):
-                loss += focal_criterion(outputs_c, labels_c, weights)
         # measure accuracy and record loss (Non-instance level IoU)
         losses.update(loss.data[0], inputs.size(0))
         if only_contour:
@@ -258,13 +250,12 @@ def valid(loader, model, epoch, writer, n_step):
         else:
             batch_iou = iou_mean(outputs, labels)
         iou.update(batch_iou, inputs.size(0))
-        if isinstance(model, CAMUNet):
-            batch_iou_c, batch_iou_m = iou_mean(outputs_c, labels_c), iou_mean(outputs_m, labels_m)
-            iou_c.update(batch_iou_c, inputs.size(0))
-            iou_m.update(batch_iou_m, inputs.size(0))
-        elif isinstance(model, DCAN) or isinstance(model, CAUNet):
+        if with_contour:
             batch_iou_c = iou_mean(outputs_c, labels_c)
             iou_c.update(batch_iou_c, inputs.size(0))
+        if with_marker:
+            batch_iou_m = iou_mean(outputs_m, labels_m)
+            iou_m.update(batch_iou_m, inputs.size(0))
     # end of loop, dump epoch summary
     writer.add_scalar('CV/epoch_loss', losses.avg, epoch)
     writer.add_scalar('CV/epoch_iou', iou.avg, epoch)
