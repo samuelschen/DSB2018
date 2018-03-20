@@ -18,10 +18,23 @@ class ConvBlock(nn.Module):
     def forward(self, x):
         # CAB: conv -> activation -> batch normal
         x = self.norm1(self.activation(self.conv1(x)))
-        x = self.drop(x)
         x = self.norm2(self.activation(self.conv2(x)))
         x = self.drop(x)
         return self.pool(x), x
+
+class DilatedConvBlock(nn.Module):
+    def __init__(self, in_size, out_size, kernel_size=3, dropout_rate=0.1, activation=F.relu, dilation=1):
+        super().__init__()
+        # to keep same width output, assign padding equal to dilation
+        self.conv = nn.Conv2d(in_size, out_size, kernel_size, padding=dilation, dilation=dilation)
+        self.norm = nn.BatchNorm2d(out_size)
+        self.activation = activation
+        self.drop = nn.Dropout2d(p=dropout_rate)
+
+    def forward(self, x):
+        x = self.norm(self.activation(self.conv(x)))
+        x = self.drop(x)
+        return x
 
 class ConvUpBlock(nn.Module):
     def __init__(self, in_size, out_size, kernel_size=3, dropout_rate=0.2, activation=F.relu):
@@ -39,7 +52,6 @@ class ConvUpBlock(nn.Module):
         x = torch.cat([x, bridge], 1)
         # CAB: conv -> activation -> batch normal
         x = self.norm1(self.activation(self.conv1(x)))
-        x = self.drop(x)
         x = self.norm2(self.activation(self.conv2(x)))
         x = self.drop(x)
         return x
@@ -76,6 +88,43 @@ class UNet(nn.Module):
         x = F.sigmoid(x)
         return x
 
+class DUNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        # down conv
+        self.c1 = ConvBlock(3, 16)
+        self.c2 = ConvBlock(16, 32)
+        self.c3 = ConvBlock(32, 64)
+        self.c4 = ConvBlock(64, 128)
+        # bottom dilated conv tunnel
+        self.d1 = DilatedConvBlock(128, 256)
+        self.d2 = DilatedConvBlock(256, 256, dilation=2)
+        self.d3 = DilatedConvBlock(256, 256, dilation=4)
+        self.d4 = DilatedConvBlock(256, 256, dilation=8)
+        # up conv
+        self.u5 = ConvUpBlock(256, 128)
+        self.u6 = ConvUpBlock(128, 64)
+        self.u7 = ConvUpBlock(64, 32)
+        self.u8 = ConvUpBlock(32, 16)
+        # final conv tunnel
+        self.ce = nn.Conv2d(16, 1, 1)
+
+    def forward(self, x):
+        x, c1 = self.c1(x)
+        x, c2 = self.c2(x)
+        x, c3 = self.c3(x)
+        x, c4 = self.c4(x)
+        x = self.d1(x)
+        x = self.d2(x)
+        x = self.d3(x)
+        x = self.d4(x)
+        x = self.u5(x, c4)
+        x = self.u6(x, c3)
+        x = self.u7(x, c2)
+        x = self.u8(x, c1)
+        x = self.ce(x)
+        x = F.sigmoid(x)
+        return x
 
 # Contour Aware UNet
 class CAUNet(nn.Module):
@@ -375,6 +424,15 @@ if __name__ == '__main__':
     net = CAMUNet()
     #print(net)
     print('Total number of CAMUNet model parameters is', count_parameters(net))
+    del net
+
+    net = DUNet()
+    #print(net)
+    print('Total number of DUNet model parameters is', count_parameters(net))
+    # input = torch.randn(10, 3, 256, 256)
+    # x = Variable(input)
+    # y = net(x)
+    # print(y.shape)
     del net
 
     # net = UNetVgg16(3, 1)
