@@ -286,6 +286,8 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 | 0.472 | v6   | CAUNet | IOU+Focal | 1800 | C | RW | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
 | 0.484 | v6   | CAMUNet| IOU+Focal | 2100 | C | RW | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
 | 0.486 | v6   | CAMUNet| IOU+Focal | 2100 | C | RW | .5 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.498 | v6   | CAMUNet| IOU+Focal | 2100 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.488 | v6   | CAMUNet| IOU+Focal | 3760 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 
 
 Note:
