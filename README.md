@@ -249,46 +249,47 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 ## Benchmark 
 
 | Score | Data | Model | Cost Fn. | Epoch | M | SA | TP | Learn Rate | CV | Width | PO | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | 
-| ----- | ---- | -----  | --------- | ---- | ------- | -- | -- | ----------- | --- | --- | - | - | - | - | - | - | - | - |
-| 0.334 | Orig | UNet   | BCE       | 600  |   |    | .5 | 1e-4 > 3e-5 | 10% | 256 |   | V | V |   | V |   |   |   |
-| 0.344 | Orig | UNet   | IOU+BCE   | 600  |   |    | .5 | 1e-4 > 3e-5 | 10% | 256 |   | V | V |   | V | V |   |   |
-| (TBA) | Orig | UNet   | IOU+BCE   | 600  |   |    | .5 | 1e-4 > 3e-5 |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.326 | v2   | UNet   | IOU+BCE   | 600  |   |    | .5 | 1e-4 > 3e-5 |  0% | 256 |   |   |   |   |   |   |   |   |
-| 0.348 | v2   | UNet   | IOU+BCE   | 300  |   |    | .5 | 1e-4        | 10% | 256 |   | V | V |   | V | V |   |   |
-| 0.361 | v2   | UNet   | IOU+BCE   | 600  |   |    | .5 | 1e-4 > 3e-5 |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.355 | v2   | UNet   | IOU+BCE   | 600  |   |    | .5 | 1e-4 > 3e-5 |  0% | 256 |   | V | V |   | V | V | V |   |
-| 0.350 | v2   | UNet   | IOU+BCE   | 1200 |   |    | .5 | 1e-4 > 3e-6 |  0% | 512 |   | V | V |   | V | V |   |   |
-| 0.353 | v2   | UNet   | IOU+BCE   | 600  |   |    | .5 | 1e-4 > 3e-5 |  0% | 256 |   | V | V |   | V | V |   | V |
-| 0.413 | v2   | UNet   | IOU+BCE   | 600  | P | WS | .5 | 1e-4 > 3e-5 |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.421 | v3   | UNet   | IOU+BCE   | 400  | P | WS | .5 | 1e-4 > 3e-5 |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.437 | v3   | UNet   | IOU+BCE   | 900  | P | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.447 | v4   | CAUNet | IOU+BCE   | 1800 | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.460 | v4   | CAUNet | IOU+WBCE  | 900  | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.465 | v4   | CAUNet | IOU+WBCE  | 1800 | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.459 | v5   | CAUNet | IOU+WBCE  | 1200 | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.369 | v5   | CAUNet | IOU+WBCE  | 1200 | C | WS | .8 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.477 | v5   | CAUNet | IOU+WBCE  | 1200 | C | WS | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.464 | v6   | CAUNet | IOU+WBCE  | 1800 | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.476 | v6   | CAUNet | IOU+WBCE  | 1800 | C | WS | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.457 | v6   | CAUNet | IOU+WBCE  | 1800 | C | WS | .2 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.473 | v6   | CAUNet | IOU+WBCE  | 1800 | C | WS | .35| 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.467 | v6   | CAUNet | IOU+WBCE  | 1800 | C | WS | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.465 | v6   | CAUNet | IOU+WBCE  | 5000 | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.480 | v6   | CAUNet | IOU+WBCE  | 5000 | C | WS | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.461 | v6   | CAUNet | IOU+WBCE  | 5000 | C | WS | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.458 | v6   | CAUNet | IOU+WBCE  | 5000 | C | WS | .5 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.435 | Orig | CAUNet | IOU+WBCE  | 1800 | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.472 | v4   | CAUNet | IOU+WBCE  | 1800 | C | RW | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.490 | v6   | CAUNet | IOU+WBCE  | 5000 | C | RW | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.469 | v6   | CAUNet | IOU+WBCE  | 5000 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.467 | v6   | CAUNet | IOU+Focal | 1800 | C | WS | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.462 | v6   | CAUNet | IOU+Focal | 1800 | C | WS | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.472 | v6   | CAUNet | IOU+Focal | 1800 | C | RW | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.484 | v6   | CAMUNet| IOU+Focal | 2100 | C | RW | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
-| 0.486 | v6   | CAMUNet| IOU+Focal | 2100 | C | RW | .5 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.498 | v6   | CAMUNet| IOU+Focal | 2100 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.488 | v6   | CAMUNet| IOU+Focal | 3760 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-
+| ----- | ---- | -----  | ---------- | ---- | ------- | -- | -- | ----------- | --- | --- | - | - | - | - | - | - | - | - |
+| 0.334 | Orig | UNet   | BCE        | 600  |   |    | .5 | 1e-4 > 3e-5 | 10% | 256 |   | V | V |   | V |   |   |   |
+| 0.344 | Orig | UNet   | IOU+BCE    | 600  |   |    | .5 | 1e-4 > 3e-5 | 10% | 256 |   | V | V |   | V | V |   |   |
+| (TBA) | Orig | UNet   | IOU+BCE    | 600  |   |    | .5 | 1e-4 > 3e-5 |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.326 | v2   | UNet   | IOU+BCE    | 600  |   |    | .5 | 1e-4 > 3e-5 |  0% | 256 |   |   |   |   |   |   |   |   |
+| 0.348 | v2   | UNet   | IOU+BCE    | 300  |   |    | .5 | 1e-4        | 10% | 256 |   | V | V |   | V | V |   |   |
+| 0.361 | v2   | UNet   | IOU+BCE    | 600  |   |    | .5 | 1e-4 > 3e-5 |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.355 | v2   | UNet   | IOU+BCE    | 600  |   |    | .5 | 1e-4 > 3e-5 |  0% | 256 |   | V | V |   | V | V | V |   |
+| 0.350 | v2   | UNet   | IOU+BCE    | 1200 |   |    | .5 | 1e-4 > 3e-6 |  0% | 512 |   | V | V |   | V | V |   |   |
+| 0.353 | v2   | UNet   | IOU+BCE    | 600  |   |    | .5 | 1e-4 > 3e-5 |  0% | 256 |   | V | V |   | V | V |   | V |
+| 0.413 | v2   | UNet   | IOU+BCE    | 600  | P | WS | .5 | 1e-4 > 3e-5 |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.421 | v3   | UNet   | IOU+BCE    | 400  | P | WS | .5 | 1e-4 > 3e-5 |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.437 | v3   | UNet   | IOU+BCE    | 900  | P | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.447 | v4   | CAUNet | IOU+BCE    | 1800 | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.460 | v4   | CAUNet | IOU+WBCE   | 900  | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.465 | v4   | CAUNet | IOU+WBCE   | 1800 | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.459 | v5   | CAUNet | IOU+WBCE   | 1200 | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.369 | v5   | CAUNet | IOU+WBCE   | 1200 | C | WS | .8 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.477 | v5   | CAUNet | IOU+WBCE   | 1200 | C | WS | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.464 | v6   | CAUNet | IOU+WBCE   | 1800 | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.476 | v6   | CAUNet | IOU+WBCE   | 1800 | C | WS | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.457 | v6   | CAUNet | IOU+WBCE   | 1800 | C | WS | .2 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.473 | v6   | CAUNet | IOU+WBCE   | 1800 | C | WS | .35| 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.467 | v6   | CAUNet | IOU+WBCE   | 1800 | C | WS | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.465 | v6   | CAUNet | IOU+WBCE   | 5000 | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.480 | v6   | CAUNet | IOU+WBCE   | 5000 | C | WS | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.461 | v6   | CAUNet | IOU+WBCE   | 5000 | C | WS | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.458 | v6   | CAUNet | IOU+WBCE   | 5000 | C | WS | .5 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.435 | Orig | CAUNet | IOU+WBCE   | 1800 | C | WS | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.472 | v4   | CAUNet | IOU+WBCE   | 1800 | C | RW | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.490 | v6   | CAUNet | IOU+WBCE   | 5000 | C | RW | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.469 | v6   | CAUNet | IOU+WBCE   | 5000 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.467 | v6   | CAUNet | IOU+Focal  | 1800 | C | WS | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.462 | v6   | CAUNet | IOU+Focal  | 1800 | C | WS | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.472 | v6   | CAUNet | IOU+Focal  | 1800 | C | RW | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.484 | v6   | CAMUNet| IOU+Focal  | 2100 | C | RW | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.486 | v6   | CAMUNet| IOU+Focal  | 2100 | C | RW | .5 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.498 | v6   | CAMUNet| IOU+Focal  | 2100 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.488 | v6   | CAMUNet| IOU+Focal  | 3760 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.479 | v6   | CAUNet | IoU+F+WBCE | 1800 | C | RW | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
+| 0.479 | v6   | CAUNet | IoU+F+WBCE | 1800 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 
 Note:
 - Dataset (training): 
