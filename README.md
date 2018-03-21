@@ -217,7 +217,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 * Launch notebook container, expose port ` 8888 `
     ```
     $ cd ~/Code/DSB2018
-    $ docker run --runtime=nvidia -it --rm --shm-size 8G -v $PWD:/mnt -w /mnt -p 8888:8888 rainbean/pytorch
+    $ docker run --runtime=nvidia -it --rm --shm-size 8G -v $PWD:/mnt -w /mnt -p 8888:8888 rainbean/tensor
         ...
         Copy/paste this URL into your browser when you connect for the first time,
         to login with a token:
@@ -355,7 +355,7 @@ Note:
     Fix: 
         Assign --shm-size 8G to reserve enough shared memory
     Example: 
-        $ docker run --runtime=nvidia -it --rm --shm-size 8G -v $PWD:/mnt -w /mnt rainbean/pytorch python3 train.py
+        $ docker run --runtime=nvidia -it --rm --shm-size 8G -v $PWD:/mnt -w /mnt rainbean/tensor python train.py
     ```
 
 ## Transform effect demo
