@@ -188,12 +188,13 @@ def show(uid, x, y, y_c, y_m, save=False):
     min_object_size = config['post'].getint('min_object_size')
     view_color_equalize = config['valid'].getboolean('view_color_equalize')
     model_name = config['param']['model']
+    with_contour = config.getboolean(model_name, 'branch_contour', fallback=False)
+    with_marker = config.getboolean(model_name, 'branch_marker', fallback=False)
 
-    if model_name == 'camunet':
+    if with_contour:
         threshold_edge = config[model_name].getfloat('threshold_edge')
-        threshold_mark = config[model_name].getfloat('threshold_mark')
-    elif model_name == 'dcan' or model_name == 'caunet':
-        threshold_edge = config[model_name].getfloat('threshold_edge')
+    if with_marker:
+        threshold_marker = config[model_name].getfloat('threshold_mark')
 
     fig, (ax1, ax2) = plt.subplots(2, 3, sharey=True, figsize=(10, 8))
     fig.suptitle(uid, y=1)
@@ -242,12 +243,13 @@ def show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save=False):
     view_color_equalize = config['valid'].getboolean('view_color_equalize')
     print_table = config['valid'].getboolean('print_table')
     model_name = config['param']['model']
+    with_contour = config.getboolean(model_name, 'branch_contour', fallback=False)
+    with_marker = config.getboolean(model_name, 'branch_marker', fallback=False)
 
-    if model_name == 'camunet':
+    if with_contour:
         threshold_edge = config[model_name].getfloat('threshold_edge')
-        threshold_mark = config[model_name].getfloat('threshold_mark')
-    elif model_name == 'dcan' or model_name == 'caunet':
-        threshold_edge = config[model_name].getfloat('threshold_edge')
+    if with_marker:
+        threshold_marker = config[model_name].getfloat('threshold_mark')
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 4, sharey=True, figsize=(12, 8))
     fig.suptitle(uid, y=1)

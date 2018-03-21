@@ -226,11 +226,13 @@ def partition_instances(raw_bodies, raw_markers=None, raw_edges=None):
     policy = config['post']['policy']
     min_object_size = config['post'].getint('min_object_size')
     model_name = config['param']['model']
-    if model_name == 'camunet':
+    with_contour = config.getboolean(model_name, 'branch_contour', fallback=False)
+    with_marker = config.getboolean(model_name, 'branch_marker', fallback=False)
+
+    if with_contour:
+        threshold_edge = config[model_name].getfloat('threshold_edge')
+    if with_marker:
         threshold_marker = config[model_name].getfloat('threshold_mark')
-        threshold_edge = config[model_name].getfloat('threshold_edge')
-    elif model_name == 'dcan' or model_name == 'caunet':
-        threshold_edge = config[model_name].getfloat('threshold_edge')
 
     # Random Walker fails for a 1-pixel seed, which is exactly on top of a 1-pixel semantic mask.
     # https://github.com/scikit-image/scikit-image/issues/1875
