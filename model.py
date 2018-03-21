@@ -4,56 +4,50 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torchvision import models
 
-class ConvBlock(nn.Module):
-    def __init__(self, in_size, out_size, kernel_size=3, dropout_rate=0.2, activation=F.relu):
-        super().__init__()
-        self.conv1 = nn.Conv2d(in_size,  out_size, kernel_size, padding=1)
-        self.norm1 = nn.BatchNorm2d(out_size)
-        self.conv2 = nn.Conv2d(out_size, out_size, kernel_size, padding=1)
-        self.norm2 = nn.BatchNorm2d(out_size)
-        self.activation = activation
-        self.drop = nn.Dropout2d(p=dropout_rate)
-        self.pool = nn.MaxPool2d(kernel_size=2)
-
-    def forward(self, x):
-        # CAB: conv -> activation -> batch normal
-        x = self.norm1(self.activation(self.conv1(x)))
-        x = self.norm2(self.activation(self.conv2(x)))
-        x = self.drop(x)
-        return self.pool(x), x
-
 class DilatedConvBlock(nn.Module):
+    ''' no dilation applied if dilation equals to 1 '''
     def __init__(self, in_size, out_size, kernel_size=3, dropout_rate=0.1, activation=F.relu, dilation=1):
         super().__init__()
         # to keep same width output, assign padding equal to dilation
         self.conv = nn.Conv2d(in_size, out_size, kernel_size, padding=dilation, dilation=dilation)
         self.norm = nn.BatchNorm2d(out_size)
         self.activation = activation
-        self.drop = nn.Dropout2d(p=dropout_rate)
+        if dropout_rate > 0:
+            self.drop = nn.Dropout2d(p=dropout_rate)
+        else:
+            self.drop = lambda x: x # no-op
 
     def forward(self, x):
+        # CAB: conv -> activation -> batch normal
         x = self.norm(self.activation(self.conv(x)))
         x = self.drop(x)
         return x
 
+class ConvBlock(nn.Module):
+    def __init__(self, in_size, out_size, dropout_rate=0.2, dilation=1):
+        super().__init__()
+        self.block1 = DilatedConvBlock(in_size, out_size, dropout_rate=0)
+        self.block2 = DilatedConvBlock(out_size, out_size, dropout_rate=dropout_rate, dilation=dilation)
+        self.pool = nn.MaxPool2d(kernel_size=2)
+
+    def forward(self, x):
+        x = self.block1(x)
+        x = self.block2(x)
+        return self.pool(x), x
+
 class ConvUpBlock(nn.Module):
-    def __init__(self, in_size, out_size, kernel_size=3, dropout_rate=0.2, activation=F.relu):
+    def __init__(self, in_size, out_size, dropout_rate=0.2, dilation=1):
         super().__init__()
         self.up = nn.ConvTranspose2d(in_size, out_size, 2, stride=2)
-        self.conv1 = nn.Conv2d(in_size, out_size, kernel_size, padding=1)
-        self.norm1 = nn.BatchNorm2d(out_size)
-        self.conv2 = nn.Conv2d(out_size, out_size, kernel_size, padding=1)
-        self.norm2 = nn.BatchNorm2d(out_size)
-        self.activation = activation
-        self.drop = nn.Dropout2d(p=dropout_rate)
+        self.block1 = DilatedConvBlock(in_size, out_size, dropout_rate=0)
+        self.block2 = DilatedConvBlock(out_size, out_size, dropout_rate=dropout_rate, dilation=dilation)
 
     def forward(self, x, bridge):
         x = self.up(x)
         x = torch.cat([x, bridge], 1)
         # CAB: conv -> activation -> batch normal
-        x = self.norm1(self.activation(self.conv1(x)))
-        x = self.norm2(self.activation(self.conv2(x)))
-        x = self.drop(x)
+        x = self.block1(x)
+        x = self.block2(x)
         return x
     
 class UNet(nn.Module):
@@ -92,10 +86,10 @@ class DUNet(nn.Module):
     def __init__(self):
         super().__init__()
         # down conv
-        self.c1 = ConvBlock(3, 16)
-        self.c2 = ConvBlock(16, 32)
-        self.c3 = ConvBlock(32, 64)
-        self.c4 = ConvBlock(64, 128)
+        self.c1 = ConvBlock(3, 16, dilation=2)
+        self.c2 = ConvBlock(16, 32, dilation=2)
+        self.c3 = ConvBlock(32, 64, dilation=2)
+        self.c4 = ConvBlock(64, 128, dilation=2)
         # bottom dilated conv tunnel
         self.d1 = DilatedConvBlock(128, 256)
         self.d2 = DilatedConvBlock(256, 256, dilation=2)
@@ -173,10 +167,10 @@ class CAUNet(nn.Module):
 class CADUNet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.c1 = ConvBlock(3, 16)
-        self.c2 = ConvBlock(16, 32)
-        self.c3 = ConvBlock(32, 64)
-        self.c4 = ConvBlock(64, 128)
+        self.c1 = ConvBlock(3, 16, dilation=2)
+        self.c2 = ConvBlock(16, 32, dilation=2)
+        self.c3 = ConvBlock(32, 64, dilation=2)
+        self.c4 = ConvBlock(64, 128, dilation=2)
         # bottom dilated conv tunnel
         self.d1 = DilatedConvBlock(128, 256)
         self.d2 = DilatedConvBlock(256, 256, dilation=2)
@@ -222,10 +216,10 @@ class CADUNet(nn.Module):
 class CAMUNet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.c1 = ConvBlock(3, 16)
-        self.c2 = ConvBlock(16, 32)
-        self.c3 = ConvBlock(32, 64)
-        self.c4 = ConvBlock(64, 128)
+        self.c1 = ConvBlock(3, 16, dilation=2)
+        self.c2 = ConvBlock(16, 32, dilation=2)
+        self.c3 = ConvBlock(32, 64, dilation=2)
+        self.c4 = ConvBlock(64, 128, dilation=2)
         # bottom conv tunnel
         self.cu = ConvBlock(128, 256)
         # segmentation up conv branch
@@ -576,6 +570,10 @@ if __name__ == '__main__':
     net = CAMDUNet()
     #print(net)
     print('Total number of CAMDUNet model parameters is', count_parameters(net))
+    # x = torch.randn(10, 3, 128, 128)
+    # x = Variable(x)
+    # y, _, _ = net(x)
+    # print(y.shape)
     del net
 
     # net = UNetVgg16(3, 1)
@@ -584,3 +582,9 @@ if __name__ == '__main__':
     # net = DCAN(3, 1)
     # print(net)
     # del net
+
+    # x = torch.randn(10, 3, 256, 256)
+    # x = Variable(x)
+    # b = ConvBlock(3, 16)
+    # p, y = b(x)
+    # print(p.shape, y.shape)
