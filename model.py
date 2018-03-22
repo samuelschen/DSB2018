@@ -216,10 +216,10 @@ class CADUNet(nn.Module):
 class CAMUNet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.c1 = ConvBlock(3, 16, dilation=2)
-        self.c2 = ConvBlock(16, 32, dilation=2)
-        self.c3 = ConvBlock(32, 64, dilation=2)
-        self.c4 = ConvBlock(64, 128, dilation=2)
+        self.c1 = ConvBlock(3, 16)
+        self.c2 = ConvBlock(16, 32)
+        self.c3 = ConvBlock(32, 64)
+        self.c4 = ConvBlock(64, 128)
         # bottom conv tunnel
         self.cu = ConvBlock(128, 256)
         # segmentation up conv branch
@@ -271,10 +271,10 @@ class CAMUNet(nn.Module):
 class CAMDUNet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.c1 = ConvBlock(3, 16)
-        self.c2 = ConvBlock(16, 32)
-        self.c3 = ConvBlock(32, 64)
-        self.c4 = ConvBlock(64, 128)
+        self.c1 = ConvBlock(3, 16, dilation=2)
+        self.c2 = ConvBlock(16, 32, dilation=2)
+        self.c3 = ConvBlock(32, 64, dilation=2)
+        self.c4 = ConvBlock(64, 128, dilation=2)
         # bottom dilated conv tunnel
         self.d1 = DilatedConvBlock(128, 256)
         self.d2 = DilatedConvBlock(256, 256, dilation=2)
