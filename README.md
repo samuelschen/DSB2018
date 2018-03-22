@@ -248,7 +248,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 
 ## Benchmark 
 
-| Score | Data | Model | Cost Fn. | Epoch | M | SA | TP | Learn Rate | CV | Width | PO | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | 
+| LB | DB | Model | Cost Fn. | Epoch | Marker | SA | TP | Learn Rate | CV | Width | PO | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | 
 | ----- | ---- | -----  | ---------- | ---- | ------- | -- | -- | ----------- | --- | --- | - | - | - | - | - | - | - | - |
 | 0.334 | Orig | UNet   | BCE        | 600  |   |    | .5 | 1e-4 > 3e-5 | 10% | 256 |   | V | V |   | V |   |   |   |
 | 0.344 | Orig | UNet   | IOU+BCE    | 600  |   |    | .5 | 1e-4 > 3e-5 | 10% | 256 |   | V | V |   | V | V |   |   |
@@ -290,6 +290,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 | 0.488 | v6   | CAMUNet| IOU+Focal  | 3760 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 | 0.479 | v6   | CAUNet | IoU+F+WBCE | 1800 | C | RW | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
 | 0.479 | v6   | CAUNet | IoU+F+WBCE | 1800 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.441 | v7   | CAUNet | IoU+F+WBCE | 1800 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 
 Note:
 - Dataset (training): 
@@ -299,17 +300,18 @@ Note:
     * V4: V2 + TCGA 256 (Non overlapped)
     * V5: V2 + TCGA 256 (Non overlapped) + Feb. labeled test set
     * V6: [lopuhin Github](https://github.com/lopuhin/kaggle-dsbowl-2018-dataset-fixes) + TCGA 256 (Non overlapped)
+    * V7: V6 + cell tracking
 - Score is public score on kaggle site
 - Zero CV rate means all data were used for training, none reserved
 - Adjust learning rate per 300 epoch
 - Cost Function:
     * BCE: pixel wise binary cross entropy
     * WBCE: pixel wise binary cross entropy with weight
-    * IOU: pixel wise IoU, no instance weight
+    * IOU: pixel wise IoU, regardless of instance
 - TP: threshold of prediction probability 
 - PO (predict origin size): true to keep original test image in prediction phase, otherwise resize as training width
 - SA (segmentation algorithm): WS (Watershed), RW (RandomWalker)
-- M (marker for segmentation): 
+- Marker (marker for segmentation): 
     * P: local peak max of clustering
     * C: predicted contour of model output
 
