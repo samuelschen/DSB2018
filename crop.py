@@ -6,7 +6,7 @@ import argparse
 from tqdm import tqdm
 from PIL import Image
 
-def split(image, uid, root, folder, step, width):
+def do_crop(image, uid, root, folder, step, width):
     w, h = image.size
     for y in range(0, h, step):
         for x in range(0, w, step):
@@ -37,7 +37,7 @@ def main(source, step, width):
                 fn = os.path.join(mask_dir, fn)
                 image = Image.open(fn)
                 # print("\tprocess {} ... ".format(fn))
-                split(image, uid, root, 'masks', step, width)
+                do_crop(image, uid, root, 'masks', step, width)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

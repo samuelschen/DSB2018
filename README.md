@@ -126,7 +126,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     - Split TCGA to proper scale and prefered data distribution
     ```
     $ cd data
-    $ python3 ../split.py external_TCGA_train --step 200 --width 256
+    $ python3 ../crop.py external_TCGA_train --step 200 --width 256
     $ mv external_TCGA_train_split/* stage1_train/
     ```
 
@@ -136,7 +136,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     - Split TCGA to proper scale and prefered data distribution
     ```
     $ cd data
-    $ python3 ../split.py external_TCGA_train --step 200 --width 256
+    $ python3 ../crop.py external_TCGA_train --step 200 --width 256
     $ mv external_TCGA_train_split/* stage1_train/
     ```
 
