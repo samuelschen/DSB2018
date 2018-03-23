@@ -139,11 +139,14 @@ def prob_to_rles(y, y_c, y_m):
         yield rle_encoding(y == idx)
 
 # checkpoint handling
-def ckpt_path(epoch=None):
+def check_ckpt_dir():
     checkpoint_dir = os.path.join('.', 'checkpoint')
-    current_path = os.path.join('.', 'checkpoint', 'current.json')
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
+
+def ckpt_path(epoch=None):
+    check_ckpt_dir()
+    current_path = os.path.join('.', 'checkpoint', 'current.json')
     if epoch is None:
         if os.path.exists(current_path):
             with open(current_path) as infile:
@@ -156,15 +159,50 @@ def ckpt_path(epoch=None):
             json.dump({
                 'epoch': epoch
             }, outfile)
-    return os.path.join(checkpoint_dir, 'ckpt-{}.pkl'.format(epoch))
+    return os.path.join('.', 'checkpoint', '{}.pkl'.format(epoch))
 
-def save_ckpt(model, optimizer, epoch):
-    ckpt = ckpt_path(epoch)
-    torch.save({
-        'epoch': epoch,
-        'model': model.state_dict(),
-        'optimizer': optimizer.state_dict(),
-    }, ckpt)
+def is_best_ckpt(epoch, iou_tr, iou_cv):
+    check_ckpt_dir()
+    best_json = os.path.join('.', 'checkpoint', 'best.json')
+    best_iou_cv = best_iou_tr = 0
+    if os.path.exists(best_json):
+        with open(best_json) as infile:
+            data = json.load(infile)
+            best_iou_cv = data['iou_cv']
+            best_iou_tr = data['iou_tr']
+    best_iou_tr = max(0.35, best_iou_tr) # only save best checkpoint above certain IoU
+    cv_threshold = 0.01 # tolerance of degraded CV IoU
+    if iou_tr > best_iou_tr and iou_cv > best_iou_cv - cv_threshold:
+        with open(best_json, 'w') as outfile:
+            json.dump({
+                'epoch': epoch,
+                'iou_tr': iou_tr,
+                'iou_cv': iou_cv,
+            }, outfile)
+        return True
+    return False
+
+def save_ckpt(model, optimizer, epoch, iou_tr, iou_cv):
+    c = config['train']
+    n_ckpt_epoch = c.getint('n_ckpt_epoch')
+
+    # check if best checkpoint
+    if is_best_ckpt(epoch, iou_tr, iou_cv):
+        best_ckpt = os.path.join('.', 'checkpoint', 'best.pkl')
+        torch.save({
+            'epoch': epoch,
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+        }, best_ckpt)
+
+    # save checkpoint per n epoch
+    if epoch > 0 and epoch % n_ckpt_epoch == 0:
+        ckpt = ckpt_path(epoch)
+        torch.save({
+            'epoch': epoch,
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+        }, ckpt)
 
 def load_ckpt(model, optimizer=None):
     ckpt = ckpt_path()

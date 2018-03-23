@@ -28,7 +28,7 @@ def main(resume=True, n_epoch=None, learn_rate=None):
     log_name = c.get('log_name')
     n_batch = c.getint('n_batch')
     n_worker = c.getint('n_worker')
-    n_ckpt_epoch = c.getint('n_ckpt_epoch')
+    n_cv_epoch = c.getint('n_cv_epoch')
     if n_epoch is None:
         n_epoch = c.getint('n_epoch')
 
@@ -64,7 +64,7 @@ def main(resume=True, n_epoch=None, learn_rate=None):
         num_workers=n_worker)
 
     # resume checkpoint
-    start_epoch = 0
+    start_epoch = iou_tr = iou_cv = 0
     if resume:
         start_epoch = load_ckpt(model, optimizer)
     if start_epoch == 0:
@@ -86,12 +86,10 @@ def main(resume=True, n_epoch=None, learn_rate=None):
             dump_graph(model, writer, n_batch, width)
         print('Training started...')
         for epoch in range(start_epoch, n_epoch + start_epoch):
-            train(train_loader, model, optimizer, epoch, writer)
-            if len(valid_dataset) > 0 and epoch % 3 == 2:
-                valid(valid_loader, model, epoch, writer, len(train_loader))
-            # save checkpoint per n epoch
-            if epoch % n_ckpt_epoch == n_ckpt_epoch - 1:
-                save_ckpt(model, optimizer, epoch+1)
+            iou_tr = train(train_loader, model, optimizer, epoch, writer)
+            if len(valid_dataset) > 0 and epoch % n_cv_epoch == n_cv_epoch - 1:
+                iou_cv = valid(valid_loader, model, epoch, writer, len(train_loader))
+            save_ckpt(model, optimizer, epoch, iou_tr, iou_cv)
         print('Training finished...')
 
 def dump_graph(model, writer, n_batch, width):
@@ -201,6 +199,7 @@ def train(loader, model, optimizer, epoch, writer):
     writer.add_scalar('training/epoch_iou', iou.avg, epoch)
     writer.add_scalar('training/epoch_iou_c', iou_c.avg, epoch)
     writer.add_scalar('training/epoch_iou_m', iou_m.avg, epoch)
+    return iou.avg # return epoch average iou
 
 def valid(loader, model, epoch, writer, n_step):
     iou = AverageMeter()   # semantic IoU
@@ -271,6 +270,7 @@ def valid(loader, model, epoch, writer, n_step):
             epoch, loss=losses, iou=iou, iou_c=iou_c, iou_m=iou_m
         )
     )
+    return iou.avg # return epoch average iou
 
 if __name__ == '__main__':
     learn_rate = config['param'].getfloat('learn_rate')
