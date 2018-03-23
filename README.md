@@ -44,7 +44,8 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Contrast limited adaptive histogram equalization
   - [x] Random rotate
 * Public dataset extension
-  - [ ] ... 
+  - [x] Support incremental dataset
+  - [x] Support white list of multiple criteria of data typs  
 * Pre-process 
   - [x] Input normalization
   - [x] Binarize label
@@ -89,7 +90,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Enhance preduction color map to distinguish color of different nucleis
   - [x] Visualize overlapping of original and prediction nucleis
   - [x] Statistics of per channel data distribution, particular toward alpha
-  - [ ] Save best (TBD) weight besides period checkpoint. 
+  - [x] Auto save weight of best checkpoint, IoU of train and CV, besides period save. 
  
 
 ## Setup development environment
@@ -146,8 +147,8 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
         │   ├── a3a5af03673844b690a48e13ae6594a934552825bd1c43e085d5f88f2856c75d <─┐  │
         │   └── ...                                                                │  │ hardlink
         └── stage1_train_fix_v4_external                                           │  │
-            ├── cc88627344305b9a9b07f8bd042cb074c7a834c13de67ff4b24914ac68f07f6e ──┘  │
-            ├── a3a5af03673844b690a48e13ae6594a934552825bd1c43e085d5f88f2856c75d ─────┘
+            ├── a3a5af03673844b690a48e13ae6594a934552825bd1c43e085d5f88f2856c75d ──┘  │
+            ├── cc88627344305b9a9b07f8bd042cb074c7a834c13de67ff4b24914ac68f07f6e ─────┘
             └── ...
     ```
 
