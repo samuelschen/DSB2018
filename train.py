@@ -20,7 +20,6 @@ from loss import contour_criterion, focal_criterion, weight_criterion
 
 def main(resume=True, n_epoch=None, learn_rate=None):
     model_name = config['param']['model']
-    cv_ratio = config['param'].getfloat('cv_ratio')
     if learn_rate is None:
         learn_rate = config['param'].getfloat('learn_rate')
     width = config[model_name].getint('width')
@@ -49,15 +48,18 @@ def main(resume=True, n_epoch=None, learn_rate=None):
     manager = Manager()
     cache = manager.dict()
     # prepare dataset and loader
-    dataset = KaggleDataset('data/stage1_train', transform=Compose(), cache=cache)
-    train_idx, valid_idx = dataset.split()
+    compose = Compose()
+    train_dataset = KaggleDataset('data/train', transform=compose, cache=cache)
+    valid_dataset = KaggleDataset('data/valid', transform=compose, cache=cache)
     train_loader = DataLoader(
-        dataset, sampler=SubsetRandomSampler(train_idx),
+        train_dataset,
+        shuffle=True,
         batch_size=n_batch,
         num_workers=n_worker,
         pin_memory=torch.cuda.is_available())
     valid_loader = DataLoader(
-        dataset, sampler=SubsetRandomSampler(valid_idx),
+        valid_dataset,
+        shuffle=True,
         batch_size=n_batch,
         num_workers=n_worker)
 
@@ -85,7 +87,7 @@ def main(resume=True, n_epoch=None, learn_rate=None):
         print('Training started...')
         for epoch in range(start_epoch, n_epoch + start_epoch):
             train(train_loader, model, optimizer, epoch, writer)
-            if cv_ratio > 0 and epoch % 3 == 2:
+            if len(valid_dataset) > 0 and epoch % 3 == 2:
                 valid(valid_loader, model, epoch, writer, len(train_loader))
             # save checkpoint per n epoch
             if epoch % n_ckpt_epoch == n_ckpt_epoch - 1:

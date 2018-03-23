@@ -106,20 +106,64 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 
 ## Prepare data
 
+### Option A: Use original DSB2018 dataset only, w/o CV
+
 * [Download](https://www.kaggle.com/c/data-science-bowl-2018) and uncompress to `data` folder as below structure,
+    ```
+    .
+    ├── README.md
+    └── data
+        ├── test
+        │   ├── 0114f484a16c152baa2d82fdd43740880a762c93f436c8988ac461c5c9dbe7d5
+        │   └── ...
+        └── train
+            ├── 00071198d059ba7f5914a526d124d28e6d010c92466da21d4a04cd5413362552
+            └── ...
+    ```
 
-```
-.
-├── README.md
-├── data
-    ├── stage1_test
-    │   ├── 0114f484a16c152baa2d82fdd43740880a762c93f436c8988ac461c5c9dbe7d5
-    │   └── ...
-    └── stage1_train
-        ├── 00071198d059ba7f5914a526d124d28e6d010c92466da21d4a04cd5413362552
-        └── ...
-```
+### Option B: Use external dataset, w/ CV, no filter
 
+* [Download](https://www.kaggle.com/c/data-science-bowl-2018) stage 1 test set and uncompress to `data/test` folder
+* [Download](https://drive.google.com/open?id=1UJPwOFLaCS59Al_aYAGtmW5QOH9baLdv) and uncompress to `data` folder
+* Run `split.py` to hardlink files into `train` and `valid` folders automatically. (*no extra disk space used*) 
+    ```
+    $ python split.py data/stage1_train_fix_v4_external
+    ```
+
+* Resulting data folder as below, it's safe to delete `train` and `valid`, no impact to original files   
+    ```
+    .
+    ├── README.md
+    └── data
+        ├── test
+        │   ├── 0114f484a16c152baa2d82fdd43740880a762c93f436c8988ac461c5c9dbe7d5
+        │   └── ...
+        ├── train
+        │   ├── cc88627344305b9a9b07f8bd042cb074c7a834c13de67ff4b24914ac68f07f6e <────┐ 
+        │   └── ...                                                                   │
+        ├── valid                                                                     │
+        │   ├── a3a5af03673844b690a48e13ae6594a934552825bd1c43e085d5f88f2856c75d <─┐  │
+        │   └── ...                                                                │  │ hardlink
+        └── stage1_train_fix_v4_external                                           │  │
+            ├── cc88627344305b9a9b07f8bd042cb074c7a834c13de67ff4b24914ac68f07f6e ──┘  │
+            ├── a3a5af03673844b690a48e13ae6594a934552825bd1c43e085d5f88f2856c75d ─────┘
+            └── ...
+    ```
+
+### Option C: Use external dataset, w/ CV, w/ filter
+
+* Same procedure as option B with two additional step before run `split.py`
+* Download this [Google sheet](https://drive.google.com/open?id=1XEPBBQVuSZmjVXaHRAGRagxO5ewLNelZgg4VF6NqOEE) as CSV (File > Download as > Common-separated values), placed at `data/dataset.csv`
+* Configure whitelist of sub-category, eg. ` Flouresence ` and ` Cloud ` in ` config.ini ` (detail refer `config_default.ini`)
+    ```
+    [dataset]
+    ; white-list in dataset.csv, uncomment to enable filter
+    csv_file = data/dataset.csv
+    sub_category = Fluorescence, Cloud
+    ```
+
+
+<!--
 * (Optional) prepare V4 dataset
     - Download [V2](https://drive.google.com/open?id=1UyIxGrVzzo7IUXRJnDRpqT3C_rXOe1s1) and uncompress to `data` folder
     - Download [TCGA no overlap](https://drive.google.com/open?id=1YB_jnDfLpZhnIj0b3wRLiiDrCtb9zNxo) and uncompress to `data` folder
@@ -127,7 +171,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     ```
     $ cd data
     $ python3 ../crop.py external_TCGA_train --step 200 --width 256
-    $ mv external_TCGA_train_split/* stage1_train/
+    $ mv external_TCGA_train_split/* source/
     ```
 
 * (Optional) prepare V6 dataset
@@ -137,17 +181,17 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     ```
     $ cd data
     $ python3 ../crop.py external_TCGA_train --step 200 --width 256
-    $ mv external_TCGA_train_split/* stage1_train/
+    $ mv external_TCGA_train_split/* source/
     ```
+-->
 
-## Hyper-parameter tunning and dataset filter
+## Hyper-parameter tunning
 
-* Create a ` config.ini ` file to overwrite any setting in config_default.ini
+* Create or modify ` config.ini ` file to overwrite preferences in config_default.ini
     ```
     [param]
     weight_map = True
     model = caunet
-    category = Flouresence
 
     [contour]
     detect = True
@@ -155,25 +199,6 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     [valid]
     pred_orig_size = True
     ```
-
-* Configure whitelist of sub-category, eg. ` Flouresence ` in ` config.ini `
-    - Open [Test](https://docs.google.com/spreadsheets/d/11Ykxp7uW763WXvhNoK_LvhnDV7Q6yT7Hr0f-vDAd-mo/edit?usp=drive_web&ouid=111494078798053745646) and [Train](https://docs.google.com/spreadsheets/d/1Yw-x8T4p2oChaWlLem1yyE7qN6XU3tnedj6rCCqLg4M/edit#gid=537769059) Google sheet 
-    - Download CSV format (File > Download as > Common-separated values)
-    - Code would check column ` discard ` and ` category ` in csv file(s)
-    - Rename and copy to `data` folder as below
-        ```
-        .
-        ├── README.md
-        ├── data
-            ├── stage1_test.csv <--- rename to this
-            ├── stage1_test
-            │   ├── 0114f484a16c152baa2d82fdd43740880a762c93f436c8988ac461c5c9dbe7d5
-            │   └── ...
-            ├── stage1_train.csv <--- rename to this
-            └── stage1_train
-                ├── 00071198d059ba7f5914a526d124d28e6d010c92466da21d4a04cd5413362552
-                └── ...
-        ```
 
 ## Command line usage
 

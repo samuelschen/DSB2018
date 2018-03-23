@@ -36,19 +36,7 @@ class KaggleDataset(Dataset):
         """
         self.root = root
         self.transform = transform
-        # check config filter
-        cat = config['param'].get('category')
-        if cat is not None and cat.strip() != '' and os.path.isfile(root + '.csv'):
-            df = pd.read_csv(root + '.csv')
-            ok = df['discard'] != 1
-            if cat is not None:
-                cat = [e.strip() for e in cat.split(',')]
-                # filter only sub-category
-                ok &= df['category'].isin(cat)
-            df = df[ok]
-            self.ids = list(df['image_id'])
-        else:
-            self.ids = next(os.walk(root))[1]
+        self.ids = next(os.walk(root))[1]
         self.ids.sort()
         self.cache = cache
 
@@ -111,16 +99,17 @@ class KaggleDataset(Dataset):
         return sample
 
     def split(self):
+        raise DeprecationWarning('Use split.py to prepare cross validation')
         # get list of dataset index
         n = len(self.ids)
         indices = list(range(n))
         # random shuffle the list
         s = random.getstate()
-        random.seed(config['param'].getint('cv_seed'))
+        random.seed(config['dataset'].getint('cv_seed'))
         random.shuffle(indices)
         random.setstate(s)
         # return splitted lists
-        split = int(np.floor(config['param'].getfloat('cv_ratio') * n))
+        split = int(np.floor(config['dataset'].getfloat('cv_ratio') * n))
         return indices[split:], indices[:split]
 
 
