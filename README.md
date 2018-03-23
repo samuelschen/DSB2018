@@ -88,6 +88,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Enhance preduction color map to distinguish color of different nucleis
   - [x] Visualize overlapping of original and prediction nucleis
   - [x] Statistics of per channel data distribution, particular toward alpha
+  - [ ] Save best (TBD) weight besides period checkpoint. 
  
 
 ## Setup development environment

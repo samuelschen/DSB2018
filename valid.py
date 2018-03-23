@@ -194,7 +194,7 @@ def show(uid, x, y, y_c, y_m, save=False):
     if with_contour:
         threshold_edge = config[model_name].getfloat('threshold_edge')
     if with_marker:
-        threshold_marker = config[model_name].getfloat('threshold_mark')
+        threshold_mark = config[model_name].getfloat('threshold_mark')
 
     fig, (ax1, ax2) = plt.subplots(2, 3, sharey=True, figsize=(10, 8))
     fig.suptitle(uid, y=1)
@@ -249,7 +249,7 @@ def show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save=False):
     if with_contour:
         threshold_edge = config[model_name].getfloat('threshold_edge')
     if with_marker:
-        threshold_marker = config[model_name].getfloat('threshold_mark')
+        threshold_mark = config[model_name].getfloat('threshold_mark')
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 4, sharey=True, figsize=(12, 8))
     fig.suptitle(uid, y=1)
