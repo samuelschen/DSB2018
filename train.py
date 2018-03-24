@@ -85,9 +85,9 @@ def main(resume=True, n_epoch=None, learn_rate=None):
             # dump graph only for very first training, disable by default
             dump_graph(model, writer, n_batch, width)
         print('Training started...')
-        for epoch in range(start_epoch, n_epoch + start_epoch):
+        for epoch in range(start_epoch + 1, n_epoch + start_epoch + 1): # 1 base
             iou_tr = train(train_loader, model, optimizer, epoch, writer)
-            if len(valid_dataset) > 0 and epoch % n_cv_epoch == n_cv_epoch - 1:
+            if len(valid_dataset) > 0 and epoch % n_cv_epoch == 0:
                 iou_cv = valid(valid_loader, model, epoch, writer, len(train_loader))
             save_ckpt(model, optimizer, epoch, iou_tr, iou_cv)
         print('Training finished...')

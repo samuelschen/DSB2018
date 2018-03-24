@@ -196,7 +196,7 @@ def save_ckpt(model, optimizer, epoch, iou_tr, iou_cv):
         }, best_ckpt)
 
     # save checkpoint per n epoch
-    if epoch > 0 and epoch % n_ckpt_epoch == 0:
+    if epoch % n_ckpt_epoch == 0:
         ckpt = ckpt_path(epoch)
         torch.save({
             'epoch': epoch,
