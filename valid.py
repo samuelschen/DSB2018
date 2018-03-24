@@ -18,7 +18,7 @@ from model import build_model
 from dataset import KaggleDataset, Compose
 from helper import config, load_ckpt, prob_to_rles, partition_instances, iou_metric, clahe
 
-def main(tocsv=False, save=False, mask=False, dataset='test', toiou=False):
+def main(tocsv=False, save=False, mask=False, target='test', toiou=False):
     model_name = config['param']['model']
     resize = not config['valid'].getboolean('pred_orig_size')
 
@@ -37,7 +37,7 @@ def main(tocsv=False, save=False, mask=False, dataset='test', toiou=False):
 
     # prepare dataset
     compose = Compose(augment=False, resize=resize)
-    data_dir = os.path.join('data', dataset)
+    data_dir = os.path.join('data', target)
     dataset = KaggleDataset(data_dir, transform=compose)
     iter = predict(model, dataset, compose, resize)
 
@@ -48,7 +48,7 @@ def main(tocsv=False, save=False, mask=False, dataset='test', toiou=False):
             for uid, _, y, y_c, y_m, _, _, _, _ in iter:
                 for rle in prob_to_rles(y, y_c, y_m):
                     writer.writerow([uid, ' '.join([str(i) for i in rle])])
-    elif toiou and dataset != 'test':
+    elif toiou and target != 'test':
         with open('iou.csv', 'w') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(['ImageId', 'IoU'])
@@ -57,7 +57,7 @@ def main(tocsv=False, save=False, mask=False, dataset='test', toiou=False):
                 writer.writerow([uid, iou])
     else:
         for uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m in tqdm(iter):
-            if dataset != 'test':
+            if target != 'test':
                 show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save)
             elif mask:
                 save_mask(uid, y, y_c, y_m)
