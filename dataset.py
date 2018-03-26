@@ -54,7 +54,7 @@ class KaggleDataset(Dataset):
         else:
             image_dir = os.path.join(self.root, uid, 'images')
             fn = next(os.walk(image_dir))[2][0] # pick first image file
-            fp = os.path.join(mask_dir, fn)
+            fp = os.path.join(image_dir, fn)
             image = Image.open(fp)
             # ignore alpha channel if any, because they are constant in all training set
             if image.mode != 'RGB':
