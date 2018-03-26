@@ -52,7 +52,7 @@ def cv_split(n):
     split = int(np.floor(config['dataset'].getfloat('cv_ratio') * n))
     return indices[split:], indices[:split]
 
-def main(dir_src):
+def main(dir_src, oversample):
     csv = config['dataset'].get('csv_file')
     if os.path.isfile(csv):
         files = csv_list(dir_src)
@@ -72,11 +72,21 @@ def main(dir_src):
     # recursively make hardlink to origin files
     for i in idx_train:
         src = os.path.join(dir_src, files[i])
-        dst = os.path.join(dir_train, files[i])
+        if oversample:
+            # use random uuid to ensure no name conflict
+            dst = os.path.join(dir_train, str(uuid.uuid4()))
+        else:
+            dst = os.path.join(dir_train, files[i])
+        assert not os.path.exists(dst), "Exist folder name: " + dst+ "\nDo you want to --oversample dataset?"
         shutil.copytree(src, dst, copy_function=os.link)
     for i in idx_valid:
         src = os.path.join(dir_src, files[i])
-        dst = os.path.join(dir_valid, files[i])
+        if oversample:
+            # use random uuid to ensure no name conflict
+            dst = os.path.join(dir_valid, str(uuid.uuid4()))
+        else:
+            dst = os.path.join(dir_valid, files[i])
+        assert not os.path.exists(dst), "Exist folder name: " + dst + "\nDo you want to --oversample dataset?"
         shutil.copytree(src, dst, copy_function=os.link)
     print("Number of train after split:", len(idx_train))
     print("Number of valid after split:", len(idx_valid))
@@ -84,6 +94,9 @@ def main(dir_src):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('dir_src', type=str, help='dataset filepath')
+    parser.add_argument('--oversample', dest='oversample', action='store_true')
+    parser.add_argument('--no-oversample', dest='oversample', action='store_false')
+    parser.set_defaults(oversample=False)
     args = parser.parse_args()
 
-    main(args.dir_src)
+    main(args.dir_src, args.oversample)
