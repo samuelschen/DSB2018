@@ -52,8 +52,10 @@ class KaggleDataset(Dataset):
         if self.cache is not None and uid in self.cache:
             sample = self.cache[uid]
         else:
-            img_name = os.path.join(self.root, uid, 'images', uid + '.png')
-            image = Image.open(img_name)
+            image_dir = os.path.join(self.root, uid, 'images')
+            fn = next(os.walk(image_dir))[2][0] # pick first image file
+            fp = os.path.join(mask_dir, fn)
+            image = Image.open(fp)
             # ignore alpha channel if any, because they are constant in all training set
             if image.mode != 'RGB':
                 image = image.convert('RGB')
