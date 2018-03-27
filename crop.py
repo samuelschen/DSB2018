@@ -3,6 +3,7 @@ import random
 import numpy as np
 import uuid
 import argparse
+import shutil
 from tqdm import tqdm
 from PIL import Image
 
@@ -10,9 +11,10 @@ def do_crop(image, uid, root, folder, step, width):
     w, h = image.size
     for y in range(0, h, step):
         for x in range(0, w, step):
-            w_ = min(width, w - x)
-            h_ = min(width, h - y)
-            crop = image.crop((x, y, x + w_, y + h_))
+            x -= max(0, width - min(width, w - x))
+            y -= max(0, width - min(width, h - y))
+            crop = image.crop((x, y, x+width, y+width))
+            assert crop.size == (width, width)
             if np.sum(crop) == 0:
                 continue # ignore empty crop
             crop_id = uid + '_{}_{}'.format(x, y)
@@ -25,12 +27,12 @@ def do_crop(image, uid, root, folder, step, width):
                 crop.save(os.path.join(dir, crop_id + '.png'), 'PNG')
 
 def main(source, step, width):
-    root = source + '_split'
+    root = source + '_crop'
     for uid in next(os.walk(source))[1]:
         fn = os.path.join(source, uid, 'images', uid + '.png')
         image = Image.open(fn)
         print("process {} ... ".format(fn))
-        split(image, uid, root, 'images', step, width)
+        do_crop(image, uid, root, 'images', step, width)
         mask_dir = os.path.join(source, uid, 'masks')
         if os.path.isdir(mask_dir):
             for fn in tqdm(next(os.walk(mask_dir))[2]):
@@ -38,6 +40,13 @@ def main(source, step, width):
                 image = Image.open(fn)
                 # print("\tprocess {} ... ".format(fn))
                 do_crop(image, uid, root, 'masks', step, width)
+    # sanity check and remove cropped image without mask
+    print("Sanity check and remove no ground truth data ... ")
+    for uid in next(os.walk(root))[1]:
+        mask_dir = os.path.join(root, uid, 'masks')
+        if not os.path.exists(mask_dir):
+            shutil.rmtree(os.path.join(root, uid))
+    print("Crop task completed")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
