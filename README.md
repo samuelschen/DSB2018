@@ -44,9 +44,10 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Contrast limited adaptive histogram equalization
   - [x] Random rotate
 * Public dataset extension
-  - [x] Support incremental dataset
-  - [x] Support white list of multiple criteria of data typs  
-* Pre-process 
+  - [x] Script to split CV folder per whitelist filter
+  - [x] Support manually oversample by script
+  - [x] Auto-balance dataset per count of samples per class, via oversampling
+* Pre-process
   - [x] Input normalization
   - [x] Binarize label
   - [x] Cross-validation split
@@ -106,9 +107,11 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     $ conda install --file requirements.txt
     ```
 
-## Prepare data
+## Prepare data 
 
-### Option A: Use original DSB2018 dataset only, w/o CV
+Just pick one option to prepare dataset
+
+#### Option A: Use original DSB2018 dataset only
 
 * [Download](https://www.kaggle.com/c/data-science-bowl-2018) and uncompress to `data` folder as below structure,
     ```
@@ -123,13 +126,34 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
             └── ...
     ```
 
-### Option B: Use external dataset, w/ CV, no filter
+#### Option B: Use external dataset, no filter
 
 * [Download](https://www.kaggle.com/c/data-science-bowl-2018) stage 1 test set and uncompress to `data/test` folder
-* [Download](https://drive.google.com/open?id=1UJPwOFLaCS59Al_aYAGtmW5QOH9baLdv) and uncompress to `data` folder
+* [Download](https://drive.google.com/open?id=1UJPwOFLaCS59Al_aYAGtmW5QOH9baLdv) and uncompress to `data/train` folder
+
+#### Option C: Use external dataset, apply white-filter
+
+* At first, follow same procedure as option B 
+* Download this [Google sheet](https://drive.google.com/open?id=1XEPBBQVuSZmjVXaHRAGRagxO5ewLNelZgg4VF6NqOEE) as CSV (File > Download as > Common-separated values), placed at `data/dataset.csv`
+* Configure whitelist filter in `dataset` session of ` config.ini ` (detail refer `config_default.ini`)
+    ```
+    [train]
+    ; enable auto-balance class weight via oversampling
+    balance_group = True
+    ;
+    [dataset]
+    ; white-list in dataset.csv, uncomment to enable filter
+    csv_file = data/dataset.csv
+    source = Kaggle, TCGA
+    ```
+
+#### Option D: Manually manage dataset and create fixed CV folder [Advance mode]
+
+* [Download](https://www.kaggle.com/c/data-science-bowl-2018) stage 1 test set and uncompress to `data/test` folder
+* Put any training dataset in arbitrary folder, say ` data/stage1_train `
 * Run `split.py` to hardlink files into `train` and `valid` folders automatically. (*no extra disk space used*) 
     ```
-    $ python split.py data/stage1_train_fix_v4_external
+    $ python split.py data/stage1_train
     ```
 
 * Resulting data folder as below, it's safe to delete `train` and `valid`, no impact to original files   
@@ -146,11 +170,13 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
         ├── valid                                                                     │
         │   ├── a3a5af03673844b690a48e13ae6594a934552825bd1c43e085d5f88f2856c75d <─┐  │
         │   └── ...                                                                │  │ hardlink
-        └── stage1_train_fix_v4_external                                           │  │
+        └── stage1_train                                                           │  │
             ├── a3a5af03673844b690a48e13ae6594a934552825bd1c43e085d5f88f2856c75d ──┘  │
             ├── cc88627344305b9a9b07f8bd042cb074c7a834c13de67ff4b24914ac68f07f6e ─────┘
             └── ...
     ```
+
+<!--
 
 ### Option C: Use external dataset, w/ CV, w/ filter
 
@@ -165,7 +191,6 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     ```
 
 
-<!--
 * (Optional) prepare V4 dataset
     - Download [V2](https://drive.google.com/open?id=1UyIxGrVzzo7IUXRJnDRpqT3C_rXOe1s1) and uncompress to `data` folder
     - Download [TCGA no overlap](https://drive.google.com/open?id=1YB_jnDfLpZhnIj0b3wRLiiDrCtb9zNxo) and uncompress to `data` folder
@@ -200,6 +225,10 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 
     [valid]
     pred_orig_size = True
+
+    [dataset]
+    ; ratio of cross-valid 
+    cv_ratio = 0.1
     ```
 
 ## Command line usage

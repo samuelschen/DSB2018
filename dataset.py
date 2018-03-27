@@ -28,7 +28,7 @@ from helper import config, clahe
 class KaggleDataset(Dataset):
     """Kaggle dataset."""
 
-    def __init__(self, root, transform=None, cache=None):
+    def __init__(self, root, transform=None, cache=None, use_filter=False):
         """
         Args:
             root_dir (string): Directory of data (train or test).
@@ -36,16 +36,15 @@ class KaggleDataset(Dataset):
         """
         self.root = root
         self.transform = transform
-        self.ids = next(os.walk(root))[1]
-        self.ids.sort()
         self.cache = cache
+        self.df = self.filter_by_group(root, use_filter)
 
     def __len__(self):
-        return len(self.ids)
+        return len(self.df)
 
     def __getitem__(self, idx):
         try:
-            uid = self.ids[idx]
+            uid = self.df.loc[idx]['image_id']
         except:
             raise IndexError()
 
@@ -100,20 +99,63 @@ class KaggleDataset(Dataset):
             sample = self.transform(sample)
         return sample
 
-    def split(self):
-        raise DeprecationWarning('Use split.py to prepare cross validation')
-        # get list of dataset index
-        n = len(self.ids)
-        indices = list(range(n))
-        # random shuffle the list
-        s = random.getstate()
-        random.seed(config['dataset'].getint('cv_seed'))
-        random.shuffle(indices)
-        random.setstate(s)
-        # return splitted lists
-        split = int(np.floor(config['dataset'].getfloat('cv_ratio') * n))
-        return indices[split:], indices[:split]
+    def filter_by_group(self, root, use_filter):
+        c = config['dataset']
+        csv = c.get('csv_file')
+        files = next(os.walk(root))[1]
+        files.sort()
+        # if no csv file, return real file list
+        if not os.path.isfile(csv) or not use_filter:
+            return pd.DataFrame({'image_id': files, 'group': 0})
+        # read csv and do sanity check with existing files
+        df = pd.read_csv(csv)
+        assert len(df) > 0
+        files = next(os.walk(root))[1]
+        df = df.loc[ df['image_id'].isin(files) ]
+        print("Number of existed file in csv file:", len(df))
+        # filter by group
+        group = []
+        for g in ['source', 'major_category', 'sub_category']:
+            filter = c.get(g)
+            if filter is not None:
+                group.append(g)
+                filter = [e.strip() for e in filter.split(',')]
+                # apply filter
+                df = df.loc[ df[g].isin(filter) ]
+        # verbose check groupby, which will be used as distribution weight
+        if len(group) > 0:
+            group = df.groupby(group)
+            print("Group by white-list:")
+            print(group['image_id'].count().reset_index())
+            # assign group id to new column 'group'
+            df['group'] = group.ngroup()
+        else:
+            # assign as same group id
+            df['group'] = 0
+        # final list of valid training data
+        print("Number of white-list file in csv file:", len(df))
+        return df[['image_id','group']].reset_index(drop=True)
 
+    def split(self):
+        ''' return CV split dataset object '''
+        from copy import copy
+        from sklearn.model_selection import train_test_split
+        train, valid = train_test_split(
+            self.df,
+            test_size=config['dataset'].getfloat('cv_ratio'), 
+            random_state=config['dataset'].getint('cv_seed'))
+        train_dataset = copy(self)
+        valid_dataset = copy(self)
+        train_dataset.df = train.reset_index(drop=True)
+        valid_dataset.df = valid.reset_index(drop=True)
+        return train_dataset, valid_dataset
+
+    def class_weight(self):
+        ''' return np.array of class weights, # of dataset '''
+        weight = np.asarray(self.df.groupby('group').count()['image_id'])
+        weight = 1. / weight
+        weight = np.asarray([weight[t] for t in self.df['group']])
+        return weight
 
 class Compose():
     def __init__(self, augment=True, resize=False, tensor=True):
@@ -382,7 +424,7 @@ class ElasticDistortion():
 
 if __name__ == '__main__':
     compose = Compose(augment=True)
-    train = KaggleDataset('data/stage1_train')
+    train = KaggleDataset('data/train')
     idx = random.randint(0, len(train)-1)
     sample = train[idx]
     print(sample['uid'])

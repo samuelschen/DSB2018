@@ -35,10 +35,23 @@ def main(tocsv=False, save=False, mask=False, target='test', toiou=False):
         print("Aborted: checkpoint not found!")
         return
 
-    # prepare dataset
     compose = Compose(augment=False, resize=resize)
+    # decide which dataset to pick sample
     data_dir = os.path.join('data', target)
-    dataset = KaggleDataset(data_dir, transform=compose)
+    if target == 'test':
+        dataset = KaggleDataset(data_dir, transform=compose)
+    elif os.path.exists('data/valid'):
+        # advance mode: use valid folder as CV
+        dataset = KaggleDataset(data_dir, transform=compose)
+    else:
+        # auto mode: split part of train dataset as CV
+        dataset = KaggleDataset('data/train', transform=compose, use_filter=True)
+        if target == 'train':
+            dataset, _ = dataset.split()
+        elif target == 'valid':
+            _, dataset = dataset.split()
+
+    # do prediction
     iter = predict(model, dataset, compose, resize)
 
     if tocsv:

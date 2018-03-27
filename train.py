@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.data.sampler import RandomSampler, WeightedRandomSampler
 from tensorboardX import SummaryWriter
 # own code
 from model import build_model
@@ -31,6 +31,7 @@ def main(resume=True, n_epoch=None, learn_rate=None):
     n_cv_epoch = c.getint('n_cv_epoch')
     if n_epoch is None:
         n_epoch = c.getint('n_epoch')
+    balance_group = c.getboolean('balance_group')
 
     model = build_model(model_name)
     if torch.cuda.is_available():
@@ -47,19 +48,32 @@ def main(resume=True, n_epoch=None, learn_rate=None):
     # dataloader workers are forked process thus we need a IPC manager to keep cache in same memory space
     manager = Manager()
     cache = manager.dict()
-    # prepare dataset and loader
     compose = Compose()
-    train_dataset = KaggleDataset('data/train', transform=compose, cache=cache)
-    valid_dataset = KaggleDataset('data/valid', transform=compose, cache=cache)
+    # prepare dataset
+    if os.path.exists('data/valid'):
+        # advance mode: use valid folder as CV
+        train_dataset = KaggleDataset('data/train', transform=compose, cache=cache)
+        valid_dataset = KaggleDataset('data/valid', transform=compose, cache=cache)
+    else:
+        # auto mode: split part of train dataset as CV
+        train_dataset = KaggleDataset('data/train', transform=compose, cache=cache, use_filter=True)
+        train_dataset, valid_dataset = train_dataset.split()
+    # decide whether to balance training set
+    if balance_group:
+        weights = train_dataset.class_weight()
+        sampler = WeightedRandomSampler(weights, len(weights))
+    else:
+        sampler = RandomSampler(train_dataset)
+    # data loader
     train_loader = DataLoader(
         train_dataset,
-        shuffle=True,
+        sampler=sampler,
         batch_size=n_batch,
         num_workers=n_worker,
         pin_memory=torch.cuda.is_available())
     valid_loader = DataLoader(
         valid_dataset,
-        shuffle=True,
+        shuffle=False,
         batch_size=n_batch,
         num_workers=n_worker)
 
