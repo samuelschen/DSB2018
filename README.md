@@ -43,10 +43,10 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Random elastic distortion
   - [x] Contrast limited adaptive histogram equalization
   - [x] Random rotate
-* Public dataset extension
-  - [x] Script to split CV folder per whitelist filter
-  - [x] Support manually oversample by script
-  - [x] Auto-balance dataset per count of samples per class, via oversampling
+* Dataset
+  - [x] Support multiple whitelist filters to select data type
+  - [x] Support manually oversample in advance mode
+  - [x] Auto-balance data distribution weight via oversampling
 * Pre-process
   - [x] Input normalization
   - [x] Binarize label
@@ -371,6 +371,18 @@ Note:
 - Marker (marker for segmentation): 
     * P: local peak max of clustering
     * C: predicted contour of model output
+
+<!--
+
+#### Distribution percentage of training dataset 
+
+|        | Kaggle | TCGA | Celltracking |
+| ------ | ------ | ---- | ------------ |
+| v6     |    1.0 |  1.1 |          0.0 |
+| v7_256 |    1.0 |  1.1 |          4.6 |
+| v7_512 |    1.0 |  1.1 |          1.4 |
+
+-->
 
 ### Learning curve
 
