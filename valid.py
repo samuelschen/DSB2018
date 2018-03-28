@@ -51,80 +51,91 @@ def main(tocsv=False, save=False, mask=False, target='test', toiou=False):
         elif target == 'valid':
             _, dataset = dataset.split()
 
-    # do prediction
-    iter = predict(model, dataset, compose, resize)
+    # iterate dataset and inference each sample
+    writer = csvfile = None
+    for data in tqdm(dataset):
+        uid, y, y_c, y_m = inference(data, model, resize)
+        x, gt, gt_s, gt_c, gt_m = unpack_data(data, compose, resize)
 
-    if tocsv:
-        with open('result.csv', 'w') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(['ImageId', 'EncodedPixels'])
-            for uid, _, y, y_c, y_m, _, _, _, _ in iter:
-                for rle in prob_to_rles(y, y_c, y_m):
-                    writer.writerow([uid, ' '.join([str(i) for i in rle])])
-    elif toiou and target != 'test':
-        with open('iou.csv', 'w') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(['ImageId', 'IoU'])
-            for uid, _, y, y_c, y_m, gt, _, _, _ in tqdm(iter):
-                iou = get_iou(y, y_c, y_m, gt)
-                writer.writerow([uid, iou])
-    else:
-        for uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m in tqdm(iter):
-            if target != 'test':
-                show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save)
-            elif mask:
-                save_mask(uid, y, y_c, y_m)
-            else:
-                show(uid, x, y, y_c, y_m, save)
+        if tocsv:
+            if writer is None:
+                csvfile = open('result.csv', 'w')
+                writer = csv.writer(csvfile)
+                writer.writerow(['ImageId', 'EncodedPixels'])
+            for rle in prob_to_rles(y, y_c, y_m):
+                writer.writerow([uid, ' '.join([str(i) for i in rle])])
+        elif toiou:
+            assert target != 'test'
+            if writer is None:
+                csvfile = open('iou.csv', 'w')
+                writer = csv.writer(csvfile)
+                writer.writerow(['ImageId', 'IoU'])
+            iou = get_iou(y, y_c, y_m, gt)
+            writer.writerow([uid, iou])
+        elif mask:
+            save_mask(uid, y, y_c, y_m)
+        elif target == 'test':
+            show(uid, x, y, y_c, y_m, save)
+        else: # train or valid
+            show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save)
 
-def predict(model, dataset, compose, resize):
-    ''' iterate dataset and yield ndarray result tuple per sample '''
+    # end of for-loop
+    if csvfile is not None:
+        csvfile.close()
+# end of main()
 
+def unpack_data(data, compose, resize):
+    x = data['image']
+    size = data['size']
+    gt_s = data['label']
+    gt_c = data['label_c']
+    gt_m = data['label_m']
+    gt = data['label_gt']
+    # convert input to numpy array
+    x = compose.denorm(x)
+    s = size if resize else None
+    x = compose.to_numpy(x, s)
+    gt = compose.to_numpy(gt, s)
+    gt_s = compose.to_numpy(gt_s, s)
+    gt_c = compose.to_numpy(gt_c, s)
+    gt_m = compose.to_numpy(gt_m, s)
+    return x, gt, gt_s, gt_c, gt_m
+
+def inference(data, model, resize):
     model_name = config['param']['model']
     with_contour = config.getboolean(model_name, 'branch_contour', fallback=False)
     with_marker = config.getboolean(model_name, 'branch_marker', fallback=False)
 
-    for data in dataset:
-        # get input data
-        uid = data['uid']
-        size = data['size']
-        inputs = x = data['image']
-        gt_s, gt_c, gt_m, gt = data['label'], data['label_c'], data['label_m'], data['label_gt']
-        # prepare input variables
-        inputs = inputs.unsqueeze(0)
-        if torch.cuda.is_available():
-            inputs = inputs.cuda()
-        if not resize:
-            inputs = pad_tensor(inputs, size)
-        else:
-            inputs = Variable(inputs)
-        # predict model output
-        outputs = model(inputs)
-        # convert input to numpy array
-        x = compose.denorm(x)
-        s = size if resize else None
-        x = compose.to_numpy(x, s)
-        gt = compose.to_numpy(gt, s)
-        gt_s = compose.to_numpy(gt_s, s)
-        gt_c = compose.to_numpy(gt_c, s)
-        gt_m = compose.to_numpy(gt_m, s)
-        # convert predict to numpy array
-        y = y_c = y_m = None
-        if with_contour and with_marker:
-            outputs, y_c, y_m = outputs
-            y_c = tensor_to_numpy(y_c)
-            y_m = tensor_to_numpy(y_m)
-        elif with_contour:
-            outputs, y_c = outputs
-            y_c = tensor_to_numpy(y_c)
-        y = tensor_to_numpy(outputs)
-        # handle size of predict result
-        y = align_size(y, size, resize)
-        y_c = align_size(y_c, size, resize)
-        y_m = align_size(y_m, size, resize)
-        yield uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m
-    # end of loop
-# end of predict func
+    # get input data
+    uid = data['uid']
+    size = data['size']
+    inputs = data['image']
+    # prepare input variables
+    inputs = inputs.unsqueeze(0)
+    if torch.cuda.is_available():
+        inputs = inputs.cuda()
+    if not resize:
+        inputs = pad_tensor(inputs, size)
+    else:
+        inputs = Variable(inputs)
+    # predict model output
+    outputs = model(inputs)
+    # convert predict to numpy array
+    y = y_c = y_m = None
+    if with_contour and with_marker:
+        outputs, y_c, y_m = outputs
+        y_c = tensor_to_numpy(y_c)
+        y_m = tensor_to_numpy(y_m)
+    elif with_contour:
+        outputs, y_c = outputs
+        y_c = tensor_to_numpy(y_c)
+    y = tensor_to_numpy(outputs)
+    # handle size of predict result
+    y = align_size(y, size, resize)
+    y_c = align_size(y_c, size, resize)
+    y_m = align_size(y_m, size, resize)
+    return uid, y, y_c, y_m
+# end of predict()
 
 def tensor_to_numpy(t):
     t = t.cpu()
