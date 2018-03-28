@@ -183,43 +183,48 @@ def is_best_ckpt(epoch, iou_tr, iou_cv):
     return False
 
 def save_ckpt(model, optimizer, epoch, iou_tr, iou_cv):
-    c = config['train']
-    n_ckpt_epoch = c.getint('n_ckpt_epoch')
-
+    def do_save(filepath):
+        torch.save({
+            'epoch': epoch,
+            'name': type(model).__name__.lower(),
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+        }, filepath)
     # check if best checkpoint
     if is_best_ckpt(epoch, iou_tr, iou_cv):
-        best_ckpt = os.path.join('.', 'checkpoint', 'best.pkl')
-        torch.save({
-            'epoch': epoch,
-            'model': model.state_dict(),
-            'optimizer': optimizer.state_dict(),
-        }, best_ckpt)
-
+        filepath = os.path.join('.', 'checkpoint', 'best.pkl')
+        do_save(filepath)
     # save checkpoint per n epoch
+    n_ckpt_epoch = config['train'].getint('n_ckpt_epoch')
     if epoch % n_ckpt_epoch == 0:
-        ckpt = ckpt_path(epoch)
-        torch.save({
-            'epoch': epoch,
-            'model': model.state_dict(),
-            'optimizer': optimizer.state_dict(),
-        }, ckpt)
+        filepath = ckpt_path(epoch)
+        do_save(filepath)
 
-def load_ckpt(model, optimizer=None):
-    ckpt = ckpt_path()
-    epoch = 0
-    if os.path.isfile(ckpt):
-        print("Loading checkpoint '{}'".format(ckpt))
-        if torch.cuda.is_available():
-            # Load all tensors onto previous state
-            checkpoint = torch.load(ckpt)
-        else:
-            # Load all tensors onto the CPU
-            checkpoint = torch.load(ckpt, map_location=lambda storage, loc: storage)
-        epoch = checkpoint['epoch']
+def load_ckpt(model=None, optimizer=None, filepath=None):
+    if filepath is None:
+        filepath = ckpt_path()
+    if not os.path.isfile(filepath):
+        return 0
+    print("Loading checkpoint '{}'".format(filepath))
+    if torch.cuda.is_available():
+        # Load all tensors onto previous state
+        checkpoint = torch.load(filepath)
+    else:
+        # Load all tensors onto the CPU
+        checkpoint = torch.load(filepath, map_location=lambda storage, loc: storage)
+    epoch = checkpoint['epoch']
+    if optimizer:
+        optimizer.load_state_dict(checkpoint['optimizer'])
+    if model:
         model.load_state_dict(checkpoint['model'])
-        if optimizer:
-            optimizer.load_state_dict(checkpoint['optimizer'])
-    return epoch
+        return epoch
+    else:
+        # build model based on checkpoint
+        from model import build_model
+        model_name = checkpoint['name']
+        model = build_model(model_name)
+        model.load_state_dict(checkpoint['model'])
+        return epoch, model
 
 # Evaluate the average nucleus size.
 def mean_blob_size(image, ratio):
