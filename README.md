@@ -71,8 +71,9 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     + [ ] Marker by statistics of local clustering peak
     + [x] Marker by contour-based from model prediction
     + [x] Marker by marker-based from model prediction
+  - Ensemble
+    + [x] Average probability of pixel wise output of multiple models (or checkpoints)
   - [ ] Fill hole inside each segment group
-  - [ ] ...
 * Computation performance
   - [x] CPU
   - [x] GPU 
@@ -258,9 +259,14 @@ Just pick one option to prepare dataset
     $ python3 valid.py
     ```
 
-* Evaluate on train dataset with ground truth, will show side-by-side images & IoU on screen. Specify ` --save ` to save as files
+* Evaluate on train dataset with ground truth, will show side-by-side images & IoU on screen.
     ```
     $ python3 valid.py --dataset train
+    ```
+
+* Ensemble models, say ` checkpoint/2100.pkl ` and ` checkpoint/best.pkl ` 
+    ```
+    $ python3 valid.py checkpoint/2100.pkl checkpoint/best.pkl
     ```
 
 * Generate running length encoding of test dataset

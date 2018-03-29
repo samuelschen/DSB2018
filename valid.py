@@ -14,27 +14,28 @@ from skimage.morphology import label, remove_small_objects
 from tqdm import tqdm
 from PIL import Image
 # own code
-from model import build_model
 from dataset import KaggleDataset, Compose
 from helper import config, load_ckpt, prob_to_rles, partition_instances, iou_metric, clahe
 
-def main(tocsv=False, save=False, mask=False, target='test', toiou=False):
-    model_name = config['param']['model']
+def main(ckpt, tocsv=False, save=False, mask=False, target='test', toiou=False):
+    # load one or more checkpoint
+    models = []
+    for fn in ckpt or [None]:
+        # load model
+        model = load_ckpt(filepath=fn)
+        if not model:
+            print("Aborted: checkpoint {} not found!".format(fn))
+            return
+        # Sets the model in evaluation mode.
+        model.eval()
+        # put model to GPU
+        if torch.cuda.is_available():
+            model = model.cuda()
+            # model = torch.nn.DataParallel(model).cuda()
+        # append to model list
+        models.append(model)
+
     resize = not config['valid'].getboolean('pred_orig_size')
-
-    model = build_model(model_name)
-    if torch.cuda.is_available():
-        model = model.cuda()
-        # model = torch.nn.DataParallel(model).cuda()
-
-    # Sets the model in evaluation mode.
-    model.eval()
-
-    epoch = load_ckpt(model)
-    if epoch == 0:
-        print("Aborted: checkpoint not found!")
-        return
-
     compose = Compose(augment=False, resize=resize)
     # decide which dataset to pick sample
     data_dir = os.path.join('data', target)
@@ -54,7 +55,7 @@ def main(tocsv=False, save=False, mask=False, target='test', toiou=False):
     # iterate dataset and inference each sample
     writer = csvfile = None
     for data in tqdm(dataset):
-        uid, y, y_c, y_m = inference(data, model, resize)
+        uid, y, y_c, y_m = inference(data, models, resize)
         x, gt, gt_s, gt_c, gt_m = unpack_data(data, compose, resize)
 
         if tocsv:
@@ -101,10 +102,23 @@ def unpack_data(data, compose, resize):
     gt_m = compose.to_numpy(gt_m, s)
     return x, gt, gt_s, gt_c, gt_m
 
-def inference(data, model, resize):
-    model_name = config['param']['model']
-    with_contour = config.getboolean(model_name, 'branch_contour', fallback=False)
-    with_marker = config.getboolean(model_name, 'branch_marker', fallback=False)
+def inference(data, models, resize):
+    # sub-rountine to convert output tensor to numpy
+    def convert(t):
+        assert isinstance(t, (torch.FloatTensor, torch.cuda.FloatTensor))
+        if len(t) == 0:
+            return None
+        # pixel wise ensemble output of models
+        t = torch.mean(t, 0, True)
+        # to numpy array
+        t = t.cpu()
+        t = t.numpy()[0]
+        # channel first [C, H, W] -> channel last [H, W, C]
+        t = np.transpose(t, (1, 2, 0))
+        # Remove single-dimensional channel from the shape of an array
+        t = np.squeeze(t)
+        t = align_size(t, size, resize)
+        return t
 
     # get input data
     uid = data['uid']
@@ -118,36 +132,34 @@ def inference(data, model, resize):
         inputs = pad_tensor(inputs, size)
     else:
         inputs = Variable(inputs)
-    # predict model output
-    outputs = model(inputs)
-    # convert predict to numpy array
-    y = y_c = y_m = None
-    if with_contour and with_marker:
-        outputs, y_c, y_m = outputs
-        y_c = tensor_to_numpy(y_c)
-        y_m = tensor_to_numpy(y_m)
-    elif with_contour:
-        outputs, y_c = outputs
-        y_c = tensor_to_numpy(y_c)
-    y = tensor_to_numpy(outputs)
-    # handle size of predict result
-    y = align_size(y, size, resize)
-    y_c = align_size(y_c, size, resize)
-    y_m = align_size(y_m, size, resize)
-    return uid, y, y_c, y_m
-# end of predict()
 
-def tensor_to_numpy(t):
-    t = t.cpu()
-    t = t.data.numpy()[0]
-    # channel first [C, H, W] -> channel last [H, W, C]
-    t = np.transpose(t, (1, 2, 0))
-    t = np.squeeze(t)
-    return t
+    y_s = y_c = y_m = torch.FloatTensor()
+    if torch.cuda.is_available():
+        y_s, y_c, y_m = y_s.cuda(), y_c.cuda(), y_m.cuda()
+    for model in models:
+        model_name = type(model).__name__.lower()
+        with_contour = config.getboolean(model_name, 'branch_contour', fallback=False)
+        with_marker = config.getboolean(model_name, 'branch_marker', fallback=False)
+        # predict model output
+        c = m = Variable()
+        if torch.cuda.is_available():
+            c, m = c.cuda(), m.cuda()
+        s = model(inputs)
+        # convert predict to numpy array
+        if with_contour and with_marker:
+            s, c, m = s
+        elif with_contour:
+            s, c = s
+        # concat outputs
+        y_s = torch.cat([y_s, s.data], 0)
+        y_c = torch.cat([y_c, c.data], 0)
+        y_m = torch.cat([y_m, m.data], 0)
+    return uid, convert(y_s), convert(y_c), convert(y_m)
+# end of predict()
 
 def pad_tensor(img_tensor, size, mode='reflect'):
     # get proper mini-width required for model input
-    # for example, 32 for 5 layers of max_pool 
+    # for example, 32 for 5 layers of max_pool
     gcd = config['param'].getint('gcd_depth')
     # estimate border padding margin
     # (paddingLeft, paddingRight, paddingTop, paddingBottom)
@@ -353,7 +365,7 @@ def save_mask(uid, y, y_c, y_m):
         os.makedirs(dir)
 
     for idx in idxs[1:]:
-        mask = (y == idx).astype(np.uint8) 
+        mask = (y == idx).astype(np.uint8)
         mask *= 255
         img = Image.fromarray(mask, mode='L')
         img.save(os.path.join(dir, str(uuid.uuid4()) + '.png'), 'PNG')
@@ -384,6 +396,7 @@ if __name__ == '__main__':
     parser.add_argument('--save', action='store_true')
     parser.add_argument('--mask', action='store_true')
     parser.add_argument('--iou', action='store_true')
+    parser.add_argument('ckpt', nargs='*', help='checkpoint filepath')
     parser.set_defaults(csv=False, save=False, mask=False, dataset='test', iou=False)
     args = parser.parse_args()
 
@@ -402,4 +415,4 @@ if __name__ == '__main__':
             if not os.path.exists(dir):
                 os.makedirs(dir)
 
-    main(args.csv, args.save, args.mask, args.dataset, args.iou)
+    main(args.ckpt, args.csv, args.save, args.mask, args.dataset, args.iou)
