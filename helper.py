@@ -221,6 +221,7 @@ def load_ckpt(model=None, optimizer=None, filepath=None):
     else:
         # build model based on checkpoint
         from model import build_model
+        assert 'name' in checkpoint, "Abort! No model name in checkpoint"
         model_name = checkpoint['name']
         model = build_model(model_name)
         model.load_state_dict(checkpoint['model'])
