@@ -259,9 +259,9 @@ Just pick one option to prepare dataset
     $ python3 valid.py
     ```
 
-* Evaluate on train dataset with ground truth, will show side-by-side images & IoU on screen.
+* Evaluate on cross-validation dataset with ground truth, will show side-by-side images & IoU on screen.
     ```
-    $ python3 valid.py --dataset train
+    $ python3 valid.py --dataset valid
     ```
 
 * Ensemble models, say ` checkpoint/2100.pkl ` and ` checkpoint/best.pkl ` 

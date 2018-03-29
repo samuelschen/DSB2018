@@ -390,13 +390,13 @@ def get_iou(y, y_c, y_m, gt):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', action='store', choices=['train', 'valid', 'test'], help='dataset to eval')
-    parser.add_argument('--csv', dest='csv', action='store_true')
-    parser.add_argument('--show', dest='csv', action='store_false')
-    parser.add_argument('--save', action='store_true')
-    parser.add_argument('--mask', action='store_true')
-    parser.add_argument('--iou', action='store_true')
-    parser.add_argument('ckpt', nargs='*', help='checkpoint filepath')
+    parser.add_argument('--dataset', action='store', choices=['train', 'valid', 'test'], help='Specify dataset to evaluate')
+    parser.add_argument('--csv', dest='csv', action='store_true', help='Generate running length encoding')
+    parser.add_argument('--show', dest='csv', action='store_false', help='Render overlay prediction on screen')
+    parser.add_argument('--save', action='store_true', help='Render overlay prediction on screen')
+    parser.add_argument('--mask', action='store_true', help='Save prediction as PNG files per nuclei')
+    parser.add_argument('--iou', action='store_true', help='Generate IoU CSV report')
+    parser.add_argument('ckpt', nargs='*', help='filepath of checkpoint(s), otherwise lookup checkpoint/current.json')
     parser.set_defaults(csv=False, save=False, mask=False, dataset='test', iou=False)
     args = parser.parse_args()
 
