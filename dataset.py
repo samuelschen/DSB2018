@@ -362,18 +362,17 @@ def get_contour_interior(mask):
         scharr_threshold = np.amax(abs(contour)) / 2.
         contour = (np.abs(contour) > scharr_threshold).astype(np.uint8)*255
         interior = (mask - contour > 0).astype(np.uint8)*255
+    return contour, interior
 
-    if config['param'].getboolean('center_weight'):
-        r = 2
-        y, x = center_of_mass(mask)
-        center_img = Image.fromarray(np.zeros_like(mask).astype(np.uint8))
-        if not np.isnan(x) and not np.isnan(y):
-            draw = ImageDraw.Draw(center_img)
-            draw.ellipse([x-r, y-r, x+r, y+r], fill='White')
-        center = np.asarray(center_img)
-    else:
-        center = None
-    return contour, interior, center
+def get_center(mask):
+    r = 2
+    y, x = center_of_mass(mask)
+    center_img = Image.fromarray(np.zeros_like(mask).astype(np.uint8))
+    if not np.isnan(x) and not np.isnan(y):
+        draw = ImageDraw.Draw(center_img)
+        draw.ellipse([x-r, y-r, x+r, y+r], fill='White')
+    center = np.asarray(center_img)
+    return center
 
 def get_instances_contour_interior(instances_mask):
     result_c = np.zeros_like(instances_mask, dtype=np.uint8)
@@ -381,13 +380,13 @@ def get_instances_contour_interior(instances_mask):
     weight = np.ones_like(instances_mask, dtype=np.float32)
     masks = decompose_mask(instances_mask)
     for m in masks:
-        contour, interior, center = get_contour_interior(m)
+        contour, interior = get_contour_interior(m)
+        center = get_center(m)
         result_c = np.maximum(result_c, contour)
         result_i = np.maximum(result_i, interior)
+        contour += center
+        contour = np.where(contour > 0, 255, 0)
         # magic number 50 make weight distributed to [1, 5) roughly
-        if center is not None:
-            contour += center
-            contour = np.where(contour > 0, 255, 0)
         weight *= (1 + gaussian_filter(contour, sigma=1) / 50)
     return result_c, result_i, weight
 
