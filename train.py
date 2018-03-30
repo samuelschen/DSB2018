@@ -60,8 +60,11 @@ def main(resume=True, n_epoch=None, learn_rate=None):
         train_dataset, valid_dataset = train_dataset.split()
     # decide whether to balance training set
     if balance_group:
-        weights = train_dataset.class_weight()
-        sampler = WeightedRandomSampler(weights, len(weights))
+        weights, ratio = train_dataset.class_weight()
+        # Len of weights is number of original epoch samples. 
+        # After oversample balance, majority class will be under-sampled (least sampled)
+        # Multipling raito is to gain chance for each sample to be visited at least once in each epoch 
+        sampler = WeightedRandomSampler(weights, int(len(weights) * ratio))
     else:
         sampler = RandomSampler(train_dataset)
     # data loader

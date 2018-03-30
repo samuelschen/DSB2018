@@ -154,9 +154,11 @@ class KaggleDataset(Dataset):
     def class_weight(self):
         ''' return np.array of class weights, # of dataset '''
         weight = np.asarray(self.df.groupby('group').count()['image_id'])
+        # ratio: number of major class divided by average samples of each class after oversample balance
+        ratio = np.max(weight) / (np.sum(weight) / len(weight))
         weight = 1. / weight
         weight = np.asarray([weight[t] for t in self.df['group']])
-        return weight
+        return weight, ratio
 
 class Compose():
     def __init__(self, augment=True, resize=False, tensor=True):
