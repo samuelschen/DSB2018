@@ -11,13 +11,14 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
 import torchvision.transforms.functional as tx
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageDraw
 from skimage.io import imread
 from skimage import filters, img_as_ubyte
 from skimage.morphology import remove_small_objects, dilation, erosion
 from scipy.ndimage.interpolation import map_coordinates
 from scipy.ndimage.morphology import binary_fill_holes
 from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.measurements import center_of_mass
 
 # Ignore skimage convertion warnings
 import warnings
@@ -361,7 +362,18 @@ def get_contour_interior(mask):
         scharr_threshold = np.amax(abs(contour)) / 2.
         contour = (np.abs(contour) > scharr_threshold).astype(np.uint8)*255
         interior = (mask - contour > 0).astype(np.uint8)*255
-    return contour, interior
+
+    if config['param'].getboolean('center_weight'):
+        r = 2
+        y, x = center_of_mass(mask)
+        center_img = Image.fromarray(np.zeros_like(mask).astype(np.uint8))
+        if not np.isnan(x) and not np.isnan(y):
+            draw = ImageDraw.Draw(center_img)
+            draw.ellipse([x-r, y-r, x+r, y+r], fill='White')
+        center = np.asarray(center_img)
+    else:
+        center = None
+    return contour, interior, center
 
 def get_instances_contour_interior(instances_mask):
     result_c = np.zeros_like(instances_mask, dtype=np.uint8)
@@ -369,10 +381,13 @@ def get_instances_contour_interior(instances_mask):
     weight = np.ones_like(instances_mask, dtype=np.float32)
     masks = decompose_mask(instances_mask)
     for m in masks:
-        contour, interior = get_contour_interior(m)
+        contour, interior, center = get_contour_interior(m)
         result_c = np.maximum(result_c, contour)
         result_i = np.maximum(result_i, interior)
         # magic number 50 make weight distributed to [1, 5) roughly
+        if center is not None:
+            contour += center
+            contour = np.where(contour > 0, 255, 0)
         weight *= (1 + gaussian_filter(contour, sigma=1) / 50)
     return result_c, result_i, weight
 
