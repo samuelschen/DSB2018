@@ -15,7 +15,7 @@ from tqdm import tqdm
 from PIL import Image
 # own code
 from dataset import KaggleDataset, Compose
-from helper import config, load_ckpt, prob_to_rles, partition_instances, iou_metric, clahe
+from helper import config, load_ckpt, prob_to_rles, partition_instances, iou_metric, clahe, filter_fiber
 
 def main(ckpt, tocsv=False, save=False, mask=False, target='test', toiou=False):
     # load one or more checkpoint
@@ -224,6 +224,7 @@ def show(uid, x, y, y_c, y_m, save=False):
     segmentation = config['post'].getboolean('segmentation')
     remove_objects = config['post'].getboolean('remove_objects')
     min_object_size = config['post'].getint('min_object_size')
+    remove_fiber = config['post'].getboolean('filter_fiber')
     view_color_equalize = config['valid'].getboolean('view_color_equalize')
 
     fig, (ax1, ax2) = plt.subplots(2, 3, sharey=True, figsize=(10, 8))
@@ -240,6 +241,8 @@ def show(uid, x, y, y_c, y_m, save=False):
         y, markers = partition_instances(y, y_m, y_c)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
+    if remove_fiber:
+        y = filter_fiber(y)
     y, cmap = _make_overlay(y)
     ax1[1].imshow(y, cmap=cmap, aspect='auto')
     # alpha
@@ -270,6 +273,7 @@ def show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save=False):
     threshold_mark = config['param'].getfloat('threshold_mark')
     segmentation = config['post'].getboolean('segmentation')
     remove_objects = config['post'].getboolean('remove_objects')
+    remove_fiber = config['post'].getboolean('filter_fiber')
     min_object_size = config['post'].getint('min_object_size')
     only_contour = config['contour'].getboolean('exclusive')
     view_color_equalize = config['valid'].getboolean('view_color_equalize')
@@ -288,6 +292,8 @@ def show_groundtruth(uid, x, y, y_c, y_m, gt, gt_s, gt_c, gt_m, save=False):
         y, markers = partition_instances(y, y_m, y_c)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
+    if remove_fiber:
+        y = filter_fiber(y)
     _, count = label(y, return_num=True)
     ax1[1].set_title('Final Pred, #={}'.format(count))
     ax1[1].imshow(y, cmap='gray', aspect='auto')
@@ -352,12 +358,14 @@ def save_mask(uid, y, y_c, y_m):
     segmentation = config['post'].getboolean('segmentation')
     remove_objects = config['post'].getboolean('remove_objects')
     min_object_size = config['post'].getint('min_object_size')
+    remove_fiber = config['post'].getboolean('filter_fiber')
 
     if segmentation:
         y, _ = partition_instances(y, y_m, y_c)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
-
+    if remove_fiber:
+        y = filter_fiber(y)
     idxs = np.unique(y) # sorted, 1st is background (e.g. 0)
 
     dir = os.path.join(predict_save_folder(), uid, 'masks')
@@ -375,12 +383,15 @@ def get_iou(y, y_c, y_m, gt):
     segmentation = config['post'].getboolean('segmentation')
     remove_objects = config['post'].getboolean('remove_objects')
     min_object_size = config['post'].getint('min_object_size')
+    remove_fiber = config['post'].getboolean('filter_fiber')
     only_contour = config['contour'].getboolean('exclusive')
 
     if segmentation:
         y, markers = partition_instances(y, y_m, y_c)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
+    if remove_fiber:
+        y = filter_fiber(y)
     if only_contour:
         iou = iou_metric(y, label(gt > 0))
     else:

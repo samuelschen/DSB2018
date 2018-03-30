@@ -129,11 +129,14 @@ def prob_to_rles(y, y_c, y_m):
     segmentation = config['post'].getboolean('segmentation')
     remove_objects = config['post'].getboolean('remove_objects')
     min_object_size = config['post'].getint('min_object_size')
+    remove_fiber = config['post'].getboolean('filter_fiber')
 
     if segmentation:
         y, _ = partition_instances(y, y_m, y_c)
     if remove_objects:
         y = remove_small_objects(y, min_size=min_object_size)
+    if remove_fiber:
+        y = filter_fiber(y)
     idxs = np.unique(y) # sorted, 1st is background (e.g. 0)
     for idx in idxs[1:]:
         yield rle_encoding(y == idx)
@@ -264,6 +267,15 @@ def add_missed_blobs(full_mask, labeled_mask, edges):
 def drop_small_blobs(mask, min_size):
     mask = remove_small_objects(mask, min_size=min_size)
     return mask
+
+def filter_fiber(blobs):
+    objects = [(obj.area, obj.eccentricity, obj.label) for obj in regionprops(blobs)]
+    objects = sorted(objects, reverse=True) # sorted by area in descending order
+    # filter out the largest one which is (1) 5 times larger than 2nd largest one (2) eccentricity > 0.95
+    if objects[0][0] > 5 * objects[1][0] and objects[0][1] > 0.95:
+        print('\nfilter suspecious fiber', objects[0])
+        blobs = np.where(blobs==objects[0][2], 0, blobs)
+    return blobs
 
 def partition_instances(raw_bodies, raw_markers=None, raw_edges=None):
     threshold=config['param'].getfloat('threshold')
