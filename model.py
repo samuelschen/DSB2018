@@ -229,10 +229,8 @@ class CamDUNet(nn.Module):
         self.c3 = ConvBlock(32, 64, dilation=2)
         self.c4 = ConvBlock(64, 128, dilation=2)
         # bottom dilated conv tunnel
-        self.d1 = DilatedConvBlock(128, 256)
-        self.d2 = DilatedConvBlock(256, 256, dilation=2)
-        self.d3 = DilatedConvBlock(256, 256, dilation=4)
-        self.d4 = DilatedConvBlock(256, 256, dilation=8)
+        # bottom conv tunnel
+        self.cu = ConvBlock(128, 256, dilation=2)
         # segmentation up conv branch
         self.u5s = ConvUpBlock(256, 128)
         self.u6s = ConvUpBlock(128, 64)
@@ -257,10 +255,7 @@ class CamDUNet(nn.Module):
         x, c2 = self.c2(x)
         x, c3 = self.c3(x)
         x, c4 = self.c4(x)
-        x = self.d1(x)
-        x = self.d2(x)
-        x = self.d3(x)
-        x = self.d4(x)
+        _, x = self.cu(x) # no maxpool for U bottom
         xs = self.u5s(x, c4)
         xs = self.u6s(xs, c3)
         xs = self.u7s(xs, c2)
