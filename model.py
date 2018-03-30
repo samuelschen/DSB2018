@@ -1,3 +1,4 @@
+import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -82,6 +83,7 @@ class UNet(nn.Module):
         x = F.sigmoid(x)
         return x
 
+# Dilated UNet
 class DUNet(nn.Module):
     def __init__(self):
         super().__init__()
@@ -120,8 +122,8 @@ class DUNet(nn.Module):
         x = F.sigmoid(x)
         return x
 
-# Contour Aware UNet
-class CAUNet(nn.Module):
+# Contour aware UNet
+class CaUNet(nn.Module):
     def __init__(self):
         super().__init__()
         self.c1 = ConvBlock(3, 16)
@@ -163,57 +165,8 @@ class CAUNet(nn.Module):
         xc = F.sigmoid(xc)
         return xs, xc
 
-# Contour Aware Dilated UNet
-class CADUNet(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.c1 = ConvBlock(3, 16, dilation=2)
-        self.c2 = ConvBlock(16, 32, dilation=2)
-        self.c3 = ConvBlock(32, 64, dilation=2)
-        self.c4 = ConvBlock(64, 128, dilation=2)
-        # bottom dilated conv tunnel
-        self.d1 = DilatedConvBlock(128, 256)
-        self.d2 = DilatedConvBlock(256, 256, dilation=2)
-        self.d3 = DilatedConvBlock(256, 256, dilation=4)
-        self.d4 = DilatedConvBlock(256, 256, dilation=8)
-        # segmentation up conv branch
-        self.u5s = ConvUpBlock(256, 128)
-        self.u6s = ConvUpBlock(128, 64)
-        self.u7s = ConvUpBlock(64, 32)
-        self.u8s = ConvUpBlock(32, 16)
-        self.ces = nn.Conv2d(16, 1, 1)
-        # contour up conv branch
-        self.u5c = ConvUpBlock(256, 128)
-        self.u6c = ConvUpBlock(128, 64)
-        self.u7c = ConvUpBlock(64, 32)
-        self.u8c = ConvUpBlock(32, 16)
-        self.cec = nn.Conv2d(16, 1, 1)
-
-    def forward(self, x):
-        x, c1 = self.c1(x)
-        x, c2 = self.c2(x)
-        x, c3 = self.c3(x)
-        x, c4 = self.c4(x)
-        x = self.d1(x)
-        x = self.d2(x)
-        x = self.d3(x)
-        x = self.d4(x)
-        xs = self.u5s(x, c4)
-        xs = self.u6s(xs, c3)
-        xs = self.u7s(xs, c2)
-        xs = self.u8s(xs, c1)
-        xs = self.ces(xs)
-        xs = F.sigmoid(xs)
-        xc = self.u5c(x, c4)
-        xc = self.u6c(xc, c3)
-        xc = self.u7c(xc, c2)
-        xc = self.u8c(xc, c1)
-        xc = self.cec(xc)
-        xc = F.sigmoid(xc)
-        return xs, xc
-
-# Contour Aware Marker Unet
-class CAMUNet(nn.Module):
+# Contour aware Marker Unet
+class CamUNet(nn.Module):
     def __init__(self):
         super().__init__()
         self.c1 = ConvBlock(3, 16)
@@ -267,8 +220,8 @@ class CAMUNet(nn.Module):
         xm = F.sigmoid(xm)
         return xs, xc, xm
 
-# Contour Aware Marker Dilated Unet
-class CAMDUNet(nn.Module):
+# Contour aware marker Dilated Unet
+class CamDUNet(nn.Module):
     def __init__(self):
         super().__init__()
         self.c1 = ConvBlock(3, 16, dilation=2)
@@ -527,61 +480,35 @@ def build_model(model_name='unet'):
     elif model_name == 'dcan':
         model = DCAN(3, 1)
     elif model_name == 'caunet':
-        model = CAUNet()
+        model = CaUNet()
     elif model_name == 'camunet':
-        model = CAMUNet()
+        model = CamUNet()
     elif model_name == 'dunet':
         model = DUNet()
-    elif model_name == 'cadunet':
-        model = CAMDUNet()
     elif model_name == 'camdunet':
-        model = CAMDUNet()
+        model = CamDUNet()
     else:
         model = UNet()
     return model
 
 
 if __name__ == '__main__':
-    net = UNet()
-    #print(net)
-    print('Total number of Unet model parameters is', count_parameters(net))
-    del net
+    print('Network parameters -')
+    for n in ['unet', 'dcan', 'caunet', 'camunet', 'dunet', 'camdunet']:
+        net = build_model(n)
+        #print(net)
+        print('\t model {}: {}'.format(n, count_parameters(net)))
+        del net
 
-    net = CAUNet()
-    #print(net)
-    print('Total number of CAUNet model parameters is', count_parameters(net))
-    del net
-
-    net = CAMUNet()
-    #print(net)
-    print('Total number of CAMUNet model parameters is', count_parameters(net))
-    del net
-
-    net = DUNet()
-    #print(net)
-    print('Total number of DUNet model parameters is', count_parameters(net))
-    del net
-
-    net = CADUNet()
-    #print(net)
-    print('Total number of CADUNet model parameters is', count_parameters(net))
-    del net
-
-    net = CAMDUNet()
-    #print(net)
-    print('Total number of CAMDUNet model parameters is', count_parameters(net))
-    # x = torch.randn(10, 3, 128, 128)
-    # x = Variable(x)
-    # y, _, _ = net(x)
-    # print(y.shape)
-    del net
-
-    # net = UNetVgg16(3, 1)
-    # print(net)
-    # del net
-    # net = DCAN(3, 1)
-    # print(net)
-    # del net
+    print("Forward pass sanity check - ")
+    for n in ['unet', 'camunet', 'dunet']:
+        t = time.time()
+        net = build_model(n)
+        x = torch.randn(10, 3, 256, 256)
+        x = Variable(x)
+        y = net(x)
+        del net
+        print('\t model {0}: {1:.3f} seconds'.format(n, time.time() - t))
 
     # x = torch.randn(10, 3, 256, 256)
     # x = Variable(x)
