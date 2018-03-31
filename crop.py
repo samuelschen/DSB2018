@@ -4,10 +4,11 @@ import numpy as np
 import uuid
 import argparse
 import shutil
+import pandas as pd
 from tqdm import tqdm
 from PIL import Image
 
-def do_crop(image, uid, root, folder, step, width):
+def do_crop(image, uid, root, folder, step, width, df=None):
     w, h = image.size
     for y in range(0, h, step):
         for x in range(0, w, step):
@@ -21,18 +22,31 @@ def do_crop(image, uid, root, folder, step, width):
             dir = os.path.join(root, crop_id, folder)
             if not os.path.exists(dir):
                 os.makedirs(dir)
+            else:
+                # bypass same crop region
+                continue
             if folder == 'masks':
                 crop.save(os.path.join(dir, str(uuid.uuid4()) + '.png'), 'PNG')
+                pass
             else:
                 crop.save(os.path.join(dir, crop_id + '.png'), 'PNG')
+                if df is not None:
+                    row = df.loc[ df.image_id == uid ]
+                    row.iloc[0].image_id = crop_id
+                    df = df.append(row)
+    return df
 
-def main(source, step, width):
+def main(source, step, width, csvfile=None):
     root = source + '_crop'
+    df = None
+    if csvfile and os.path.isfile(csvfile):
+        df = pd.read_csv(csvfile)
+        assert len(df) > 0
     for uid in next(os.walk(source))[1]:
         fn = os.path.join(source, uid, 'images', uid + '.png')
         image = Image.open(fn)
         print("process {} ... ".format(fn))
-        do_crop(image, uid, root, 'images', step, width)
+        df = do_crop(image, uid, root, 'images', step, width, df)
         mask_dir = os.path.join(source, uid, 'masks')
         if os.path.isdir(mask_dir):
             for fn in tqdm(next(os.walk(mask_dir))[2]):
@@ -46,6 +60,10 @@ def main(source, step, width):
         mask_dir = os.path.join(root, uid, 'masks')
         if not os.path.exists(mask_dir):
             shutil.rmtree(os.path.join(root, uid))
+            if df is not None:
+                df = df.loc[ df.image_id != uid ]
+    if df is not None:
+        df.to_csv(csvfile, index=False)
     print("Crop task completed")
 
 if __name__ == '__main__':
@@ -53,6 +71,7 @@ if __name__ == '__main__':
     parser.add_argument('root', type=str, help='root filepath')
     parser.add_argument('--step', type=int, default=200, help='slice step')
     parser.add_argument('--width', type=int, default=256, help='slice width')
+    parser.add_argument('--csv', type=str, help='csv to bookkeep')
     args = parser.parse_args()
 
-    main(args.root, args.step, args.width)
+    main(args.root, args.step, args.width, args.csv)
