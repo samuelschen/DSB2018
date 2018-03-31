@@ -25,7 +25,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - Cost functions
     + [x] binary cross entropy
     + [x] pixel wise IoU, regardless of instances
-    + [x] loss weight per distance of instances's boundary 
+    + [x] loss weight per distance of instances's boundary
     + [x] Focal loss (attention on imbalance loss)
     + [ ] Distance transform based weight map
     + [ ] Shape aware weight map
@@ -33,7 +33,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [ ] Learning rate
   - [x] Input size (Tried 384x384, postponed due to slow training pace)
   - [ ] Confidence level threshold
-  - [ ] Evaluate performance of mean and std of channels  
+  - [ ] Evaluate performance of mean and std of channels
 * Data augmentation
   - [x] Random crop
   - [x] Random horizontal and vertical flip
@@ -51,17 +51,17 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Input normalization
   - [x] Binarize label
   - [x] Cross-validation split
-  - [x] Verify training data whether png masks aligned with cvs mask. 
+  - [x] Verify training data whether png masks aligned with cvs mask.
   - [x] Blacklist mechanism to filter noisy label(s)
   - [x] Annotate edge as soft label, hint model less aggressive on nuclei edge
-  - [x] Whitelist configure option of sub-category(s) for training / validation 
+  - [x] Whitelist configure option of sub-category(s) for training / validation
   - Prediction datafeed (aka. arbitrary size of image prediction)
-    + [x] Resize and regrowth 
+    + [x] Resize and regrowth
     + [x] Origin image size with border padding (black/white constant color)
     + [x] Origin image size with border padding (replicate border color)
     + [ ] Tile-based with overlap
   - [ ] Convert input data to CIELAB color space instead of RGB
-  - [ ] Use [color map algorithm](https://stackoverflow.com/questions/42863543/applying-the-4-color-theorem-to-list-of-neighbor-polygons-stocked-in-a-graph-arr) to generate ground truth of limited label (4-), in order to prevent cross-talking 
+  - [ ] Use [color map algorithm](https://stackoverflow.com/questions/42863543/applying-the-4-color-theorem-to-list-of-neighbor-polygons-stocked-in-a-graph-arr) to generate ground truth of limited label (4-), in order to prevent cross-talking
 * Post-process
   - Watershed segmentation group
     + [x] Marker by statistics of local clustering peak
@@ -76,8 +76,8 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [ ] Fill hole inside each segment group
 * Computation performance
   - [x] CPU
-  - [x] GPU 
-  - [x] Multiple subprocess workers (IPC) 
+  - [x] GPU
+  - [x] Multiple subprocess workers (IPC)
   - [x] Cache images
   - [ ] Redundant extra contour loop in dataset / preprocess (~ 50% time cost)
   - [ ] Parallel CPU/GPU pipeline, queue or double buffer
@@ -92,8 +92,8 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Enhance preduction color map to distinguish color of different nucleis
   - [x] Visualize overlapping of original and prediction nucleis
   - [x] Statistics of per channel data distribution, particular toward alpha
-  - [x] Auto save weight of best checkpoint, IoU of train and CV, besides period save. 
- 
+  - [x] Auto save weight of best checkpoint, IoU of train and CV, besides period save.
+
 
 ## Setup development environment
 
@@ -108,7 +108,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     $ conda install --file requirements.txt
     ```
 
-## Prepare data 
+## Prepare data
 
 Just pick one option to prepare dataset
 
@@ -134,7 +134,7 @@ Just pick one option to prepare dataset
 
 #### Option C: Use external dataset, apply white-filter
 
-* At first, follow same procedure as option B 
+* At first, follow same procedure as option B
 * Download this [Google sheet](https://drive.google.com/open?id=1XEPBBQVuSZmjVXaHRAGRagxO5ewLNelZgg4VF6NqOEE) as CSV (File > Download as > Common-separated values), placed at `data/dataset.csv`
 * Configure whitelist filter in `dataset` session of ` config.ini ` (detail refer `config_default.ini`)
     ```
@@ -152,12 +152,12 @@ Just pick one option to prepare dataset
 
 * [Download](https://www.kaggle.com/c/data-science-bowl-2018) stage 1 test set and uncompress to `data/test` folder
 * Put any training dataset in arbitrary folder, say ` data/stage1_train `
-* Run `split.py` to hardlink files into `train` and `valid` folders automatically. (*no extra disk space used*) 
+* Run `split.py` to hardlink files into `train` and `valid` folders automatically. (*no extra disk space used*)
     ```
     $ python split.py data/stage1_train
     ```
 
-* Resulting data folder as below, it's safe to delete `train` and `valid`, no impact to original files   
+* Resulting data folder as below, it's safe to delete `train` and `valid`, no impact to original files
     ```
     .
     ├── README.md
@@ -166,7 +166,7 @@ Just pick one option to prepare dataset
         │   ├── 0114f484a16c152baa2d82fdd43740880a762c93f436c8988ac461c5c9dbe7d5
         │   └── ...
         ├── train
-        │   ├── cc88627344305b9a9b07f8bd042cb074c7a834c13de67ff4b24914ac68f07f6e <────┐ 
+        │   ├── cc88627344305b9a9b07f8bd042cb074c7a834c13de67ff4b24914ac68f07f6e <────┐
         │   └── ...                                                                   │
         ├── valid                                                                     │
         │   ├── a3a5af03673844b690a48e13ae6594a934552825bd1c43e085d5f88f2856c75d <─┐  │
@@ -228,7 +228,7 @@ Just pick one option to prepare dataset
     pred_orig_size = True
 
     [dataset]
-    ; ratio of cross-valid 
+    ; ratio of cross-valid
     cv_ratio = 0.1
     ```
 
@@ -242,13 +242,13 @@ Just pick one option to prepare dataset
         Grand new training ...
         Training started...
         // [epoch #][step #] CPU second (io second)     Avg.  batch  (epoch)    Avg. batch (epoch)
-        Epoch: [1][0/67]    Time: 0.928 (io: 0.374)	    Loss: 0.6101 (0.6101)   IoU: 0.000 (0.000)	
+        Epoch: [1][0/67]    Time: 0.928 (io: 0.374)	    Loss: 0.6101 (0.6101)   IoU: 0.000 (0.000)
         Epoch: [1][10/67]   Time: 0.140 (io: 0.051)	    Loss: 0.4851 (0.5816)   IoU: 0.000 (0.000)
         ...
         Epoch: [10][60/67]  Time: 0.039 (io: 0.002)	    Loss: 0.1767 (0.1219)   IoU: 0.265 (0.296)
         Training finished...
         ...
-    
+
     // automatically save checkpoint every 10 epochs
     $ ls checkpoint
         current.json   ckpt-10.pkl
@@ -264,7 +264,7 @@ Just pick one option to prepare dataset
     $ python3 valid.py --dataset valid
     ```
 
-* Ensemble models, say ` checkpoint/2100.pkl ` and ` checkpoint/best.pkl ` 
+* Ensemble models, say ` checkpoint/2100.pkl ` and ` checkpoint/best.pkl `
     ```
     $ python3 valid.py checkpoint/2100.pkl checkpoint/best.pkl
     ```
@@ -309,9 +309,9 @@ Just pick one option to prepare dataset
     In [4]: %run valid.py --csv
     ```
 
-## Benchmark 
+## Benchmark
 
-| LB | DB | Model | Cost Fn. | Epoch | Marker | SA | TP | Learn Rate | CV | Width | PO | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label | 
+| LB | DB | Model | Cost Fn. | Epoch | Marker | SA | TP | Learn Rate | CV | Width | PO | Crop | Flip | Invert | Jitter | Distortion | Clahe | Edge Soft Label |
 | ----- | ---- | -----  | ---------- | ---- | ------- | -- | -- | ----------- | --- | --- | - | - | - | - | - | - | - | - |
 | 0.334 | Orig | UNet   | BCE        | 600  |   |    | .5 | 1e-4 > 3e-5 | 10% | 256 |   | V | V |   | V |   |   |   |
 | 0.344 | Orig | UNet   | IOU+BCE    | 600  |   |    | .5 | 1e-4 > 3e-5 | 10% | 256 |   | V | V |   | V | V |   |   |
@@ -349,14 +349,17 @@ Just pick one option to prepare dataset
 | 0.472 | v6   | CAUNet | IOU+Focal  | 1800 | C | RW | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
 | 0.484 | v6   | CAMUNet| IOU+Focal  | 2100 | C | RW | .5 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
 | 0.486 | v6   | CAMUNet| IOU+Focal  | 2100 | C | RW | .5 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.498 | v6   | CAMUNet| IOU+Focal  | 2100 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.488 | v6   | CAMUNet| IOU+Focal  | 3760 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.498 | v6   | CAMUNet| IOU+F+WBCE | 2100 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.488 | v6   | CAMUNet| IOU+F+WBCE | 3760 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.498 | v6   | CAMUNet| IoU+F+WBCE2| 4500 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.509 | v6+A1| CAMUNet| IoU+F+WBCE2| 4800 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.527 | v6+A2| CAMUNet| IoU+F+WBCE2| 5300 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 | 0.479 | v6   | CAUNet | IoU+F+WBCE | 1800 | C | RW | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
 | 0.479 | v6   | CAUNet | IoU+F+WBCE | 1800 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 | 0.441 | v7   | CAUNet | IoU+F+WBCE | 1800 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 
 Note:
-- Dataset (training): 
+- Dataset (training):
     * V1: original kaggle
     * V2: Feb 06, modified by Jimmy and Ryk
     * V3: V2 + TCGA 256
@@ -364,23 +367,26 @@ Note:
     * V5: V2 + TCGA 256 (Non overlapped) + Feb. labeled test set
     * V6: [lopuhin Github](https://github.com/lopuhin/kaggle-dsbowl-2018-dataset-fixes) + TCGA 256 (Non overlapped)
     * V7: V6 + cell tracking
+    * A1: 5x2 Jupiter examples
+    * A2: A1 + 24 Overlapping/Touching stitching examples
 - Score is public score on kaggle site
 - Zero CV rate means all data were used for training, none reserved
 - Adjust learning rate per 300 epoch
 - Cost Function:
     * BCE: pixel wise binary cross entropy
-    * WBCE: pixel wise binary cross entropy with weight
+    * WBCE: pixel wise binary cross entropy with weight (contour)
+    * WBCE2: pixel wise binary cross entropy with weight (contour + centroid)
     * IOU: pixel wise IoU, regardless of instance
-- TP: threshold of prediction probability 
+- TP: threshold of prediction probability
 - PO (predict origin size): true to keep original test image in prediction phase, otherwise resize as training width
 - SA (segmentation algorithm): WS (Watershed), RW (RandomWalker)
-- Marker (marker for segmentation): 
+- Marker (marker for segmentation):
     * P: local peak max of clustering
     * C: predicted contour of model output
 
 <!--
 
-#### Distribution of training dataset 
+#### Distribution of training dataset
 
 | # Samples | Kaggle | TCGA 256 | Celltrack |
 | --------- | ------ | -------- | --------- |
@@ -401,17 +407,17 @@ Note:
 
 ### Learning curve
 
-* Comparison of cost functions 
+* Comparison of cost functions
 
-    ![learn_curve](docs/learn_curve.jpg)  
+    ![learn_curve](docs/learn_curve.jpg)
 
-* Comparison of composition of convolutional blocks 
+* Comparison of composition of convolutional blocks
 
-    The topic of building block of composition of conv. blocks is highly discussed in technical forums and papers. Though it seems not a problem of one-size-fit-all. So here is performance comparison of various popular combinations, the result showed that CAB, `conv -> activation -> batch normal` take lead in benched model ` CAUnet `, in speed and accuracy. 
+    The topic of building block of composition of conv. blocks is highly discussed in technical forums and papers. Though it seems not a problem of one-size-fit-all. So here is performance comparison of various popular combinations, the result showed that CAB, `conv -> activation -> batch normal` take lead in benched model ` CAUnet `, in speed and accuracy.
 
-    ![conv_block](docs/conv_block.jpg)  
+    ![conv_block](docs/conv_block.jpg)
 
-### Graph and complexity of models 
+### Graph and complexity of models
 
 * Graph
     ```
@@ -419,51 +425,51 @@ Note:
     ```
 
 * Number of model parameters
-    - UNet: 1,944,049 
+    - UNet: 1,944,049
     - CAUnet: 2,707,346
     - CAMUnet: 3,470,643
 
 ## Known Issues
 
-* Error: multiprocessing.managers.RemoteError: AttributeError: Can't get attribute 'PngImageFile'  
+* Error: multiprocessing.managers.RemoteError: AttributeError: Can't get attribute 'PngImageFile'
     ```
-    Reproduce rate: 
-        1/10  
-    Root cause: 
-        PyTorch subprocess workers failed to communicate shared memory.  
-    Workaround: 
+    Reproduce rate:
+        1/10
+    Root cause:
+        PyTorch subprocess workers failed to communicate shared memory.
+    Workaround:
         Ignore and issue command again
     ```
 
 * Train freeze or runtime exception running in docker container
     ```
-    Root cause: 
-        PyTorch subprocess worker require enough shared memory for IPC communication.  
-    Fix: 
+    Root cause:
+        PyTorch subprocess worker require enough shared memory for IPC communication.
+    Fix:
         Assign --shm-size 8G to reserve enough shared memory
-    Example: 
+    Example:
         $ docker run --runtime=nvidia -it --rm --shm-size 8G -v $PWD:/mnt -w /mnt rainbean/tensor python train.py
     ```
 
 ## Transform effect demo
 
-* Random elastic distortion  
+* Random elastic distortion
 
-    ![elastic_distortion](docs/elastic_distortion.jpeg) 
+    ![elastic_distortion](docs/elastic_distortion.jpeg)
 
-* Random color invert  
+* Random color invert
 
-    ![color_invert](docs/color_invert.jpeg) 
+    ![color_invert](docs/color_invert.jpeg)
 
-* Random color jitter  
+* Random color jitter
 
-    ![color_jitter](docs/color_jitter.jpeg) 
+    ![color_jitter](docs/color_jitter.jpeg)
 
 * Clahe color equalize
 
-    ![color_equalize](docs/clahe_color_adapthist_equalize.jpeg) 
+    ![color_equalize](docs/clahe_color_adapthist_equalize.jpeg)
 
 * Image border padding: constant vs replicate. Used in origin size prediction.
 
-    ![color_equalize](docs/image_border_padding.jpg) 
+    ![color_equalize](docs/image_border_padding.jpg)
 
