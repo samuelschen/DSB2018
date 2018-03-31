@@ -179,20 +179,9 @@ Just pick one option to prepare dataset
 
 <!--
 
-### Option C: Use external dataset, w/ CV, w/ filter
+### Option E: Manually crop dataset [Further Advance mode]
 
-* Same procedure as option B with two additional step before run `split.py`
-* Download this [Google sheet](https://drive.google.com/open?id=1XEPBBQVuSZmjVXaHRAGRagxO5ewLNelZgg4VF6NqOEE) as CSV (File > Download as > Common-separated values), placed at `data/dataset.csv`
-* Configure whitelist of sub-category, eg. ` Flouresence ` and ` Cloud ` in ` config.ini ` (detail refer `config_default.ini`)
-    ```
-    [dataset]
-    ; white-list in dataset.csv, uncomment to enable filter
-    csv_file = data/dataset.csv
-    sub_category = Fluorescence, Cloud
-    ```
-
-
-* (Optional) prepare V4 dataset
+* V4 dataset
     - Download [V2](https://drive.google.com/open?id=1UyIxGrVzzo7IUXRJnDRpqT3C_rXOe1s1) and uncompress to `data` folder
     - Download [TCGA no overlap](https://drive.google.com/open?id=1YB_jnDfLpZhnIj0b3wRLiiDrCtb9zNxo) and uncompress to `data` folder
     - Split TCGA to proper scale and prefered data distribution
@@ -202,7 +191,7 @@ Just pick one option to prepare dataset
     $ mv external_TCGA_train_split/* source/
     ```
 
-* (Optional) prepare V6 dataset
+* V6 dataset
     - Git clone [lopuhin Github](https://github.com/lopuhin/kaggle-dsbowl-2018-dataset-fixes) and move `stage1_train` in `data` folder
     - Download [TCGA no overlap](https://drive.google.com/open?id=1YB_jnDfLpZhnIj0b3wRLiiDrCtb9zNxo) and uncompress to `data` folder
     - Split TCGA to proper scale and prefered data distribution
@@ -211,6 +200,24 @@ Just pick one option to prepare dataset
     $ python3 ../crop.py external_TCGA_train --step 200 --width 256
     $ mv external_TCGA_train_split/* source/
     ```
+
+* V9 dataset, or just download [here]()
+    - Git clone [lopuhin Github](https://github.com/lopuhin/kaggle-dsbowl-2018-dataset-fixes) and move `stage1_train` in `data` folder
+    - Download [TCGA no overlap](https://drive.google.com/open?id=1JnYY4og2DdTqcLsUd1F-pTiWYyQSUYES) and uncompress to `data` folder
+    - Download [Celltracking](https://drive.google.com/open?id=1hNem6Ob4ZWybHM01_4vy5xBJ6fQ27e9I) and uncompress to `data` folder. Also remove redundant and almost the same images.  
+    - Download [v9 CSV]() to `data` folder 
+    - Split proper scale and prefered data distribution
+        ```
+        $ python3 crop.py data/stage1_train  --step 200 --width 256 --csv data/v9.csv
+        $ python3 crop.py data/external_TCGA_train_wo_overlap --step 200 --width 256 --csv data/v9.csv
+        $ python3 crop.py data/celltracking2kaggle --step 500 --width 512 --csv data/v9.csv
+        $ mkdir data/train
+        $ mv data/stage1_train_crop/* data/train
+        $ mv data/external_TCGA_train_wo_overlap_crop/* data/train
+        $ mv data/celltracking2kaggle_crop/* data/train
+        ```
+    - Further manually add internal data (stitching/overlap) to `data/train` folder
+
 -->
 
 ## Hyper-parameter tunning
