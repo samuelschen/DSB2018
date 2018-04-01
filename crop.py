@@ -32,9 +32,9 @@ def do_crop(image, uid, root, folder, step, width, df=None):
             else:
                 crop.save(os.path.join(dir, crop_id + '.png'), 'PNG')
                 if df is not None:
-                    row = df.loc[ df.image_id == uid ]
-                    row.iloc[0].image_id = crop_id
-                    df = df.append(row)
+                    row = df[ np.where(df[:, 1] == uid) ][0]
+                    row[1] = crop_id
+                    df = np.vstack([df, row])
     return df
 
 def main(source, step, width, csvfile=None):
@@ -42,6 +42,10 @@ def main(source, step, width, csvfile=None):
     df = None
     if csvfile and os.path.isfile(csvfile):
         df = pd.read_csv(csvfile)
+        columns = df.columns
+        # datamframe to numpy array
+        # DataFrame append() is millions times slower than numpy
+        df = df.values
         assert len(df) > 0
     for uid in next(os.walk(source))[1]:
         fn = os.path.join(source, uid, 'images', uid + '.png')
@@ -62,8 +66,10 @@ def main(source, step, width, csvfile=None):
         if not os.path.exists(mask_dir):
             shutil.rmtree(os.path.join(root, uid))
             if df is not None:
-                df = df.loc[ df.image_id != uid ]
+                df = df[ np.where(df[:, 1] != uid) ]
     if df is not None:
+        # convert numpy back to dataframe
+        df = pd.DataFrame(df, columns=columns)
         df.to_csv(csvfile, index=False)
     print("Crop task completed")
 
