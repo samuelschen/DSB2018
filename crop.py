@@ -10,6 +10,7 @@ from PIL import Image
 
 def do_crop(image, uid, root, folder, step, width, df=None):
     w, h = image.size
+    visited = []
     for y in range(0, h, step):
         for x in range(0, w, step):
             x -= max(0, width - min(width, w - x))
@@ -19,15 +20,15 @@ def do_crop(image, uid, root, folder, step, width, df=None):
             if np.sum(crop) == 0:
                 continue # ignore empty crop
             crop_id = uid + '_{}_{}'.format(x, y)
+            if crop_id in visited:
+                continue
+            else:
+                visited.append(crop_id)
             dir = os.path.join(root, crop_id, folder)
             if not os.path.exists(dir):
                 os.makedirs(dir)
-            else:
-                # bypass same crop region
-                continue
             if folder == 'masks':
                 crop.save(os.path.join(dir, str(uuid.uuid4()) + '.png'), 'PNG')
-                pass
             else:
                 crop.save(os.path.join(dir, crop_id + '.png'), 'PNG')
                 if df is not None:
