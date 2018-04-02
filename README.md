@@ -177,9 +177,7 @@ Just pick one option to prepare dataset
             └── ...
     ```
 
-<!--
-
-### Option E: Manually crop dataset [Further Advance mode]
+### Option E: Manually crop dataset [Advance mode]
 
 * V4 dataset
     - Download [V2](https://drive.google.com/open?id=1UyIxGrVzzo7IUXRJnDRpqT3C_rXOe1s1) and uncompress to `data` folder
@@ -201,7 +199,7 @@ Just pick one option to prepare dataset
     $ mv external_TCGA_train_split/* source/
     ```
 
-* V9 dataset, or just download [here]()
+* V9 dataset, or just download [here](https://drive.google.com/uc?export=download&id=1KS1E_8U019kA3XSmcFcKJjq3L9A_No0x)
     - Git clone [lopuhin Github](https://github.com/lopuhin/kaggle-dsbowl-2018-dataset-fixes) and move `stage1_train` in `data` folder
     - Download [TCGA no overlap](https://drive.google.com/open?id=1JnYY4og2DdTqcLsUd1F-pTiWYyQSUYES) and uncompress to `data` folder
     - Download [Celltracking](https://drive.google.com/open?id=1hNem6Ob4ZWybHM01_4vy5xBJ6fQ27e9I) and uncompress to `data` folder. Also remove redundant and almost the same images.  
@@ -217,8 +215,6 @@ Just pick one option to prepare dataset
         $ mv data/celltracking2kaggle_crop/* data/train
         ```
     - Further manually add internal data (stitching/overlap) to `data/train` folder
-
--->
 
 ## Hyper-parameter tunning
 
@@ -358,9 +354,9 @@ Just pick one option to prepare dataset
 | 0.486 | v6   | CAMUNet| IOU+Focal  | 2100 | C | RW | .5 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 | 0.498 | v6   | CAMUNet| IOU+F+WBCE | 2100 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 | 0.488 | v6   | CAMUNet| IOU+F+WBCE | 3760 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.498 | v6   | CAMUNet| IoU+F+WBCE2| 4500 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.509 | v6+A1| CAMUNet| IoU+F+WBCE2| 4800 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.527 | v6+A2| CAMUNet| IoU+F+WBCE2| 5300 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.498 | v6   | CAMUNet| IoU+Focal2 | 4500 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.509 | v6+A1| CAMUNet| IoU+Focal2 | 4800 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.527 | v6+A2| CAMUNet| IoU+Focal2 | 5300 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 | 0.479 | v6   | CAUNet | IoU+F+WBCE | 1800 | C | RW | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
 | 0.479 | v6   | CAUNet | IoU+F+WBCE | 1800 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 | 0.441 | v7   | CAUNet | IoU+F+WBCE | 1800 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
@@ -369,48 +365,30 @@ Note:
 - Dataset (training):
     * V1: original kaggle
     * V2: Feb 06, modified by Jimmy and Ryk
-    * V3: V2 + TCGA 256
+    * V3: V2 + [TCGA](https://nucleisegmentationbenchmark.weebly.com/dataset.html) 256
     * V4: V2 + TCGA 256 (Non overlapped)
     * V5: V2 + TCGA 256 (Non overlapped) + Feb. labeled test set
     * V6: [lopuhin Github](https://github.com/lopuhin/kaggle-dsbowl-2018-dataset-fixes) + TCGA 256 (Non overlapped)
-    * V7: V6 + cell tracking
+    * V7: V6 + [cell tracking](http://www.celltrackingchallenge.net/datasets.html)
     * A1: 5x2 Jupiter examples
     * A2: A1 + 24 Overlapping/Touching stitching examples
+    * V8: Kaggle + TCGA + Cell tracking, without manually cropping
+    * V9: Kaggle + TCGA + Cell tracking + Sticking(A1+A2), with manually selection and cropping
 - Score is public score on kaggle site
 - Zero CV rate means all data were used for training, none reserved
 - Adjust learning rate per 300 epoch
 - Cost Function:
     * BCE: pixel wise binary cross entropy
-    * WBCE: pixel wise binary cross entropy with weight (contour)
-    * WBCE2: pixel wise binary cross entropy with weight (contour + centroid)
+    * WBCE: pixel wise binary cross entropy with weight
     * IOU: pixel wise IoU, regardless of instance
+    * Focal: Focal loss with pixel wise wise binary cross entropy, weighted by contour
+    * Focal2: Focal loss with pixel wise wise binary cross entropy, weighted by contour and centroid
 - TP: threshold of prediction probability
 - PO (predict origin size): true to keep original test image in prediction phase, otherwise resize as training width
 - SA (segmentation algorithm): WS (Watershed), RW (RandomWalker)
 - Marker (marker for segmentation):
     * P: local peak max of clustering
     * C: predicted contour of model output
-
-<!--
-
-#### Distribution of training dataset
-
-| # Samples | Kaggle | TCGA 256 | Celltrack |
-| --------- | ------ | -------- | --------- |
-| v6        |    664 |      750 |         0 |
-| v6_256    |   2580 |      750 |         0 |
-| v7_256    |    664 |      750 |      3053 |
-| v7_512    |    664 |      750 |       958 |
-
-| % Samples | Kaggle | TCGA 256 | Celltrack |
-| --------- | ------ | -------- | --------- |
-| v6        |    47% |      53% |        0% |
-| v6_256    |    77% |      23% |        0% |
-| v7_256    |    15% |      17% |       68% |
-| v7_512    |    28% |      32% |       40% |
-
-
--->
 
 ### Learning curve
 
