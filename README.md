@@ -354,12 +354,12 @@ Just pick one option to prepare dataset
 | 0.486 | v6   | CAMUNet| IOU+Focal  | 2100 | C | RW | .5 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 | 0.498 | v6   | CAMUNet| IOU+F+WBCE | 2100 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 | 0.488 | v6   | CAMUNet| IOU+F+WBCE | 3760 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.498 | v6   | CAMUNet| IoU+Focal2 | 4500 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.509 | v6+A1| CAMUNet| IoU+Focal2 | 4800 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
-| 0.527 | v6+A2| CAMUNet| IoU+Focal2 | 5300 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 | 0.479 | v6   | CAUNet | IoU+F+WBCE | 1800 | C | RW | .3 | 1e-4        |  0% | 256 |   | V | V |   | V | V |   |   |
 | 0.479 | v6   | CAUNet | IoU+F+WBCE | 1800 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 | 0.441 | v7   | CAUNet | IoU+F+WBCE | 1800 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.498 | v6   | CAMUNet| IoU+Focal2 | 4500 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.509 | v6+A1| CAMUNet| IoU+Focal2 | 4800 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
+| 0.527 | v6+A2| CAMUNet| IoU+Focal2 | 5300 | C | RW | .3 | 1e-4        |  0% | 256 | V | V | V |   | V | V |   |   |
 
 Note:
 - Dataset (training):
