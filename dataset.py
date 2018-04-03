@@ -24,7 +24,7 @@ from scipy.ndimage.measurements import center_of_mass
 import warnings
 warnings.filterwarnings("ignore")
 
-from helper import config, clahe
+from helper import config, clahe, filter_by_group
 
 class KaggleDataset(Dataset):
     """Kaggle dataset."""
@@ -38,7 +38,7 @@ class KaggleDataset(Dataset):
         self.root = root
         self.transform = transform
         self.cache = cache
-        self.df = self.filter_by_group(root, use_filter)
+        self.df = filter_by_group(root, use_filter)
 
     def __len__(self):
         return len(self.df)
@@ -99,43 +99,6 @@ class KaggleDataset(Dataset):
         if self.transform:
             sample = self.transform(sample)
         return sample
-
-    def filter_by_group(self, root, use_filter):
-        c = config['dataset']
-        csv = c.get('csv_file')
-        files = next(os.walk(root))[1]
-        files.sort()
-        # if no csv file, return real file list
-        if not os.path.isfile(csv) or not use_filter:
-            return pd.DataFrame({'image_id': files, 'group': 0})
-        # read csv and do sanity check with existing files
-        df = pd.read_csv(csv)
-        assert len(df) > 0
-        files = next(os.walk(root))[1]
-        df = df.loc[ df['image_id'].isin(files) ]
-        print("Number of existed file in csv file:", len(df))
-        # filter by group
-        group = []
-        for g in ['source', 'major_category', 'sub_category']:
-            filter = c.get(g)
-            if filter is not None:
-                group.append(g)
-                filter = [e.strip() for e in filter.split(',')]
-                # apply filter
-                df = df.loc[ df[g].isin(filter) ]
-        # verbose check groupby, which will be used as distribution weight
-        if len(group) > 0:
-            group = df.groupby(group)
-            print("Group by white-list:")
-            print(group['image_id'].count().reset_index())
-            # assign group id to new column 'group'
-            df['group'] = group.ngroup()
-        else:
-            # assign as same group id
-            df['group'] = 0
-        # final list of valid training data
-        print("Number of white-list file in csv file:", len(df))
-        return df[['image_id','group']].reset_index(drop=True)
 
     def split(self):
         ''' return CV split dataset object '''
