@@ -66,6 +66,7 @@ def compose_mask(masks, pil=False):
     result = np.zeros_like(masks[0], dtype=np.int32)
     for i, m in enumerate(masks):
         mask = np.array(m) if pil else m.copy()
+        mask = mask.astype(np.int32)
         mask[mask > 0] = i + 1 # zero for background, starting from 1
         result = np.maximum(result, mask) # overlay mask one by one via np.maximum, to handle overlapped labels if any
     if pil:
