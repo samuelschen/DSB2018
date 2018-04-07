@@ -257,7 +257,10 @@ def add_missed_blobs(full_mask, labeled_mask, edges):
         missed_markers = label(missed_mask)
     if missed_markers.max() > 0:
         missed_markers[missed_mask == 0] = -1
-        missed_labels = random_walker(missed_mask, missed_markers)
+        if np.sum(missed_markers > 0) > 0:
+            missed_labels = random_walker(missed_mask, missed_markers)
+        else:
+            missed_labels = np.zeros_like(missed_markers, dtype=np.int32)
         missed_labels[missed_labels <= 0] = 0
         missed_labels = np.where(missed_labels > 0, missed_labels + labeled_mask.max(), 0)
         final_labels = np.add(labeled_mask, missed_labels)
@@ -273,7 +276,7 @@ def filter_fiber(blobs):
     objects = [(obj.area, obj.eccentricity, obj.label) for obj in regionprops(blobs)]
     objects = sorted(objects, reverse=True) # sorted by area in descending order
     # filter out the largest one which is (1) 5 times larger than 2nd largest one (2) eccentricity > 0.95
-    if objects[0][0] > 5 * objects[1][0] and objects[0][1] > 0.95:
+    if len(objects) > 1 and objects[0][0] > 5 * objects[1][0] and objects[0][1] > 0.95:
         print('\nfilter suspecious fiber', objects[0])
         blobs = np.where(blobs==objects[0][2], 0, blobs)
     return blobs
@@ -330,7 +333,10 @@ def partition_instances(raw_bodies, raw_markers=None, raw_edges=None):
         seg_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
     elif policy == 'rw':
         markers[bodies == 0] = -1
-        seg_labels = random_walker(bodies, markers)
+        if np.sum(markers > 0) > 0:
+            seg_labels = random_walker(bodies, markers)
+        else:
+            seg_labels = np.zeros_like(markers, dtype=np.int32)
         seg_labels[seg_labels <= 0] = 0
         markers[markers <= 0] = 0
     else:
