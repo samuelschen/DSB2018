@@ -144,6 +144,7 @@ class Compose():
         self.color_equalize = c.getboolean('color_equalize')
         self.min_scale = c.getfloat('min_scale')
         self.max_scale = c.getfloat('max_scale')
+        self.add_noise = c.getboolean('add_noise')
 
         c = config['contour']
         self.detect_contour = c.getboolean('detect')
@@ -224,6 +225,9 @@ class Compose():
             if self.color_jitter and random.random() > 0.5:
                 color = transforms.ColorJitter.get_params(0.5, 0.5, 0.5, 0.25)
                 image = color(image)
+
+            if self.add_noise and random.random() > 0.5:
+                image = add_noise(image)
 
         elif self.resize:  # resize down image
             image, label, label_c, label_m = [tx.resize(x, self.size) for x in (image, label, label_c, label_m)]
@@ -356,6 +360,17 @@ def get_instances_contour_interior(instances_mask):
         weight *= (1 + gaussian_filter(contour, sigma=1) / 50)
     return result_c, result_i, weight
 
+def add_noise(x, mode='gaussian'):
+    from skimage.util import random_noise
+    is_pil = isinstance(x, Image.Image)
+    if is_pil:
+        x = np.asarray(x, dtype=np.uint8)
+    # input numpy array, and return [0, 1] or [-1, 1] array
+    x = random_noise(x, mode=mode)
+    if is_pil:
+        x = (x * 255).astype(np.uint8)
+        x = Image.fromarray(x)
+    return x
 
 class ElasticDistortion():
     """Elastic deformation of image as described in [Simard2003]_.
