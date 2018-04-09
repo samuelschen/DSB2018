@@ -103,6 +103,11 @@ def unpack_data(data, compose, resize):
     return x, gt, gt_s, gt_c, gt_m
 
 def inference(data, models, resize):
+    threshold = config['param'].getfloat('threshold')
+    threshold_edge = config['param'].getfloat('threshold_edge')
+    threshold_mark = config['param'].getfloat('threshold_mark')
+    ensemble_policy = config['post']['ensemble']
+
     # sub-rountine to convert output tensor to numpy
     def convert(t):
         assert isinstance(t, (torch.FloatTensor, torch.cuda.FloatTensor))
@@ -113,6 +118,8 @@ def inference(data, models, resize):
         # to numpy array
         t = t.cpu()
         t = t.numpy()[0]
+        if ensemble_policy == 'vote':
+            t = np.where(t >= 0.5, 1., 0.) # majority vote
         # channel first [C, H, W] -> channel last [H, W, C]
         t = np.transpose(t, (1, 2, 0))
         # Remove single-dimensional channel from the shape of an array
@@ -151,9 +158,16 @@ def inference(data, models, resize):
         elif with_contour:
             s, c = s
         # concat outputs
-        y_s = torch.cat([y_s, s.data], 0)
-        y_c = torch.cat([y_c, c.data], 0)
-        y_m = torch.cat([y_m, m.data], 0)
+        if ensemble_policy == 'avg':
+            y_s = torch.cat([y_s, s.data], 0)
+            y_c = torch.cat([y_c, c.data], 0)
+            y_m = torch.cat([y_m, m.data], 0)
+        elif ensemble_policy == 'vote':
+            y_s = torch.cat([y_s, (s.data > threshold).float()], 0)
+            y_c = torch.cat([y_c, (c.data > threshold_edge).float()], 0)
+            y_m = torch.cat([y_m, (m.data > threshold_mark).float()], 0)
+        else:
+            raise NotImplementedError("Ensemble policy not implemented")
     return uid, convert(y_s), convert(y_c), convert(y_m)
 # end of predict()
 
