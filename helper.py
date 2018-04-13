@@ -139,8 +139,11 @@ def prob_to_rles(y, y_c, y_m):
     if remove_fiber:
         y = filter_fiber(y)
     idxs = np.unique(y) # sorted, 1st is background (e.g. 0)
-    for idx in idxs[1:]:
-        yield rle_encoding(y == idx)
+    if len(idxs) == 1:
+        yield []
+    else:
+        for idx in idxs[1:]:
+            yield rle_encoding(y == idx)
 
 # checkpoint handling
 def check_ckpt_dir():
