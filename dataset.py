@@ -145,6 +145,7 @@ class Compose():
         self.min_scale = c.getfloat('min_scale')
         self.max_scale = c.getfloat('max_scale')
         self.add_noise = c.getboolean('add_noise')
+        self.channel_shuffle = c.getboolean('channel_shuffle')
 
         c = config['contour']
         self.detect_contour = c.getboolean('detect')
@@ -216,6 +217,10 @@ class Compose():
             # perform Random Rotation (0, 90, 180, and 270 degrees)
             random_degree = random.randint(0, 3) * 90
             image, label, label_c, label_m, label_gt = [tx.rotate(x, random_degree) for x in (image, label, label_c, label_m, label_gt)]
+
+            # perform channel shuffle
+            if self.channel_shuffle:
+                image = ChannelShuffle()(image)
 
             # perform random color invert, assuming 3 channels (rgb) images
             if self.color_invert and random.random() > 0.5:
@@ -371,6 +376,31 @@ def add_noise(x, mode='gaussian'):
         x = (x * 255).astype(np.uint8)
         x = Image.fromarray(x)
     return x
+
+class ChannelShuffle():
+    def __init__(self):
+        pass
+
+    def __call__(self, img):
+        """
+        Args:
+            img (PIL Image): Image to be transformed.
+        Returns:
+            PIL Image: Shuffled channel image.
+        """
+        assert isinstance(img, Image.Image)
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        if random.random() < 0.3:
+            # shuffle to grayscale
+            img = img.convert('L')
+            img = img.convert('RGB')
+        else:
+            r, g, b = img.split()
+            c = [r, g, b]
+            np.random.shuffle(c)
+            img = Image.merge("RGB", c)
+        return img
 
 class ElasticDistortion():
     """Elastic deformation of image as described in [Simard2003]_.
