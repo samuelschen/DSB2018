@@ -365,7 +365,7 @@ def get_instances_contour_interior(instances_mask):
         weight *= (1 + gaussian_filter(contour, sigma=1) / 50)
     return result_c, result_i, weight
 
-def add_noise(x, mode='gaussian'):
+def add_noise(x, mode='speckle'):
     from skimage.util import random_noise
     is_pil = isinstance(x, Image.Image)
     if is_pil:
