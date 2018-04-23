@@ -325,10 +325,12 @@ def decompose_mask(mask):
         result.append(m)
     return result
 
-def get_contour_interior(mask):
+def get_contour_interior(mask, bold=False):
     if 'camunet' == config['param']['model']:
         # 2-pixel contour (1out+1in), 2-pixel shrinked interior
         outer = dilation(mask)
+        if bold:
+            outer = dilation(outer)
         inner = erosion(mask)
         contour = ((outer != inner) > 0).astype(np.uint8)*255
         interior = (erosion(inner) > 0).astype(np.uint8)*255
@@ -350,19 +352,26 @@ def get_center(mask):
     return center
 
 def get_instances_contour_interior(instances_mask):
+    adjacent_boundary_only = config['contour'].getboolean('adjacent_boundary_only')
+
     result_c = np.zeros_like(instances_mask, dtype=np.uint8)
     result_i = np.zeros_like(instances_mask, dtype=np.uint8)
     weight = np.ones_like(instances_mask, dtype=np.float32)
     masks = decompose_mask(instances_mask)
     for m in masks:
-        contour, interior = get_contour_interior(m)
+        contour, interior = get_contour_interior(m, bold=adjacent_boundary_only)
         center = get_center(m)
-        result_c = np.maximum(result_c, contour)
+        if adjacent_boundary_only:
+            result_c += contour // 255
+        else:
+            result_c = np.maximum(result_c, contour)
         result_i = np.maximum(result_i, interior)
         contour += center
         contour = np.where(contour > 0, 255, 0)
         # magic number 50 make weight distributed to [1, 5) roughly
         weight *= (1 + gaussian_filter(contour, sigma=1) / 50)
+    if adjacent_boundary_only:
+        result_c = (result_c > 1).astype(np.uint8)*255
     return result_c, result_i, weight
 
 def add_noise(x, mode='speckle'):
@@ -462,7 +471,6 @@ if __name__ == '__main__':
     # display composed image
     sample = compose(sample)
     compose.show(sample)
-
     if 'weight' in sample:
         w = sample['weight']
         # brighten the pixels
