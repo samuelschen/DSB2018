@@ -214,7 +214,8 @@ Just pick one option to prepare dataset
         $ mv data/external_TCGA_train_wo_overlap_crop/* data/train
         $ mv data/celltracking2kaggle_crop/* data/train
         ```
-    - Further manually add internal data (stitching/overlap) to `data/train` folder
+    - Further manually add synthesized internal data to `data/train` folder
+        - Collect some prediction errors and synthesize data to relearn them.
 
 ## Hyper-parameter tunning
 
@@ -311,6 +312,8 @@ Just pick one option to prepare dataset
     ```Jupyter Notebook
     In [4]: %run valid.py --csv
     ```
+
+## Intermediate Model Checkpoints [here](https://drive.google.com/open?id=1QpTjcSOH3MbnFDZZPj5MGKpFCi9zBjmD)
 
 ## Benchmark
 

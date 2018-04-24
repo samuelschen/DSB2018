@@ -277,6 +277,75 @@ class CamDUNet(nn.Module):
         return xs, xc, xm
 
 
+# Shared Contour aware Marker Unet
+class SCamUNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.c1 = ConvBlock(3, 16)
+        self.c2 = ConvBlock(16, 32)
+        self.c3 = ConvBlock(32, 64)
+        self.c4 = ConvBlock(64, 128)
+        # bottom conv tunnel
+        self.cu = ConvBlock(128, 256)
+        self.u5 = ConvUpBlock(256, 128)
+        self.u6 = ConvUpBlock(128, 64)
+        self.u7 = ConvUpBlock(64, 32)
+        self.u8 = ConvUpBlock(32, 16)
+        self.ce = nn.Conv2d(16, 3, 1)
+
+    def forward(self, x):
+        x, c1 = self.c1(x)
+        x, c2 = self.c2(x)
+        x, c3 = self.c3(x)
+        x, c4 = self.c4(x)
+        _, x = self.cu(x) # no maxpool for U bottom
+        x = self.u5(x, c4)
+        x = self.u6(x, c3)
+        x = self.u7(x, c2)
+        x = self.u8(x, c1)
+        x = self.ce(x)
+        x = torch.split(x, split_size=1, dim=1) # split 3 channels
+        s = F.sigmoid(x[0])
+        c = F.sigmoid(x[1])
+        m = F.sigmoid(x[2])
+        return s, c, m
+
+
+# Shared Contour aware marker Dilated Unet
+class SCamDUNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.c1 = ConvBlock(3, 16, dilation=2)
+        self.c2 = ConvBlock(16, 32, dilation=2)
+        self.c3 = ConvBlock(32, 64, dilation=2)
+        self.c4 = ConvBlock(64, 128, dilation=2)
+        # bottom dilated conv tunnel
+        # bottom conv tunnel
+        self.cu = ConvBlock(128, 256, dilation=2)
+        self.u5 = ConvUpBlock(256, 128)
+        self.u6 = ConvUpBlock(128, 64)
+        self.u7 = ConvUpBlock(64, 32)
+        self.u8 = ConvUpBlock(32, 16)
+        self.ce = nn.Conv2d(16, 3, 1)
+
+    def forward(self, x):
+        x, c1 = self.c1(x)
+        x, c2 = self.c2(x)
+        x, c3 = self.c3(x)
+        x, c4 = self.c4(x)
+        _, x = self.cu(x) # no maxpool for U bottom
+        x = self.u5(x, c4)
+        x = self.u6(x, c3)
+        x = self.u7(x, c2)
+        x = self.u8(x, c1)
+        x = self.ce(x)
+        x = torch.split(x, split_size=1, dim=1) # split 3 channels
+        s = F.sigmoid(x[0])
+        c = F.sigmoid(x[1])
+        m = F.sigmoid(x[2])
+        return s, c, m
+
+
 # Transfer Learning VGG16_BatchNorm as Encoder part of UNet
 class DeConvBlk(nn.Module):
     def __init__(self, in_ch, out_ch, dropout_ratio=0.2):
@@ -482,6 +551,10 @@ def build_model(model_name='unet'):
         model = DUNet()
     elif model_name == 'camdunet':
         model = CamDUNet()
+    elif model_name == 'scamunet':
+        model = SCamUNet()
+    elif model_name == 'scamdunet':
+        model = SCamDUNet()
     else:
         model = UNet()
     return model
@@ -489,7 +562,7 @@ def build_model(model_name='unet'):
 
 if __name__ == '__main__':
     print('Network parameters -')
-    for n in ['unet', 'dcan', 'caunet', 'camunet', 'dunet', 'camdunet']:
+    for n in ['unet', 'dcan', 'caunet', 'camunet', 'dunet', 'camdunet', 'scamunet', 'scamdunet']:
         net = build_model(n)
         #print(net)
         print('\t model {}: {}'.format(n, count_parameters(net)))
