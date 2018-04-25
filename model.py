@@ -45,6 +45,10 @@ class ConvUpBlock(nn.Module):
 
     def forward(self, x, bridge):
         x = self.up(x)
+        # align concat size by adding pad
+        diffY = x.shape[2] - bridge.shape[2]
+        diffX = x.shape[3] - bridge.shape[3]
+        bridge = F.pad(bridge, (0, diffX, 0, diffY), mode='reflect')
         x = torch.cat([x, bridge], 1)
         # CAB: conv -> activation -> batch normal
         x = self.block1(x)
