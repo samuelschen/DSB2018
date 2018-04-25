@@ -388,6 +388,50 @@ class UNet_VggNet16(nn.Module):
         x = F.sigmoid(x)
         return x
 
+# Transfer Learning ResNet as Encoder part of UNet
+# ResNet34  spent about ~4G GPU memory for mini-batch size of 20 samples
+# ResNet101 spent about ~4G GPU memory for mini-batch size of 20 samples
+class UNet_ResNet(nn.Module):
+    def __init__(self, layers=34, fixed_feature=True):
+        super().__init__()
+        # define pre-train model parameters
+        if layers == 101:
+            builder = models.resnet101
+            l = [64, 256, 512, 1024, 2048]
+        else:
+            builder = models.resnet34
+            l = [64, 64, 128, 256, 512]
+        # load weight of pre-trained resnet
+        self.resnet = builder(pretrained=True)
+        if fixed_feature:
+            for param in self.resnet.parameters():
+                param.requires_grad = False
+        # up conv
+        self.u5 = ConvUpBlock(l[4], l[3])
+        self.u6 = ConvUpBlock(l[3], l[2])
+        self.u7 = ConvUpBlock(l[2], l[1])
+        self.u8 = ConvUpBlock(l[1], l[0])
+        # final conv tunnel
+        self.ce = nn.ConvTranspose2d(l[0], 1, 2, stride=2)
+
+    def forward(self, x):
+        # refer https://github.com/pytorch/vision/blob/master/torchvision/models/resnet.py
+        x = self.resnet.conv1(x)
+        x = self.resnet.bn1(x)
+        x = c1 = self.resnet.relu(x)
+        x = self.resnet.maxpool(x)
+        x = c2 = self.resnet.layer1(x)
+        x = c3 = self.resnet.layer2(x)
+        x = c4 = self.resnet.layer3(x)
+        x = self.resnet.layer4(x)
+        x = self.u5(x, c4)
+        x = self.u6(x, c3)
+        x = self.u7(x, c2)
+        x = self.u8(x, c1)
+        x = self.ce(x)
+        x = F.sigmoid(x)
+        return x
+
 # Deep Contour Aware Network (DCAN)
 class dcanConv(nn.Module):
     def __init__(self, in_ch, out_ch, dropout_ratio=0.2):
@@ -448,21 +492,6 @@ class DCAN(nn.Module):
         u1c = self.deconv1c(c6)
         outs = F.sigmoid(u1s + u2s + u3s)
         outc = F.sigmoid(u1c + u2c + u3c)
-        # print('x: ', x.size())
-        # print('c1: ', c1.size())
-        # print('c2: ', c2.size())
-        # print('c3: ', c3.size())
-        # print('c4: ', c4.size())
-        # print('c5: ', c5.size())
-        # print('c6: ', c6.size())
-        # print('u3s: ', u3s.size())
-        # print('u3c: ', u3c.size())
-        # print('u2s: ', u2s.size())
-        # print('u2c: ', u2c.size())
-        # print('u1s: ', u1s.size())
-        # print('u1c: ', u1c.size())
-        # print('outs: ', outs.size())
-        # print('outc: ', outc.size())
         return outs, outc
 
 def count_parameters(model):
@@ -486,6 +515,10 @@ def build_model(model_name='unet'):
         model = SCamUNet()
     elif model_name == 'scamdunet':
         model = SCamDUNet()
+    elif model_name == 'unet_resnet34':
+        model = UNet_ResNet(34, fixed_feature=True)
+    elif model_name == 'unet_resnet101':
+        model = UNet_ResNet(101, fixed_feature=True)
     else:
         model = UNet()
     return model
@@ -493,19 +526,20 @@ def build_model(model_name='unet'):
 
 if __name__ == '__main__':
     print('Network parameters -')
-    for n in ['unet', 'dcan', 'caunet', 'camunet', 'dunet', 'camdunet', 'scamunet', 'scamdunet']:
+    for n in ['unet', 'caunet', 'camunet', 'scamunet', 'unet_vgg16', 'unet_resnet34', 'unet_resnet101']:
         net = build_model(n)
         #print(net)
         print('\t model {}: {}'.format(n, count_parameters(net)))
         del net
 
     print("Forward pass sanity check - ")
-    for n in ['unet', 'camunet', 'dunet']:
+    for n in ['camunet', 'unet_resnet34', 'unet_resnet101']:
         t = time.time()
         net = build_model(n)
-        x = torch.randn(10, 3, 256, 256)
+        x = torch.randn(1, 3, 256, 256)
         x = Variable(x)
         y = net(x)
+        #print(x.shape, y.shape)
         del net
         print('\t model {0}: {1:.3f} seconds'.format(n, time.time() - t))
 
