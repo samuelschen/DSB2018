@@ -429,6 +429,50 @@ class Res_UNet(nn.Module):
         x = F.sigmoid(x)
         return x
 
+# Transfer Learning DenseNet as Encoder part of UNet
+class Dense_UNet(nn.Module):
+    def __init__(self, layers=121, fixed_feature=True):
+        super().__init__()
+        # define pre-train model parameters
+        if layers == 201:
+            builder = models.densenet201
+            l = [64, 256, 512, 1792, 1920]
+        else:
+            builder = models.densenet121
+            l = [64, 256, 512, 1024, 1024]
+        # load weight of pre-trained resnet
+        self.densenet = builder(pretrained=True)
+        if fixed_feature:
+            for param in self.densenet.parameters():
+                param.requires_grad = False
+        # remove unused classifier submodule
+        del self.densenet.classifier
+        self.densenet.classifier = None
+        # up conv
+        self.u5 = ConvUpBlock(l[4], l[3])
+        self.u6 = ConvUpBlock(l[3], l[2])
+        self.u7 = ConvUpBlock(l[2], l[1])
+        self.u8 = ConvUpBlock(l[1], l[0])
+        # final conv tunnel
+        self.ce = nn.ConvTranspose2d(l[0], 1, 2, stride=2)
+
+    def forward(self, x):
+        # refer https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py
+        c = []
+        for f in self.densenet.features:
+            if f.__class__.__name__ in ['MaxPool2d', '_Transition']:
+                c.append(x)
+            x = f(x)
+        assert len(c) == 4
+        x = self.u5(x, c[3])
+        x = self.u6(x, c[2])
+        x = self.u7(x, c[1])
+        x = self.u8(x, c[0])
+        x = self.ce(x)
+        x = F.sigmoid(x)
+        return x
+
+
 # Deep Contour Aware Network (DCAN)
 class dcanConv(nn.Module):
     def __init__(self, in_ch, out_ch, dropout_ratio=0.2):
@@ -496,41 +540,41 @@ def count_parameters(model):
 
 def build_model(model_name='unet'):
     # initialize model
-    if model_name == 'unet_vgg16':
-        model = UNet_VggNet16(fixed_feature=True)
+    if model_name == 'unet':
+        model = UNet()
     elif model_name == 'dcan':
         model = DCAN(3, 1)
     elif model_name == 'caunet':
         model = CaUNet()
     elif model_name == 'camunet':
         model = CamUNet()
-    elif model_name == 'dunet':
-        model = DUNet()
     elif model_name == 'camdunet':
         model = CamDUNet()
     elif model_name == 'scamunet':
         model = SCamUNet()
     elif model_name == 'scamdunet':
         model = SCamDUNet()
-    elif model_name == 'unet_resnet34':
-        model = UNet_ResNet(34, fixed_feature=True)
-    elif model_name == 'unet_resnet101':
-        model = UNet_ResNet(101, fixed_feature=True)
+    elif model_name == 'vgg_unet':
+        model = Vgg_UNet(16, fixed_feature=True)
+    elif model_name == 'res_unet':
+        model = Res_UNet(34, fixed_feature=True)
+    elif model_name == 'dense_unet':
+        model = Dense_UNet(121, fixed_feature=True)
     else:
-        model = UNet()
+        raise NotImplementedError()
     return model
 
 
 if __name__ == '__main__':
     print('Network parameters -')
-    for n in ['unet', 'caunet', 'camunet', 'scamunet', 'unet_vgg16', 'unet_resnet34', 'unet_resnet101']:
+    for n in ['unet', 'caunet', 'camunet', 'scamunet', 'vgg_unet', 'res_unet', 'dense_unet']:
         net = build_model(n)
         #print(net)
         print('\t model {}: {}'.format(n, count_parameters(net)))
         del net
 
     print("Forward pass sanity check - ")
-    for n in ['camunet', 'unet_resnet34', 'unet_resnet101']:
+    for n in ['camunet', 'res_unet', 'dense_unet']:
         t = time.time()
         net = build_model(n)
         x = torch.randn(1, 3, 256, 256)
