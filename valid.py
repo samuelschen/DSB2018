@@ -53,6 +53,7 @@ def main(ckpt, tocsv=False, save=False, mask=False, target='test', toiou=False):
             _, dataset = dataset.split()
 
     # iterate dataset and inference each sample
+    ious = []
     writer = csvfile = None
     for data in tqdm(dataset):
         uid, y, y_c, y_m = inference(data, models, resize)
@@ -73,6 +74,7 @@ def main(ckpt, tocsv=False, save=False, mask=False, target='test', toiou=False):
                 writer.writerow(['ImageId', 'IoU'])
             iou = get_iou(y, y_c, y_m, gt)
             writer.writerow([uid, iou])
+            ious.append(iou)
         elif mask:
             save_mask(uid, y, y_c, y_m)
         elif target == 'test':
@@ -83,6 +85,9 @@ def main(ckpt, tocsv=False, save=False, mask=False, target='test', toiou=False):
     # end of for-loop
     if csvfile is not None:
         csvfile.close()
+    if toiou:
+        print('\nIoU Metrics:\n mean: {0:.4f}\t std: {1:.4f}\t max: {2:.4f}\t min: {3:.4f}\t count: {4}\n'
+            .format(np.mean(ious), np.std(ious), np.max(ious), np.min(ious), len(ious)))
 # end of main()
 
 def unpack_data(data, compose, resize):
