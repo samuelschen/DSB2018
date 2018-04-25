@@ -351,8 +351,8 @@ class SCamDUNet(nn.Module):
 
 
 # Transfer Learning VGG16_BatchNorm as Encoder part of UNet
-class UNet_VggNet16(nn.Module):
-    def __init__(self, fixed_feature=True):
+class Vgg_UNet(nn.Module):
+    def __init__(self, layers=16, fixed_feature=True):
         super().__init__()
         # load weight of pre-trained resnet
         self.vggnet = models.vgg16_bn(pretrained=True)
@@ -388,7 +388,7 @@ class UNet_VggNet16(nn.Module):
         return x
 
 # Transfer Learning ResNet as Encoder part of UNet
-class UNet_ResNet(nn.Module):
+class Res_UNet(nn.Module):
     def __init__(self, layers=34, fixed_feature=True):
         super().__init__()
         # define pre-train model parameters
