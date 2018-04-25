@@ -194,12 +194,12 @@ def train(loader, model, optimizer, epoch, writer):
             batch_iou_m = iou_mean(outputs_m, labels_m)
             iou_m.update(batch_iou_m, inputs.size(0))
         # log to summary
-        step = i + epoch * n_step
-        writer.add_scalar('training/loss', loss.data[0], step)
-        writer.add_scalar('training/batch_elapse', batch_time.val, step)
-        writer.add_scalar('training/batch_iou', iou.val, step)
-        writer.add_scalar('training/batch_iou_c', iou_c.val, step)
-        writer.add_scalar('training/batch_iou_m', iou_m.val, step)
+        #step = i + epoch * n_step
+        #writer.add_scalar('training/loss', loss.data[0], step)
+        #writer.add_scalar('training/batch_elapse', batch_time.val, step)
+        #writer.add_scalar('training/batch_iou', iou.val, step)
+        #writer.add_scalar('training/batch_iou_c', iou_c.val, step)
+        #writer.add_scalar('training/batch_iou_m', iou_m.val, step)
         if (i + 1) % print_freq == 0:
             print(
                 'Epoch: [{0}][{1}/{2}]\t'
