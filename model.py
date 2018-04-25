@@ -39,8 +39,8 @@ class ConvBlock(nn.Module):
 class ConvUpBlock(nn.Module):
     def __init__(self, in_size, out_size, dropout_rate=0.2, dilation=1):
         super().__init__()
-        self.up = nn.ConvTranspose2d(in_size, out_size, 2, stride=2)
-        self.block1 = DilatedConvBlock(in_size, out_size, dropout_rate=0)
+        self.up = nn.ConvTranspose2d(in_size, in_size//2, 2, stride=2)
+        self.block1 = DilatedConvBlock(in_size//2 + out_size, out_size, dropout_rate=0)
         self.block2 = DilatedConvBlock(out_size, out_size, dropout_rate=dropout_rate, dilation=dilation)
 
     def forward(self, x, bridge):
