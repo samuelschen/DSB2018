@@ -20,7 +20,10 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Dilated Convolution
   - [x] Dropout
   - [x] Batch normalization
-  - [x] Transfer learning
+  - Transfer learning
+    + [x] Vgg (16)
+    + [x] ResNet (34, 101)
+    + [x] DenseNet (121, 201)
   - [x] Score function
   - Cost functions
     + [x] binary cross entropy
@@ -30,10 +33,10 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     + [ ] Distance transform based weight map
     + [ ] Shape aware weight map
 * Hyper-parameter tunning
-  - [ ] Learning rate
+  - [x] Learning rate
   - [x] Input size (Tried 384x384, postponed due to slow training pace)
-  - [ ] Confidence level threshold
-  - [ ] Evaluate performance of mean and std of channels
+  - [x] Confidence level threshold
+  - [x] Evaluate performance of mean and std of channels
 * Data augmentation
   - [x] Random crop
   - [x] Random horizontal and vertical flip
@@ -43,6 +46,8 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Random elastic distortion
   - [x] Contrast limited adaptive histogram equalization
   - [x] Random rotate
+  - [x] Random noise (additive gaussian and multiplied speckle)
+  - [x] Random channel shuffle and color space transform
 * Dataset
   - [x] Support multiple whitelist filters to select data type
   - [x] Support manually oversample in advance mode
@@ -323,15 +328,17 @@ Just pick one option to prepare dataset
 
 ### Model Footprint
 
-| Model   | Pre-train | # param | GPU memory |
-| ------- | --------- | ------- | ---------- |
-| UNet    | -         | 1.94 M  |            |
-| Unet    | VGG16     | 9.43 M  | 7.5 GB (*) |
-| Unet    | ResNet18  | 3.11 M  | 2.8 GB     |
-| Unet    | ResNet34  | 3.11 M  | 3.0 GB     |
-| Unet    | ResNet101 | 4.84 M  | 6.1 GB     |
-| CaUnet  | -         | 2.70 M  |            |
-| CamUnet | -         | 3.47 M  |            |
+| Model   | Pre-train   | # param | GPU memory |
+| ------- | ----------- | ------- | ---------- |
+| UNet    | -           | 1.94 M  | 5.5 GB     |
+| Unet    | VGG16       | 9.43 M  | 7.5 GB (*) |
+| Unet    | ResNet18    | 3.11 M  | 2.8 GB     |
+| Unet    | ResNet34    | 3.11 M  | 3.0 GB     |
+| Unet    | ResNet101   | 4.84 M  | 6.1 GB     |
+| Unet    | DenseNet121 | 3.74 M  | 5.7 GB     |
+| Unet    | DenseNet201 | 9.85 M  | 7.8 GB     |
+| CaUnet  | -           | 2.70 M  |            |
+| CamUnet | -           | 3.47 M  |            |
 
 (*) out-of-memory on single GPU, reduce mini-batch size to 10 samples, otherwise 20 samples
 
@@ -348,9 +355,11 @@ Just pick one option to prepare dataset
 
     ![conv_block](docs/conv_block.jpg)
 
-* Transfer learning from pre-trained model
+* Pre-trained model as UNet encoder
 
-    To-be-added
+    Use uncropped kaggle fixed dataset, 200 epoch to evaluate effectiveness of transfer learning. Resnet_34 performed well in early time/step, power of deeper network not obvious in limited data. Vgg suffered on high comuptation and low throughput.  
+
+    ![pretrain as encoder](docs/pretrain_as_encoder.jpg)
 
 ### Intermediate Model Checkpoints 
 
