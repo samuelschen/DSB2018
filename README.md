@@ -313,7 +313,49 @@ Just pick one option to prepare dataset
     In [4]: %run valid.py --csv
     ```
 
-## Intermediate Model Checkpoints [here](https://drive.google.com/open?id=1QpTjcSOH3MbnFDZZPj5MGKpFCi9zBjmD)
+## Model Architecture
+
+### Model Graph
+
+* CamUnet
+
+    ![model camunet](docs/model.png)
+
+### Model Footprint
+
+| Model   | Pre-train | # param | GPU memory |
+| ------- | --------- | ------- | ---------- |
+| UNet    | -         | 1.94 M  |            |
+| Unet    | VGG16     | 9.43 M  | 7.5 GB (*) |
+| Unet    | ResNet18  | 3.11 M  | 2.8 GB     |
+| Unet    | ResNet34  | 3.11 M  | 3.0 GB     |
+| Unet    | ResNet101 | 4.84 M  | 6.1 GB     |
+| CaUnet  | -         | 2.70 M  |            |
+| CamUnet | -         | 3.47 M  |            |
+
+(*) out-of-memory on single GPU, reduce mini-batch size to 10 samples, otherwise 20 samples
+
+
+### Learning curve
+
+* Comparison of cost functions
+
+    ![learn_curve](docs/learn_curve.jpg)
+
+* Comparison of composition of convolutional blocks
+
+    The topic of building block of composition of conv. blocks is highly discussed in technical forums and papers. Though it seems not a problem of one-size-fit-all. So here is performance comparison of various popular combinations, the result showed that CAB, `conv -> activation -> batch normal` take lead in benched model ` CAUnet `, in speed and accuracy.
+
+    ![conv_block](docs/conv_block.jpg)
+
+* Transfer learning from pre-trained model
+
+    To-be-added
+
+### Intermediate Model Checkpoints 
+
+* Stage 1 final submission, [here](https://drive.google.com/open?id=1QpTjcSOH3MbnFDZZPj5MGKpFCi9zBjmD)
+
 
 ## Benchmark
 
@@ -392,30 +434,6 @@ Note:
 - Marker (marker for segmentation):
     * P: local peak max of clustering
     * C: predicted contour of model output
-
-### Learning curve
-
-* Comparison of cost functions
-
-    ![learn_curve](docs/learn_curve.jpg)
-
-* Comparison of composition of convolutional blocks
-
-    The topic of building block of composition of conv. blocks is highly discussed in technical forums and papers. Though it seems not a problem of one-size-fit-all. So here is performance comparison of various popular combinations, the result showed that CAB, `conv -> activation -> batch normal` take lead in benched model ` CAUnet `, in speed and accuracy.
-
-    ![conv_block](docs/conv_block.jpg)
-
-### Graph and complexity of models
-
-* Graph
-    ```
-    To be updated ...
-    ```
-
-* Number of model parameters
-    - UNet: 1,944,049
-    - CAUnet: 2,707,346
-    - CAMUnet: 3,470,643
 
 ## Known Issues
 

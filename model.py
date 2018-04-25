@@ -351,7 +351,6 @@ class SCamDUNet(nn.Module):
 
 
 # Transfer Learning VGG16_BatchNorm as Encoder part of UNet
-# VGGNet16 spent about ~7.5G GPU memory for mini-batch size of 10 samples
 class UNet_VggNet16(nn.Module):
     def __init__(self, fixed_feature=True):
         super().__init__()
@@ -389,8 +388,6 @@ class UNet_VggNet16(nn.Module):
         return x
 
 # Transfer Learning ResNet as Encoder part of UNet
-# ResNet34  spent about ~4G GPU memory for mini-batch size of 20 samples
-# ResNet101 spent about ~4G GPU memory for mini-batch size of 20 samples
 class UNet_ResNet(nn.Module):
     def __init__(self, layers=34, fixed_feature=True):
         super().__init__()
