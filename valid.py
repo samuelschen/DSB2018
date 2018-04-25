@@ -162,12 +162,16 @@ def inference(data, models, resize):
         # concat outputs
         if ensemble_policy == 'avg':
             y_s = torch.cat([y_s, s.data], 0)
-            y_c = torch.cat([y_c, c.data], 0)
-            y_m = torch.cat([y_m, m.data], 0)
+            if len(c.data) > 0:
+                y_c = torch.cat([y_c, c.data], 0)
+            if len(m.data) > 0:
+                y_m = torch.cat([y_m, m.data], 0)
         elif ensemble_policy == 'vote':
             y_s = torch.cat([y_s, (s.data > threshold).float()], 0)
-            y_c = torch.cat([y_c, (c.data > threshold_edge).float()], 0)
-            y_m = torch.cat([y_m, (m.data > threshold_mark).float()], 0)
+            if len(c.data) > 0:
+                y_c = torch.cat([y_c, (c.data > threshold_edge).float()], 0)
+            if len(m.data) > 0:
+                y_m = torch.cat([y_m, (m.data > threshold_mark).float()], 0)
         else:
             raise NotImplementedError("Ensemble policy not implemented")
     return uid, convert(y_s), convert(y_c), convert(y_m)
@@ -227,6 +231,7 @@ def show(uid, x, y, y_c, y_m, save=False):
         x = clahe(x)
     ax1[0].set_title('Image')
     ax1[0].imshow(x, aspect='auto')
+    markers = np.zeros_like(x)
     if segmentation:
         y, markers = partition_instances(y, y_m, y_c)
     if remove_objects:
