@@ -150,8 +150,8 @@ def inference(data, models, resize):
         y_s, y_c, y_m = y_s.cuda(), y_c.cuda(), y_m.cuda()
     for model in models:
         model_name = type(model).__name__.lower()
-        with_contour = config.getboolean(model_name, 'branch_contour', fallback=False)
-        with_marker = config.getboolean(model_name, 'branch_marker', fallback=False)
+        with_contour = config.getboolean(model_name, 'branch_contour')
+        with_marker = config.getboolean(model_name, 'branch_marker')
         # predict model output
         c = m = Variable()
         if torch.cuda.is_available():

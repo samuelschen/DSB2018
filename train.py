@@ -22,7 +22,7 @@ def main(resume=True, n_epoch=None, learn_rate=None):
     model_name = config['param']['model']
     if learn_rate is None:
         learn_rate = config['param'].getfloat('learn_rate')
-    width = config[model_name].getint('width')
+    width = config.getint(model_name, 'width')
     weight_map = config['param'].getboolean('weight_map')
     c = config['train']
     log_name = c.get('log_name')
@@ -131,8 +131,8 @@ def train(loader, model, optimizer, epoch, writer):
     only_contour = config['contour'].getboolean('exclusive')
     weight_map = config['param'].getboolean('weight_map')
     model_name = config['param']['model']
-    with_contour = config.getboolean(model_name, 'branch_contour', fallback=False)
-    with_marker = config.getboolean(model_name, 'branch_marker', fallback=False)
+    with_contour = config.getboolean(model_name, 'branch_contour')
+    with_marker = config.getboolean(model_name, 'branch_marker')
 
     # Sets the module in training mode.
     model.train()
@@ -226,8 +226,8 @@ def valid(loader, model, epoch, writer, n_step):
     only_contour = config['contour'].getboolean('exclusive')
     weight_map = config['param'].getboolean('weight_map')
     model_name = config['param']['model']
-    with_contour = config.getboolean(model_name, 'branch_contour', fallback=False)
-    with_marker = config.getboolean(model_name, 'branch_marker', fallback=False)
+    with_contour = config.getboolean(model_name, 'branch_contour')
+    with_marker = config.getboolean(model_name, 'branch_marker')
 
     # Sets the model in evaluation mode.
     model.eval()

@@ -130,7 +130,7 @@ class Compose():
         self.resize = resize
 
         model_name = config['param']['model']
-        width = config[model_name].getint('width')
+        width = config.getint(model_name, 'width')
         self.size = (width, width)
         self.weight_map = config['param'].getboolean('weight_map')
 
