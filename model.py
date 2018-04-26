@@ -428,6 +428,73 @@ class Res_UNet(nn.Module):
         x = F.sigmoid(x)
         return x
 
+# Transfer Learning ResNet as Encoder part of Contour aware Marker Unet
+class Res_CamUNet(nn.Module):
+    def __init__(self, layers=34, fixed_feature=True):
+        super().__init__()
+        # define pre-train model parameters
+        if layers == 101:
+            builder = models.resnet101
+            l = [64, 256, 512, 1024, 2048]
+        else:
+            builder = models.resnet34
+            l = [64, 64, 128, 256, 512]
+        # load weight of pre-trained resnet
+        self.resnet = builder(pretrained=True)
+        if fixed_feature:
+            for param in self.resnet.parameters():
+                param.requires_grad = False
+        # segmentation up conv branch
+        self.u5s = ConvUpBlock(l[4], l[3])
+        self.u6s = ConvUpBlock(l[3], l[2])
+        self.u7s = ConvUpBlock(l[2], l[1])
+        self.u8s = ConvUpBlock(l[1], l[0])
+        self.ces = nn.ConvTranspose2d(l[0], 1, 2, stride=2)
+        # contour up conv branch
+        self.u5c = ConvUpBlock(l[4], l[3])
+        self.u6c = ConvUpBlock(l[3], l[2])
+        self.u7c = ConvUpBlock(l[2], l[1])
+        self.u8c = ConvUpBlock(l[1], l[0])
+        self.cec = nn.ConvTranspose2d(l[0], 1, 2, stride=2)
+        # marker up conv branch
+        self.u5m = ConvUpBlock(l[4], l[3])
+        self.u6m = ConvUpBlock(l[3], l[2])
+        self.u7m = ConvUpBlock(l[2], l[1])
+        self.u8m = ConvUpBlock(l[1], l[0])
+        self.cem = nn.ConvTranspose2d(l[0], 1, 2, stride=2)
+
+    def forward(self, x):
+        x = self.resnet.conv1(x)
+        x = self.resnet.bn1(x)
+        x = c1 = self.resnet.relu(x)
+        x = self.resnet.maxpool(x)
+        x = c2 = self.resnet.layer1(x)
+        x = c3 = self.resnet.layer2(x)
+        x = c4 = self.resnet.layer3(x)
+        x = self.resnet.layer4(x)
+        # segmentation up conv branch
+        xs = self.u5s(x, c4)
+        xs = self.u6s(xs, c3)
+        xs = self.u7s(xs, c2)
+        xs = self.u8s(xs, c1)
+        xs = self.ces(xs)
+        xs = F.sigmoid(xs)
+        # contour up conv branch
+        xc = self.u5c(x, c4)
+        xc = self.u6c(xc, c3)
+        xc = self.u7c(xc, c2)
+        xc = self.u8c(xc, c1)
+        xc = self.cec(xc)
+        xc = F.sigmoid(xc)
+        # marker up conv branch
+        xm = self.u5m(x, c4)
+        xm = self.u6m(xm, c3)
+        xm = self.u7m(xm, c2)
+        xm = self.u8m(xm, c1)
+        xm = self.cem(xm)
+        xm = F.sigmoid(xm)
+        return xs, xc, xm
+
 # Transfer Learning DenseNet as Encoder part of UNet
 class Dense_UNet(nn.Module):
     def __init__(self, layers=121, fixed_feature=True):
@@ -559,6 +626,8 @@ def build_model(model_name='unet'):
         model = Res_UNet(34, fixed_feature=True)
     elif model_name == 'dense_unet':
         model = Dense_UNet(121, fixed_feature=True)
+    elif model_name == 'res_camunet':
+        model = Res_CamUNet(34, fixed_feature=True)
     else:
         raise NotImplementedError()
     return model
@@ -566,14 +635,14 @@ def build_model(model_name='unet'):
 
 if __name__ == '__main__':
     print('Network parameters -')
-    for n in ['unet', 'caunet', 'camunet', 'scamunet', 'vgg_unet', 'res_unet', 'dense_unet']:
+    for n in ['unet', 'caunet', 'camunet', 'scamunet', 'vgg_unet', 'res_unet', 'res_camunet', 'dense_unet']:
         net = build_model(n)
         #print(net)
         print('\t model {}: {}'.format(n, count_parameters(net)))
         del net
 
     print("Forward pass sanity check - ")
-    for n in ['camunet', 'res_unet', 'dense_unet']:
+    for n in ['camunet', 'res_unet', 'res_camunet']:
         t = time.time()
         net = build_model(n)
         x = torch.randn(1, 3, 256, 256)
