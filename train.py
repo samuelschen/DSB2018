@@ -7,7 +7,6 @@ from multiprocessing import Manager
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import RandomSampler, WeightedRandomSampler
 from tensorboardX import SummaryWriter
@@ -32,11 +31,14 @@ def main(resume=True, n_epoch=None, learn_rate=None):
     if n_epoch is None:
         n_epoch = c.getint('n_epoch')
     balance_group = c.getboolean('balance_group')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = build_model(model_name)
-    if torch.cuda.is_available():
-        model = model.cuda()
-        # model = torch.nn.DataParallel(model).cuda()
+    # put model to GPU
+    if torch.cuda.device_count() > 1:
+        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        model = nn.DataParallel(model)
+    model = model.to(device)
 
     # define optimizer
     optimizer = torch.optim.Adam(
@@ -105,7 +107,8 @@ def main(resume=True, n_epoch=None, learn_rate=None):
         for epoch in range(start_epoch + 1, n_epoch + start_epoch + 1): # 1 base
             iou_tr = train(train_loader, model, optimizer, epoch, writer)
             if len(valid_dataset) > 0 and epoch % n_cv_epoch == 0:
-                iou_cv = valid(valid_loader, model, epoch, writer, len(train_loader))
+                with torch.no_grad():
+                    iou_cv = valid(valid_loader, model, epoch, writer, len(train_loader))
             save_ckpt(model, optimizer, epoch, iou_tr, iou_cv)
         print('Training finished...')
 
@@ -114,9 +117,8 @@ def dump_graph(model, writer, n_batch, width):
     # $ sudo apt-get install libprotobuf-dev protobuf-compiler
     # $ pip3 install onnx
     print('Dump model graph...')
-    dummy_input = Variable(torch.rand(n_batch, 3, width, width))
-    if torch.cuda.is_available():
-        dummy_input = dummy_input.cuda()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    dummy_input = torch.rand(n_batch, 3, width, width, device=device)
     torch.onnx.export(model, dummy_input, "checkpoint/model.pb", verbose=False)
     writer.add_graph_onnx("checkpoint/model.pb")
 
@@ -133,6 +135,7 @@ def train(loader, model, optimizer, epoch, writer):
     model_name = config['param']['model']
     with_contour = config.getboolean(model_name, 'branch_contour')
     with_marker = config.getboolean(model_name, 'branch_marker')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Sets the module in training mode.
     model.train()
@@ -142,19 +145,14 @@ def train(loader, model, optimizer, epoch, writer):
         # measure data loading time
         data_time.update(time.time() - end)
         # split sample data
-        inputs, labels, labels_c, labels_m = data['image'], data['label'], data['label_c'], data['label_m']
-        if torch.cuda.is_available():
-            inputs, labels, labels_c, labels_m = \
-                inputs.cuda(async=True), labels.cuda(async=True), labels_c.cuda(async=True), labels_m.cuda(async=True)
-        # wrap them in Variable
-        inputs, labels, labels_c, labels_m = Variable(inputs), Variable(labels), Variable(labels_c), Variable(labels_m)
+        inputs = data['image'].to(device)
+        labels = data['label'].to(device)
+        labels_c = data['label_c'].to(device)
+        labels_m = data['label_m'].to(device)
         # get loss weight
         weights = None
         if weight_map and 'weight' in data:
-            weights = data['weight']
-            if torch.cuda.is_available():
-                weights = weights.cuda(async=True)
-            weights = Variable(weights)
+            weights = data['weight'].to(device)
         # zero the parameter gradients
         optimizer.zero_grad()
         # forward step
@@ -181,7 +179,7 @@ def train(loader, model, optimizer, epoch, writer):
         end = time.time()
         # measure accuracy and record loss
         # NOT instance-level IoU in training phase, for better speed & instance separation handled in post-processing
-        losses.update(loss.data[0], inputs.size(0))
+        losses.update(loss.item(), inputs.size(0))
         if only_contour:
             batch_iou = iou_mean(outputs, labels_c)
         else:
@@ -195,7 +193,7 @@ def train(loader, model, optimizer, epoch, writer):
             iou_m.update(batch_iou_m, inputs.size(0))
         # log to summary
         #step = i + epoch * n_step
-        #writer.add_scalar('training/loss', loss.data[0], step)
+        #writer.add_scalar('training/loss', loss.item(), step)
         #writer.add_scalar('training/batch_elapse', batch_time.val, step)
         #writer.add_scalar('training/batch_iou', iou.val, step)
         #writer.add_scalar('training/batch_iou_c', iou_c.val, step)
@@ -228,23 +226,20 @@ def valid(loader, model, epoch, writer, n_step):
     model_name = config['param']['model']
     with_contour = config.getboolean(model_name, 'branch_contour')
     with_marker = config.getboolean(model_name, 'branch_marker')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Sets the model in evaluation mode.
     model.eval()
     for i, data in enumerate(loader):
         # get the inputs
-        inputs, labels, labels_c, labels_m = data['image'], data['label'], data['label_c'], data['label_m']
-        if torch.cuda.is_available():
-            inputs, labels, labels_c, labels_m = inputs.cuda(), labels.cuda(), labels_c.cuda(), labels_m.cuda()
-        # wrap them in Variable
-        inputs, labels, labels_c, labels_m = Variable(inputs), Variable(labels), Variable(labels_c), Variable(labels_m)
+        inputs = data['image'].to(device)
+        labels = data['label'].to(device)
+        labels_c = data['label_c'].to(device)
+        labels_m = data['label_m'].to(device)
         # get loss weight
         weights = None
         if weight_map and 'weight' in data:
-            weights = data['weight']
-            if torch.cuda.is_available():
-                weights = weights.cuda(async=True)
-            weights = Variable(weights)
+            weights = data['weight'].to(device)
         # forward step
         outputs = model(inputs)
         if with_contour and with_marker:
@@ -262,7 +257,7 @@ def valid(loader, model, epoch, writer, n_step):
             if with_marker:
                 loss += focal_criterion(outputs_m, labels_m, weights)
         # measure accuracy and record loss (Non-instance level IoU)
-        losses.update(loss.data[0], inputs.size(0))
+        losses.update(loss.item(), inputs.size(0))
         if only_contour:
             batch_iou = iou_mean(outputs, labels_c)
         else:

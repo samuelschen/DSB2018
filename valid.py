@@ -8,7 +8,6 @@ import uuid
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from skimage.morphology import label, remove_small_objects
 from tqdm import tqdm
@@ -18,6 +17,8 @@ from dataset import KaggleDataset, Compose
 from helper import config, load_ckpt, prob_to_rles, partition_instances, iou_metric, clahe, filter_fiber
 
 def main(ckpt, tocsv=False, save=False, mask=False, target='test', toiou=False):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     # load one or more checkpoint
     models = []
     for fn in ckpt or [None]:
@@ -29,9 +30,10 @@ def main(ckpt, tocsv=False, save=False, mask=False, target='test', toiou=False):
         # Sets the model in evaluation mode.
         model.eval()
         # put model to GPU
-        if torch.cuda.is_available():
-            model = model.cuda()
-            # model = torch.nn.DataParallel(model).cuda()
+        if torch.cuda.device_count() > 1:
+            print("Let's use", torch.cuda.device_count(), "GPUs!")
+            model = nn.DataParallel(model)
+        model = model.to(device)
         # append to model list
         models.append(model)
 
@@ -56,8 +58,9 @@ def main(ckpt, tocsv=False, save=False, mask=False, target='test', toiou=False):
     ious = []
     writer = csvfile = None
     for data in tqdm(dataset):
-        uid, y, y_c, y_m = inference(data, models, resize)
-        x, gt, gt_s, gt_c, gt_m = unpack_data(data, compose, resize)
+        with torch.no_grad():
+            uid, y, y_c, y_m = inference(data, models, resize)
+            x, gt, gt_s, gt_c, gt_m = unpack_data(data, compose, resize)
 
         if tocsv:
             if writer is None:
@@ -113,6 +116,8 @@ def inference(data, models, resize):
     threshold_mark = config['param'].getfloat('threshold_mark')
     tta = config['valid'].getboolean('test_time_augment')
     ensemble_policy = config['valid']['ensemble']
+    ensemble_policy = config['post']['ensemble']
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # sub-rountine to convert output tensor to numpy
     def convert(t):
@@ -122,8 +127,7 @@ def inference(data, models, resize):
         # pixel wise ensemble output of models
         t = torch.mean(t, 0, True)
         # to numpy array
-        t = t.cpu()
-        t = t.numpy()[0]
+        t = t.to('cpu').numpy()[0]
         if ensemble_policy == 'vote':
             t = np.where(t >= 0.5, 1., 0.) # majority vote
         # channel first [C, H, W] -> channel last [H, W, C]
@@ -133,81 +137,53 @@ def inference(data, models, resize):
         t = align_size(t, size, resize)
         return t
 
-    # apply numpy function to tensor (from tensor (N, C, H, W))
-    def txf_tensor_to_tensor(t, func):
-        t = t.cpu()
-        # t in shape of [N, C, H, W]
-        t = t.numpy()[0]
-        # channel first [C, H, W] -> channel last [H, W, C]
-        t = np.transpose(t, (1, 2, 0))
-        # Some strides of a given numpy array are negative have not been supported, workaround it via copy()
-        t = torch.from_numpy(func(t).copy())
-        # channel last [H, W, C] -> channel first [C, H, W]
-        t = np.transpose(t, (2, 0, 1))
-        t = t.unsqueeze(0)
-        if torch.cuda.is_available():
-            t = t.cuda()
-        return t
-
-    # apply numpy function to tensor (from numpy (H, W))
-    def txf_np_to_tensor(np_arr, func):
-        t = torch.from_numpy(func(np_arr).copy())
-        # tensor should be in form of [N, C, H, W]
-        t = t.unsqueeze(0)
-        t = t.unsqueeze(0)
-        if torch.cuda.is_available():
-            t = t.cuda()
-        return t
-
     # get input data
     uid = data['uid']
     size = data['size']
     inputs = data['image']
     # prepare input variables
     inputs = inputs.unsqueeze(0)
+    inputs = inputs.to(device)
 
     if tta:
         txf_funcs = [lambda x: x,
-                     lambda x: np.fliplr(x),
-                     lambda x: np.flipud(x),
-                     lambda x: np.flipud(np.fliplr(x))]
+                     lambda x: flip(x, 1), # up down flip
+                     lambda x: flip(x, 2), # left right flip
+                     lambda x: flip(flip(x, 1), 2)] # 1 -> 2 flip
     else:
         txf_funcs = [lambda x: x]
 
-    inputs_views = []
-    for i in range(len(txf_funcs)):
-        inputs_views.append(txf_tensor_to_tensor(inputs, txf_funcs[i]))
-    for i in range(len(inputs_views)):
-        if not resize:
-            inputs_views[i] = pad_tensor(inputs_views[i], size)
-        else:
-            inputs_views[i] = Variable(inputs_views[i])
-
-    y_s = y_c = y_m = torch.FloatTensor()
-    if torch.cuda.is_available():
-        y_s, y_c, y_m = y_s.cuda(), y_c.cuda(), y_m.cuda()
+    y_s = y_c = y_m = torch.FloatTensor().to(device)
     for model in models:
         model_name = type(model).__name__.lower()
         with_contour = config.getboolean(model_name, 'branch_contour')
         with_marker = config.getboolean(model_name, 'branch_marker')
         # predict model output
-        c = m = Variable()
-        if torch.cuda.is_available():
-            c, m = c.cuda(), m.cuda()
-        for idx in range(len(inputs_views)):
-            s = model(inputs_views[idx])
+        for txf in txf_funcs:
+            # apply test time transform 
+            x = inputs
+            x = txf(x)
+            # padding
+            if not resize:
+                x = pad_tensor(x, size)
+            # inference model
+            s = model(x)
+            # handle multi-head
+            c = m = torch.FloatTensor().to(device)
             if with_contour and with_marker:
                 s, c, m = s
-                s, c, m = convert(s.data), convert(c.data), convert(m.data)
-                s = txf_np_to_tensor(s, txf_funcs[idx])
-                c = txf_np_to_tensor(c, txf_funcs[idx])
-                m = txf_np_to_tensor(m, txf_funcs[idx])
             elif with_contour:
                 s, c = s
-                s, c = convert(s.data), convert(c.data)
-                s = txf_np_to_tensor(s, txf_funcs[idx])
-                c = txf_np_to_tensor(c, txf_funcs[idx])
-
+            # crop padding
+            if not resize:
+                w, h = size
+                s = s[:, :, 0:h, 0:w]
+                c = c[:, :, 0:h, 0:w] if len(c) > 0 else c
+                m = m[:, :, 0:h, 0:w] if len(m) > 0 else m
+            # reverse flip
+            s = txf(s)
+            c = txf(c)
+            m = txf(m)
             # concat outputs
             if ensemble_policy == 'avg':
                 y_s = torch.cat([y_s, s], 0)
@@ -225,6 +201,13 @@ def inference(data, models, resize):
                 raise NotImplementedError("Ensemble policy not implemented")
     return uid, convert(y_s), convert(y_c), convert(y_m)
 # end of predict()
+
+def flip(t, dim):
+    dim = t.dim() + dim if dim < 0 else dim
+    inds = tuple(slice(None, None) if i != dim
+            else t.new(torch.arange(t.size(i)-1, -1, -1).tolist()).long()
+            for i in range(t.dim()))
+    return t[inds]
 
 def pad_tensor(img_tensor, size, mode='reflect'):
     # get proper mini-width required for model input

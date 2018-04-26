@@ -2,7 +2,6 @@ import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 from torchvision import models
 
 class DilatedConvBlock(nn.Module):
@@ -578,14 +577,12 @@ if __name__ == '__main__':
         t = time.time()
         net = build_model(n)
         x = torch.randn(1, 3, 256, 256)
-        x = Variable(x)
         y = net(x)
         #print(x.shape, y.shape)
         del net
         print('\t model {0}: {1:.3f} seconds'.format(n, time.time() - t))
 
     # x = torch.randn(10, 3, 256, 256)
-    # x = Variable(x)
     # b = ConvBlock(3, 16)
     # p, y = b(x)
     # print(p.shape, y.shape)

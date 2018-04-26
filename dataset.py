@@ -7,7 +7,6 @@ import pandas as pd
 
 import torch
 from torch.utils.data import Dataset, DataLoader
-from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
 import torchvision.transforms.functional as tx
 

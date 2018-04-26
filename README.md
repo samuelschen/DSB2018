@@ -105,7 +105,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
 * Install Python 3.6 (conda recommanded)
 * Install [PyTorch](http://pytorch.org/)
     ```
-    conda install pytorch torchvision -c pytorch
+    $ conda install pytorch torchvision cuda91 -c pytorch
     ```
 
 * Install dependency python packages
@@ -338,10 +338,10 @@ Just pick one option to prepare dataset
 | Unet    | DenseNet121 | 3.74 M  | 5.7 GB     |
 | Unet    | DenseNet201 | 9.85 M  | 7.8 GB     |
 | CaUnet  | -           | 2.70 M  |            |
-| CamUnet | -           | 3.47 M  |            |
+| CamUnet | -           | 3.47 M  | 7.0 GB     |
 
 (*) out-of-memory on single GPU, reduce mini-batch size to 10 samples, otherwise 20 samples
-
+(**) measure PyTorch v0.3, v0.4 might reduce usage of memory
 
 ### Learning curve
 

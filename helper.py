@@ -104,8 +104,8 @@ def iou_metric(y_pred, labels, print_table=False):
 def iou_mean(y_pred_in, y_true_in):
     threshold=config['param'].getfloat('threshold')
 
-    y_pred_in = y_pred_in.data.cpu().numpy()
-    y_true_in = y_true_in.data.cpu().numpy()
+    y_pred_in = y_pred_in.to('cpu').detach().numpy()
+    y_true_in = y_true_in.to('cpu').detach().numpy()
     batch_size = y_true_in.shape[0]
     metric = []
     for idx in range(batch_size):
