@@ -140,7 +140,10 @@ def inference(data, models, resize):
     inputs = inputs.unsqueeze(0)
     if torch.cuda.is_available():
         inputs = inputs.cuda()
-    inputs = Variable(inputs)
+    if not resize:
+        inputs = pad_tensor(inputs, size)
+    else:
+        inputs = Variable(inputs)
 
     y_s = y_c = y_m = torch.FloatTensor()
     if torch.cuda.is_available():
@@ -176,6 +179,32 @@ def inference(data, models, resize):
             raise NotImplementedError("Ensemble policy not implemented")
     return uid, convert(y_s), convert(y_c), convert(y_m)
 # end of predict()
+
+def pad_tensor(img_tensor, size, mode='reflect'):
+    # get proper mini-width required for model input
+    # for example, 32 for 5 layers of max_pool
+    gcd = config['param'].getint('gcd_depth')
+    # estimate border padding margin
+    # (paddingLeft, paddingRight, paddingTop, paddingBottom)
+    pad_w = pad_h = 0
+    w, h = size
+    if 0 != (w % gcd):
+        pad_w = gcd - (w % gcd)
+    if 0 != (h % gcd):
+        pad_h = gcd - (h % gcd)
+    pad = (0, pad_w, 0, pad_h)
+    # decide padding mode
+    if mode == 'replica':
+        f = nn.ReplicationPad2d(pad)
+    elif mode == 'constant':
+        # padding color should honor each image background, default is black (0)
+        bgcolor = 0 if np.median(img_tensor) < 100 else 255
+        f = nn.ConstantPad2d(pad, bgcolor)
+    elif mode == 'reflect':
+        f = nn.ReflectionPad2d(pad)
+    else:
+        raise NotImplementedError()
+    return f(img_tensor)
 
 def align_size(img_array, size, regrowth=True):
     from skimage.transform import resize
