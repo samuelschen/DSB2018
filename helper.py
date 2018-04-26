@@ -319,18 +319,18 @@ def partition_instances(raw_bodies, raw_markers=None, raw_edges=None):
         threshold=config['param'].getfloat('threshold')
         size_scale=config['post'].getfloat('seg_scale')
         ratio=config['post'].getfloat('seg_ratio')
-        size_index = mean_blob_size(image, ratio)
+        size_index = mean_blob_size(bodies, ratio)
         """
         Add noise to fix min_distance bug:
         If multiple peaks in the specified region have identical intensities,
         the coordinates of all such pixels are returned.
         """
-        noise = np.random.randn(image.shape[0], image.shape[1]) * 0.1
-        distance = ndi.distance_transform_edt(image)+noise
+        noise = np.random.randn(bodies.shape[0], bodies.shape[1]) * 0.1
+        distance = ndi.distance_transform_edt(bodies)+noise
         # 2*min_distance+1 is the minimum distance between two peaks.
         local_maxi = peak_local_max(distance, min_distance=(size_index*size_scale), exclude_border=False,
-                                    indices=False, labels=image)
-        markers = label(local_maxi)[0]
+                                    indices=False, labels=bodies)
+        markers = label(local_maxi)
 
     if policy == 'ws':
         seg_labels = watershed(-ndi.distance_transform_edt(bodies), markers, mask=bodies)
