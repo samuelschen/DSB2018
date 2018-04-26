@@ -111,7 +111,8 @@ def inference(data, models, resize):
     threshold = config['param'].getfloat('threshold')
     threshold_edge = config['param'].getfloat('threshold_edge')
     threshold_mark = config['param'].getfloat('threshold_mark')
-    ensemble_policy = config['post']['ensemble']
+    tta = config['valid'].getboolean('test_time_augment')
+    ensemble_policy = config['valid']['ensemble']
 
     # sub-rountine to convert output tensor to numpy
     def convert(t):
@@ -132,18 +133,55 @@ def inference(data, models, resize):
         t = align_size(t, size, resize)
         return t
 
+    # apply numpy function to tensor (from tensor (N, C, H, W))
+    def txf_tensor_to_tensor(t, func):
+        t = t.cpu()
+        # t in shape of [N, C, H, W]
+        t = t.numpy()[0]
+        # channel first [C, H, W] -> channel last [H, W, C]
+        t = np.transpose(t, (1, 2, 0))
+        # Some strides of a given numpy array are negative have not been supported, workaround it via copy()
+        t = torch.from_numpy(func(t).copy())
+        # channel last [H, W, C] -> channel first [C, H, W]
+        t = np.transpose(t, (2, 0, 1))
+        t = t.unsqueeze(0)
+        if torch.cuda.is_available():
+            t = t.cuda()
+        return t
+
+    # apply numpy function to tensor (from numpy (H, W))
+    def txf_np_to_tensor(np_arr, func):
+        t = torch.from_numpy(func(np_arr).copy())
+        # tensor should be in form of [N, C, H, W]
+        t = t.unsqueeze(0)
+        t = t.unsqueeze(0)
+        if torch.cuda.is_available():
+            t = t.cuda()
+        return t
+
     # get input data
     uid = data['uid']
     size = data['size']
     inputs = data['image']
     # prepare input variables
     inputs = inputs.unsqueeze(0)
-    if torch.cuda.is_available():
-        inputs = inputs.cuda()
-    if not resize:
-        inputs = pad_tensor(inputs, size)
+
+    if tta:
+        txf_funcs = [lambda x: x,
+                     lambda x: np.fliplr(x),
+                     lambda x: np.flipud(x),
+                     lambda x: np.flipud(np.fliplr(x))]
     else:
-        inputs = Variable(inputs)
+        txf_funcs = [lambda x: x]
+
+    inputs_views = []
+    for i in range(len(txf_funcs)):
+        inputs_views.append(txf_tensor_to_tensor(inputs, txf_funcs[i]))
+    for i in range(len(inputs_views)):
+        if not resize:
+            inputs_views[i] = pad_tensor(inputs_views[i], size)
+        else:
+            inputs_views[i] = Variable(inputs_views[i])
 
     y_s = y_c = y_m = torch.FloatTensor()
     if torch.cuda.is_available():
@@ -156,27 +194,35 @@ def inference(data, models, resize):
         c = m = Variable()
         if torch.cuda.is_available():
             c, m = c.cuda(), m.cuda()
-        s = model(inputs)
-        # convert predict to numpy array
-        if with_contour and with_marker:
-            s, c, m = s
-        elif with_contour:
-            s, c = s
-        # concat outputs
-        if ensemble_policy == 'avg':
-            y_s = torch.cat([y_s, s.data], 0)
-            if len(c.data) > 0:
-                y_c = torch.cat([y_c, c.data], 0)
-            if len(m.data) > 0:
-                y_m = torch.cat([y_m, m.data], 0)
-        elif ensemble_policy == 'vote':
-            y_s = torch.cat([y_s, (s.data > threshold).float()], 0)
-            if len(c.data) > 0:
-                y_c = torch.cat([y_c, (c.data > threshold_edge).float()], 0)
-            if len(m.data) > 0:
-                y_m = torch.cat([y_m, (m.data > threshold_mark).float()], 0)
-        else:
-            raise NotImplementedError("Ensemble policy not implemented")
+        for idx in range(len(inputs_views)):
+            s = model(inputs_views[idx])
+            if with_contour and with_marker:
+                s, c, m = s
+                s, c, m = convert(s.data), convert(c.data), convert(m.data)
+                s = txf_np_to_tensor(s, txf_funcs[idx])
+                c = txf_np_to_tensor(c, txf_funcs[idx])
+                m = txf_np_to_tensor(m, txf_funcs[idx])
+            elif with_contour:
+                s, c = s
+                s, c = convert(s.data), convert(c.data)
+                s = txf_np_to_tensor(s, txf_funcs[idx])
+                c = txf_np_to_tensor(c, txf_funcs[idx])
+
+            # concat outputs
+            if ensemble_policy == 'avg':
+                y_s = torch.cat([y_s, s], 0)
+                if len(c) > 0:
+                    y_c = torch.cat([y_c, c], 0)
+                if len(m) > 0:
+                    y_m = torch.cat([y_m, m], 0)
+            elif ensemble_policy == 'vote':
+                y_s = torch.cat([y_s, (s > threshold).float()], 0)
+                if len(c) > 0:
+                    y_c = torch.cat([y_c, (c > threshold_edge).float()], 0)
+                if len(m) > 0:
+                    y_m = torch.cat([y_m, (m > threshold_mark).float()], 0)
+            else:
+                raise NotImplementedError("Ensemble policy not implemented")
     return uid, convert(y_s), convert(y_c), convert(y_m)
 # end of predict()
 
