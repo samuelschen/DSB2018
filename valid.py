@@ -116,7 +116,6 @@ def inference(data, models, resize):
     threshold_mark = config['param'].getfloat('threshold_mark')
     tta = config['valid'].getboolean('test_time_augment')
     ensemble_policy = config['valid']['ensemble']
-    ensemble_policy = config['post']['ensemble']
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # sub-rountine to convert output tensor to numpy
