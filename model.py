@@ -536,9 +536,9 @@ class Res_SamUNet(nn.Module):
         x = self.u8(x, c1)
         xs = self.ces(x)
         xs = F.sigmoid(xs)
-        xc = self.cec(xc)
+        xc = self.cec(x)
         xc = F.sigmoid(xc)
-        xm = self.cem(xm)
+        xm = self.cem(x)
         xm = F.sigmoid(xm)
         return xs, xc, xm
 
@@ -676,7 +676,7 @@ def build_model(model_name='unet'):
     elif model_name == 'res_camunet':
         model = Res_CamUNet(34, fixed_feature=True)
     elif model_name == 'res_samunet':
-        model = Res_CamUNet(34, fixed_feature=True)
+        model = Res_SamUNet(34, fixed_feature=True)
     else:
         raise NotImplementedError()
     return model
@@ -684,7 +684,7 @@ def build_model(model_name='unet'):
 
 if __name__ == '__main__':
     print('Network parameters -')
-    for n in ['unet', 'caunet', 'camunet', 'scamunet', 'res_camunet', 'res_samunet']:
+    for n in ['unet', 'camunet', 'scamunet', 'res_unet', 'res_camunet', 'res_samunet']:
         net = build_model(n)
         #print(net)
         print('\t model {}: {}'.format(n, count_parameters(net)))
