@@ -340,6 +340,7 @@ Just pick one option to prepare dataset
 | CaUnet  | -           | 2.70 M  |            |
 | CamUnet | -           | 3.47 M  | 7.0 GB     |
 | CamUnet | ResNet34    | 9.34 M  |            |
+| SamUnet | ResNet34    | 9.34 M  |            |
 
 (*) out-of-memory on single GPU, reduce mini-batch size to 10 samples, otherwise 20 samples
 (**) measure PyTorch v0.3, v0.4 might reduce usage of memory
