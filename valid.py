@@ -146,9 +146,9 @@ def inference(data, models, resize):
 
     if tta:
         txf_funcs = [lambda x: x,
-                     lambda x: flip(x, 1), # up down flip
-                     lambda x: flip(x, 2), # left right flip
-                     lambda x: flip(flip(x, 1), 2)] # 1 -> 2 flip
+                     lambda x: flip(x, 2), # up down flip
+                     lambda x: flip(x, 3), # left right flip
+                     lambda x: flip(flip(x, 3), 2)]
     else:
         txf_funcs = [lambda x: x]
 
@@ -176,9 +176,9 @@ def inference(data, models, resize):
             # crop padding
             if not resize:
                 w, h = size
-                s = s[:, :, 0:h, 0:w]
-                c = c[:, :, 0:h, 0:w] if len(c) > 0 else c
-                m = m[:, :, 0:h, 0:w] if len(m) > 0 else m
+                s = s[:, :, :h, :w]
+                c = c[:, :, :h, :w] if len(c) > 0 else c
+                m = m[:, :, :h, :w] if len(m) > 0 else m
             # reverse flip
             s = txf(s)
             c = txf(c)
