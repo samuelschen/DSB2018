@@ -207,8 +207,8 @@ Just pick one option to prepare dataset
 * V9 dataset, or just download [here](https://drive.google.com/uc?export=download&id=1KS1E_8U019kA3XSmcFcKJjq3L9A_No0x)
     - Git clone [lopuhin Github](https://github.com/lopuhin/kaggle-dsbowl-2018-dataset-fixes) and move `stage1_train` in `data` folder
     - Download [TCGA no overlap](https://drive.google.com/open?id=1JnYY4og2DdTqcLsUd1F-pTiWYyQSUYES) and uncompress to `data` folder
-    - Download [Celltracking](https://drive.google.com/open?id=1hNem6Ob4ZWybHM01_4vy5xBJ6fQ27e9I) and uncompress to `data` folder. Also remove redundant and almost the same images.  
-    - Download [v9 CSV]() to `data` folder 
+    - Download [Celltracking](https://drive.google.com/open?id=1hNem6Ob4ZWybHM01_4vy5xBJ6fQ27e9I) and uncompress to `data` folder. Also remove redundant and almost the same images.
+    - Download [v9 CSV]() to `data` folder
     - Split proper scale and prefered data distribution
         ```
         $ python3 crop.py data/stage1_train  --step 200 --width 256 --csv data/v9.csv
@@ -357,13 +357,35 @@ Just pick one option to prepare dataset
 
     ![conv_block](docs/conv_block.jpg)
 
+* Shared decoder vs. Non-shared decoder &  Contour vs. Adjacent_Boundary
+
+
+    The Encoder part is naturally shared by multi-heads (e.g. semantic, contour, and marker), how about Decoder part? It looks like non-shared decoder part performs better. As for detecting contour or just detecting adjacent boundary, the '<b>Instance IoU</b>' metric shows that ONLY detecting adjacent boundary outperforms detecting contour, albeit the indiviual IoU of that specific head will be much lower. You get to keep faith and patient during training phase (lesson learned!)
+
+    ![Shared Decoder and Border Type -- 900 epochs](docs/decoder_border1.jpg)
+
+    ![Shared Decoder and Border Type -- 1800 epochs](docs/decoder_border2.jpg)
+
+    |   Decoder  | Border Type       | Instance mean IoU |        Dataset         | Epoch |
+    |     -      |       -           |         -         |          -             |   -   |
+    | Shared     |   Contour         |        0.4453     |  Kaggle stage 1 test   |  900  |
+    | Non-Shared |   Contour         |        0.4501     |  Kaggle stage 1 test   |  900  |
+    | Shared     | Adjacent Boundary |        0.4292     |  Kaggle stage 1 test   |  900  |
+    | Non-Shared | Adjacent Boundary |        0.4635     |  Kaggle stage 1 test   |  900  |
+    | Shared     |   Contour         |        0.4507     |  Kaggle stage 1 test   | 1800  |
+    | Non-Shared |   Contour         |        0.4648     |  Kaggle stage 1 test   | 1800  |
+    | Shared     | Adjacent Boundary |        0.4524     |  Kaggle stage 1 test   | 1800  |
+    | Non-Shared | Adjacent Boundary |        0.4807     |  Kaggle stage 1 test   | 1800  |
+
+    - Note: all models were trained with Kaggle stage 1 training dataset only, 10% CV, 1e-4 learning rate. Post-processed with random_walker, probability thresholds (0.3, 0.3, 0.3) for 3-heads.
+
 * Pre-trained model as UNet encoder
 
-    Use uncropped kaggle fixed dataset, 200 epoch to evaluate effectiveness of transfer learning. Resnet_34 performed well in early time/step, power of deeper network not obvious in limited data. Vgg suffered on high comuptation and low throughput.  
+    Use uncropped kaggle fixed dataset, 200 epoch to evaluate effectiveness of transfer learning. Resnet_34 performed well in early time/step, power of deeper network not obvious in limited data. Vgg suffered on high comuptation and low throughput.
 
     ![pretrain as encoder](docs/pretrain_as_encoder.jpg)
 
-### Intermediate Model Checkpoints 
+### Intermediate Model Checkpoints
 
 * Stage 1 final submission, [here](https://drive.google.com/open?id=1QpTjcSOH3MbnFDZZPj5MGKpFCi9zBjmD)
 
