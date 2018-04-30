@@ -366,24 +366,54 @@ Just pick one option to prepare dataset
 
     ![Shared Decoder and Border Type -- 1800 epochs](docs/decoder_border2.jpg)
 
-    |   Decoder  | Border Type       | Instance mean IoU |        Dataset         | Epoch |
-    |     -      |       -           |         -         |          -             |   -   |
-    | Shared     |   Contour         |        0.4453     |  Kaggle stage 1 test   |  900  |
-    | Non-Shared |   Contour         |        0.4501     |  Kaggle stage 1 test   |  900  |
-    | Shared     | Adjacent Boundary |        0.4292     |  Kaggle stage 1 test   |  900  |
-    | Non-Shared | Adjacent Boundary |        0.4635     |  Kaggle stage 1 test   |  900  |
-    | Shared     |   Contour         |        0.4507     |  Kaggle stage 1 test   | 1800  |
-    | Non-Shared |   Contour         |        0.4648     |  Kaggle stage 1 test   | 1800  |
-    | Shared     | Adjacent Boundary |        0.4524     |  Kaggle stage 1 test   | 1800  |
-    | Non-Shared | Adjacent Boundary |        0.4807     |  Kaggle stage 1 test   | 1800  |
+    - Evaluate Kaggle stage 1 test data
 
-    - Note: all models were trained with Kaggle stage 1 training dataset only, 10% CV, 1e-4 learning rate. Post-processed with random_walker, probability thresholds (0.3, 0.3, 0.3) for 3-heads.
+    |   Decoder  | Border Type       | Instance mean IoU | Epoch |
+    |     -      |       -           |         -         |   -   |
+    | Shared     |   Contour         |        0.4453     |  900  |
+    | Non-Shared |   Contour         |        0.4501     |  900  |
+    | Shared     | Adjacent Boundary |        0.4292     |  900  |
+    | Non-Shared | Adjacent Boundary |        0.4635     |  900  |
+    | Shared     |   Contour         |        0.4507     | 1800  |
+    | Non-Shared |   Contour         |        0.4648     | 1800  |
+    | Shared     | Adjacent Boundary |        0.4524     | 1800  |
+    | Non-Shared | Adjacent Boundary |        0.4807     | 1800  |
+
+    (*): all models were trained with Kaggle stage 1 training dataset only, 10% CV, 1e-4 learning rate. Post-processed with random_walker, probability thresholds (0.3, 0.3, 0.3) for 3-heads.
+
 
 * Pre-trained model as UNet encoder
 
     Use uncropped kaggle fixed dataset, 200 epoch to evaluate effectiveness of transfer learning. Resnet_34 performed well in early time/step, power of deeper network not obvious in limited data. Vgg suffered on high comuptation and low throughput.
 
     ![pretrain as encoder](docs/pretrain_as_encoder.jpg)
+
+    - Evaluate Kaggle stage 1 test data
+
+    |   Encoder  |   Decoder  | Border Type       | Instance mean IoU | Epoch | TTA |
+    |    -       |     -      |       -           |         -         |   -   |  -  |
+    | Resnet34   | Shared     |   Contour         |        0.5832     |  200  |     |
+    | Resnet34   | Non-Shared |   Contour         |        0.6001     |  200  |     |
+    | Resnet34   | Shared     | Adjacent Boundary |        0.5623     |  200  |     |
+    | Resnet34   | Non-Shared | Adjacent Boundary |        0.5592     |  200  |     |
+    | Resnet34   | Shared     |   Contour         |        0.5962     |  200  |  V  |
+    | Resnet34   | Non-Shared |   Contour         |        0.6176     |  200  |  V  |
+    | Resnet34   | Shared     | Adjacent Boundary |        0.5633     |  200  |  V  |
+    | Resnet34   | Non-Shared | Adjacent Boundary |        0.5798     |  200  |  V  |
+    <!-- best.pkl
+    | Resnet34   | Shared     |   Contour         |        0.5691     |  200  |     |
+    | Resnet34   | Non-Shared |   Contour         |        0.5833     |  200  |     |
+    | Resnet34   | Shared     | Adjacent Boundary |        0.5724     |  200  |     |
+    | Resnet34   | Non-Shared | Adjacent Boundary |        0.5626     |  200  |     |
+    | Resnet34   | Shared     |   Contour         |        0.5792     |  200  |  V  |
+    | Resnet34   | Non-Shared |   Contour         |        0.5952     |  200  |  V  |
+    | Resnet34   | Shared     | Adjacent Boundary |        0.5924     |  200  |  V  |
+    | Resnet34   | Non-Shared | Adjacent Boundary |        0.5788     |  200  |  V  |
+    -->
+
+    (*) Note: all models were trained with v9 dataset, resnet34 as pretrain encoder, input data even balanced, 10% CV, 1e-4 learning rate. Post-processed with random_walker, probability thresholds (0.3, 0.3, 0.35) for 3-heads. Training time ~30 hours.
+
+
 
 ### Intermediate Model Checkpoints
 
