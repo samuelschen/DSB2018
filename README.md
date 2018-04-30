@@ -12,11 +12,11 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] UNet
     - [x] Contour Aware model (2 tasks)
     - [x] Contour Aware Marker model (3 tasks)
-    - [ ] Boundaries detection for adjacent nuclei only?
+    - [x] Boundaries detection for adjacent nuclei only
   - [x] DCAN (switch to multitask UNet judged bt experimental results)
     - [x] Training efficiency for contour detection
   - [ ] Mask RCNN
-  - [ ] Mixed-Scale Dense CNN
+  - [x] Mixed-Scale Dense CNN (super slow training/inference on current deep learning framework design)
   - [x] Dilated Convolution
   - [x] Dropout
   - [x] Batch normalization
@@ -36,22 +36,24 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
   - [x] Learning rate
   - [x] Input size (Tried 384x384, postponed due to slow training pace)
   - [x] Confidence level threshold
+    - [ ] A better way to tune these gating thresholds
   - [x] Evaluate performance of mean and std of channels
 * Data augmentation
   - [x] Random crop
   - [x] Random horizontal and vertical flip
   - [x] Random aspect resize
   - [x] Random color adjustment
-  - [x] Random color invert
+  - [x] Random color invert (NG for this competition)
   - [x] Random elastic distortion
-  - [x] Contrast limited adaptive histogram equalization
+  - [x] Contrast limited adaptive histogram equalization (NG for this competition)
   - [x] Random rotate
-  - [x] Random noise (additive gaussian and multiplied speckle)
+  - [x] Random noise (additive gaussian and multiplied speckle) (NG for this competition)
   - [x] Random channel shuffle and color space transform
 * Dataset
   - [x] Support multiple whitelist filters to select data type
   - [x] Support manually oversample in advance mode
   - [x] Auto-balance data distribution weight via oversampling
+  - [ ] Tools to crop the portion we need
 * Pre-process
   - [x] Input normalization
   - [x] Binarize label
@@ -65,6 +67,8 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     + [x] Origin image size with border padding (black/white constant color)
     + [x] Origin image size with border padding (replicate border color)
     + [ ] Tile-based with overlap
+  - [ ] Easy and robust mechanism to enable incremental data addition & data distribution adjustment
+  - [ ] 'Patient' level CV isolation, not infected by data distribution adjustment
   - [ ] Convert input data to CIELAB color space instead of RGB
   - [ ] Use [color map algorithm](https://stackoverflow.com/questions/42863543/applying-the-4-color-theorem-to-list-of-neighbor-polygons-stocked-in-a-graph-arr) to generate ground truth of limited label (4-), in order to prevent cross-talking
 * Post-process
@@ -78,6 +82,9 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     + [x] Marker by marker-based from model prediction
   - Ensemble
     + [x] Average probability of pixel wise output of multiple models (or checkpoints)
+  - Test Time Augmentation
+    + [x] Horizontal flip, vertical flip, and combined views
+    + [ ] Rotate 90/180/270 degree views
   - [ ] Fill hole inside each segment group
 * Computation performance
   - [x] CPU
