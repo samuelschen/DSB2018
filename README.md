@@ -417,6 +417,18 @@ Just pick one option to prepare dataset
     | Resnet34   | Shared     | Adjacent Boundary |        0.5924     |  200  |  V  |
     | Resnet34   | Non-Shared | Adjacent Boundary |        0.5788     |  200  |  V  |
     -->
+    <!-- channel shuffle applied + 200 epoch
+    |   Encoder  |   Decoder  | Border Type       | Instance mean IoU | Epoch | TTA |
+    |    -       |     -      |       -           |         -         |   -   |  -  |
+    | Resnet34   | Shared     |   Contour         |        0.5666     |  400  |     |
+    | Resnet34   | Non-Shared |   Contour         |        0.5973     |  400  |     |
+    | Resnet34   | Shared     | Adjacent Boundary |        0.5769     |  400  |     |
+    | Resnet34   | Non-Shared | Adjacent Boundary |        0.5817     |  400  |     |
+    | Resnet34   | Shared     |   Contour         |        0.5841     |  400  |  V  |
+    | Resnet34   | Non-Shared |   Contour         |        0.6038     |  400  |  V  |
+    | Resnet34   | Shared     | Adjacent Boundary |        0.5925     |  400  |  V  |
+    | Resnet34   | Non-Shared | Adjacent Boundary |        0.5944     |  400  |  V  |
+    -->
 
     (*) Note: all models were trained with v9 dataset, resnet34 as pretrain encoder, input data even balanced, 10% CV, 1e-4 learning rate. Post-processed with random_walker, probability thresholds (0.3, 0.3, 0.35) for 3-heads. Training time ~30 hours.
 
