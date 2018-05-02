@@ -148,7 +148,8 @@ def inference(data, models, resize):
         txf_funcs = [lambda x: x,
                      lambda x: flip(x, 2), # up down flip
                      lambda x: flip(x, 3), # left right flip
-                     lambda x: flip(flip(x, 3), 2)]
+                     lambda x: flip(flip(x, 3), 2),
+                    ]
     else:
         txf_funcs = [lambda x: x]
 
@@ -207,6 +208,22 @@ def flip(t, dim):
             else t.new(torch.arange(t.size(i)-1, -1, -1).tolist()).long()
             for i in range(t.dim()))
     return t[inds]
+
+def tensor_rgb2gray(rgb):
+    c, h, w = rgb.shape[1:]
+    if c != 3:
+        return rgb
+    # refer https://en.wikipedia.org/wiki/Grayscale#Converting_color_to_grayscale
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    gray_mat = torch.tensor([0.299, 0.587, 0.114]).to(device)
+    # matmul() could not handle (1x3) x (1x3x5x5) directly
+    # convert to (1x3) x (1x3x25) then reshape (1x1x25) to (1x1x5x5)
+    g = torch.matmul(gray_mat, rgb.view(1, 3, -1))
+    g = g.view(1, 1, h, w)
+    # expand(): repeat channel dimension without memory copy
+    # reshape (1x1x5x5) to (1x3x5x5)
+    g = g.expand(1, 3, -1, -1)
+    return g
 
 def pad_tensor(img_tensor, size, mode='reflect'):
     # get proper mini-width required for model input

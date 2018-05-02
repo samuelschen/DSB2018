@@ -84,6 +84,7 @@ Kaggle 2018 Data Science Bowl: find the nuclei in divergent images to advance me
     + [x] Average probability of pixel wise output of multiple models (or checkpoints)
   - Test Time Augmentation
     + [x] Horizontal flip, vertical flip, and combined views
+    + [x] RGB to grayscale (NG for this competition)
     + [ ] Rotate 90/180/270 degree views
   - [ ] Fill hole inside each segment group
 * Computation performance
