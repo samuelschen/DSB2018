@@ -392,7 +392,7 @@ Just pick one option to prepare dataset
 
 * Pre-trained model as UNet encoder
 
-    Use uncropped kaggle fixed dataset, 200 epoch to evaluate effectiveness of transfer learning. Resnet_34 performed well in early time/step, power of deeper network not obvious in limited data. Vgg suffered on high comuptation and low throughput.
+    Use uncropped kaggle fixed dataset, 200 epoch to evaluate effectiveness of transfer learning. Resnet_34 gave nice performance boost, deeper network did not shine in the dataset. Vgg suffered on high footprint and low throughput.
 
     ![pretrain as encoder](docs/pretrain_as_encoder.jpg)
 
@@ -429,6 +429,14 @@ Just pick one option to prepare dataset
     | Resnet34   | Non-Shared |   Contour         |        0.6038     |  400  |  V  |
     | Resnet34   | Shared     | Adjacent Boundary |        0.5925     |  400  |  V  |
     | Resnet34   | Non-Shared | Adjacent Boundary |        0.5944     |  400  |  V  |
+    -->
+    <!-- Trained with v10 dataset
+    |   Encoder  |   Decoder  | Border Type       | Instance mean IoU | Epoch | TTA |
+    |    -       |     -      |       -           |         -         |   -   |  -  |
+    | Resnet34   | Shared     |   Contour         |        0.5926     |  400  |  V  |
+    | Resnet34   | Non-Shared |   Contour         |        0.6354     |  400  |  V  |
+    | Resnet34   | Shared     | Adjacent Boundary |        0.6197     |  400  |  V  |
+    | Resnet34   | Non-Shared | Adjacent Boundary |        0.6025     |  400  |  V  |
     -->
 
     (*) Note: all models were trained with v9 dataset, resnet34 as pretrain encoder, input data even balanced, 10% CV, 1e-4 learning rate. Post-processed with random_walker, probability thresholds (0.3, 0.3, 0.35) for 3-heads. Training time ~30 hours.
@@ -503,6 +511,7 @@ Note:
     * A2: A1 + 24 Overlapping/Touching stitching examples
     * V8: Kaggle + TCGA + Cell tracking, without manually cropping
     * V9: Kaggle + TCGA + Cell tracking + Sticking(A1+A2), with manually selection and cropping
+    * V10: Kaggle + TCGA + Cell tracking + BBBC + Stage 1 Test
 - Score is public score on kaggle site
 - Zero CV rate means all data were used for training, none reserved
 - Adjust learning rate per 300 epoch
