@@ -396,50 +396,64 @@ Just pick one option to prepare dataset
 
     ![pretrain as encoder](docs/pretrain_as_encoder.jpg)
 
-    - Evaluate Kaggle stage 1 test data
+    - Evaluate Kaggle stage 1 test data 
 
-    |   Encoder  |   Decoder  | Border Type       | Instance mean IoU | Epoch | TTA |
-    |    -       |     -      |       -           |         -         |   -   |  -  |
-    | Resnet34   | Shared     |   Contour         |        0.5832     |  200  |     |
-    | Resnet34   | Non-Shared |   Contour         |        0.6001     |  200  |     |
-    | Resnet34   | Shared     | Adjacent Boundary |        0.5623     |  200  |     |
-    | Resnet34   | Non-Shared | Adjacent Boundary |        0.5592     |  200  |     |
-    | Resnet34   | Shared     |   Contour         |        0.5962     |  200  |  V  |
-    | Resnet34   | Non-Shared |   Contour         |        0.6176     |  200  |  V  |
-    | Resnet34   | Shared     | Adjacent Boundary |        0.5633     |  200  |  V  |
-    | Resnet34   | Non-Shared | Adjacent Boundary |        0.5798     |  200  |  V  |
-    <!-- best.pkl
-    | Resnet34   | Shared     |   Contour         |        0.5691     |  200  |     |
-    | Resnet34   | Non-Shared |   Contour         |        0.5833     |  200  |     |
-    | Resnet34   | Shared     | Adjacent Boundary |        0.5724     |  200  |     |
-    | Resnet34   | Non-Shared | Adjacent Boundary |        0.5626     |  200  |     |
-    | Resnet34   | Shared     |   Contour         |        0.5792     |  200  |  V  |
-    | Resnet34   | Non-Shared |   Contour         |        0.5952     |  200  |  V  |
-    | Resnet34   | Shared     | Adjacent Boundary |        0.5924     |  200  |  V  |
-    | Resnet34   | Non-Shared | Adjacent Boundary |        0.5788     |  200  |  V  |
-    -->
-    <!-- channel shuffle applied + 200 epoch
-    |   Encoder  |   Decoder  | Border Type       | Instance mean IoU | Epoch | TTA |
-    |    -       |     -      |       -           |         -         |   -   |  -  |
-    | Resnet34   | Shared     |   Contour         |        0.5666     |  400  |     |
-    | Resnet34   | Non-Shared |   Contour         |        0.5973     |  400  |     |
-    | Resnet34   | Shared     | Adjacent Boundary |        0.5769     |  400  |     |
-    | Resnet34   | Non-Shared | Adjacent Boundary |        0.5817     |  400  |     |
-    | Resnet34   | Shared     |   Contour         |        0.5841     |  400  |  V  |
-    | Resnet34   | Non-Shared |   Contour         |        0.6038     |  400  |  V  |
-    | Resnet34   | Shared     | Adjacent Boundary |        0.5925     |  400  |  V  |
-    | Resnet34   | Non-Shared | Adjacent Boundary |        0.5944     |  400  |  V  |
-    -->
-    <!-- Trained with v10 dataset
-    |   Encoder  |   Decoder  | Border Type       | Instance mean IoU | Epoch | TTA |
-    |    -       |     -      |       -           |         -         |   -   |  -  |
-    | Resnet34   | Shared     |   Contour         |        0.5926     |  400  |  V  |
-    | Resnet34   | Non-Shared |   Contour         |        0.6354     |  400  |  V  |
-    | Resnet34   | Shared     | Adjacent Boundary |        0.6197     |  400  |  V  |
-    | Resnet34   | Non-Shared | Adjacent Boundary |        0.6025     |  400  |  V  |
-    -->
+        |   Encoder  |   Decoder  | Border Type       | Instance mean IoU | Epoch | TTA |
+        |    -       |     -      |       -           |         -         |   -   |  -  |
+        | Resnet34   | Shared     |   Contour         |        0.5832     |  200  |     |
+        | Resnet34   | Non-Shared |   Contour         |        0.6001     |  200  |     |
+        | Resnet34   | Shared     | Adjacent Boundary |        0.5623     |  200  |     |
+        | Resnet34   | Non-Shared | Adjacent Boundary |        0.5592     |  200  |     |
+        | Resnet34   | Shared     |   Contour         |        0.5962     |  200  |  V  |
+        | Resnet34   | Non-Shared |   Contour         |      **0.6176**   |  200  |  V  |
+        | Resnet34   | Shared     | Adjacent Boundary |        0.5633     |  200  |  V  |
+        | Resnet34   | Non-Shared | Adjacent Boundary |        0.5798     |  200  |  V  |
 
-    (*) Note: all models were trained with v9 dataset, resnet34 as pretrain encoder, input data even balanced, 10% CV, 1e-4 learning rate. Post-processed with random_walker, probability thresholds (0.3, 0.3, 0.35) for 3-heads. Training time ~30 hours.
+        Note: all models were trained with v9 dataset, resnet34 as pretrain encoder, input data even balanced, 10% CV, 1e-4 learning rate. Post-processed with random_walker, probability thresholds (0.3, 0.3, 0.35) for 3-heads. Training time ~30 hours.
+
+        <!-- best.pkl
+        | Resnet34   | Shared     |   Contour         |        0.5691     |  200  |     |
+        | Resnet34   | Non-Shared |   Contour         |        0.5833     |  200  |     |
+        | Resnet34   | Shared     | Adjacent Boundary |        0.5724     |  200  |     |
+        | Resnet34   | Non-Shared | Adjacent Boundary |        0.5626     |  200  |     |
+        | Resnet34   | Shared     |   Contour         |        0.5792     |  200  |  V  |
+        | Resnet34   | Non-Shared |   Contour         |        0.5952     |  200  |  V  |
+        | Resnet34   | Shared     | Adjacent Boundary |        0.5924     |  200  |  V  |
+        | Resnet34   | Non-Shared | Adjacent Boundary |        0.5788     |  200  |  V  |
+        -->
+        <!-- channel shuffle applied + 200 epoch
+        |   Encoder  |   Decoder  | Border Type       | Instance mean IoU | Epoch | TTA |
+        |    -       |     -      |       -           |         -         |   -   |  -  |
+        | Resnet34   | Shared     |   Contour         |        0.5666     |  400  |     |
+        | Resnet34   | Non-Shared |   Contour         |        0.5973     |  400  |     |
+        | Resnet34   | Shared     | Adjacent Boundary |        0.5769     |  400  |     |
+        | Resnet34   | Non-Shared | Adjacent Boundary |        0.5817     |  400  |     |
+        | Resnet34   | Shared     |   Contour         |        0.5841     |  400  |  V  |
+        | Resnet34   | Non-Shared |   Contour         |        0.6038     |  400  |  V  |
+        | Resnet34   | Shared     | Adjacent Boundary |        0.5925     |  400  |  V  |
+        | Resnet34   | Non-Shared | Adjacent Boundary |        0.5944     |  400  |  V  |
+        -->
+
+    - Evaluate Kaggle stage 1 test data, trained with v10 dataset, TTA applied, 400 epoch, Resnet 34 as pretrained model
+
+        | Ensemble            | Shared Contour | Non-Shared Contour | Shared Boundary | Non-Shared Boundary | 
+        | ------------------- | -------------- | ------------------ | --------------- | ------------------- |
+        | Shared Contour      |    0.5926      |  **0.6399**        |    0.6335       |    0.6279           |
+        | Non-Shared Contour  | -              |    0.6354          |    0.6366       |    0.6357           |
+        | Shared Boundary     | -              | -                  |    0.6197       |    0.6103           |
+        | Non-Shared Boundary | -              | -                  | -               |    0.6025           |
+
+        Note: there are data leak in v10 dataset vs test data
+
+    - Evaluate Kaggle stage 1 test data, trained with v10 dataset, TTA applied, 800 epoch, Resnet 34 as pretrained model
+
+        | Ensemble            | Shared Contour | Non-Shared Contour | Shared Boundary | Non-Shared Boundary | 
+        | ------------------- | -------------- | ------------------ | --------------- | ------------------- |
+        | Shared Contour      |    0.6190      |    0.6415          |    0.6471       |    0.6521           |
+        | Non-Shared Contour  | -              |    0.6424          |  **0.6619**     |    0.6572           |
+        | Shared Boundary     | -              | -                  |    0.6363       |    0.6448           |
+        | Non-Shared Boundary | -              | -                  | -               |    0.6382           |
+
 
 
 
