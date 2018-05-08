@@ -221,7 +221,11 @@ def load_ckpt(model=None, optimizer=None, filepath=None):
         checkpoint = torch.load(filepath, map_location=lambda storage, loc: storage)
     epoch = checkpoint['epoch']
     if optimizer:
-        optimizer.load_state_dict(checkpoint['optimizer'])
+        try:
+            optimizer.load_state_dict(checkpoint['optimizer'])
+        except ValueError as err:
+            print('[WARNING]', err)
+            print('[WARNING] optimizer not restored from last checkpoint, continue without previous state')
     if model:
         model.load_state_dict(checkpoint['model'])
         return epoch
