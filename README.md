@@ -454,7 +454,16 @@ Just pick one option to prepare dataset
         | Shared Boundary     | -              | -                  |    0.6363       |    0.6448           |
         | Non-Shared Boundary | -              | -                  | -               |    0.6382           |
 
+    - Evaluate Kaggle stage 1 test data, trained with v9+BBBC dataset, 0% CV, TTA applied, 400 epoch, Resnet 34 as pretrained model
 
+        | Ensemble            | Shared Contour | Non-Shared Contour | Shared Boundary | Non-Shared Boundary | 
+        | ------------------- | -------------- | ------------------ | --------------- | ------------------- |
+        | Shared Contour      |    0.5703      |    0.5778          |  **0.5995**     |    0.5757           |
+        | Non-Shared Contour  | -              |    0.5814          |    0.5953       |    0.5783           |
+        | Shared Boundary     | -              | -                  |    0.5782       |    0.5770           |
+        | Non-Shared Boundary | -              | -                  | -               |    0.5467           |
+
+        Note: ensemble of shared boundary and non-shared contour sported 0.623 on stage 2 
 
 
 ### Intermediate Model Checkpoints
