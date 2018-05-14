@@ -434,7 +434,9 @@ Just pick one option to prepare dataset
         | Resnet34   | Non-Shared | Adjacent Boundary |        0.5944     |  400  |  V  |
         -->
 
-    - Evaluate Kaggle stage 1 test data, trained with v10 dataset, TTA applied, 400 epoch, Resnet 34 as pretrained model
+* Resnet_34 as pre-trained encoder, trained with v10 dataset (data leak: part of stage 1 test as train data) 
+
+    - 400 epoch
 
         | Ensemble            | Shared Contour | Non-Shared Contour | Shared Boundary | Non-Shared Boundary | 
         | ------------------- | -------------- | ------------------ | --------------- | ------------------- |
@@ -443,9 +445,9 @@ Just pick one option to prepare dataset
         | Shared Boundary     | -              | -                  |    0.6197       |    0.6103           |
         | Non-Shared Boundary | -              | -                  | -               |    0.6025           |
 
-        Note: there were data leak in v10 dataset vs test data. Best ensemble sported 0.572 on stage 2
+        Note: Best ensemble sported 0.572 on stage 2
 
-    - Evaluate Kaggle stage 1 test data, trained with v10 dataset, TTA applied, 800 epoch, Resnet 34 as pretrained model
+    - 800 epoch
 
         | Ensemble            | Shared Contour | Non-Shared Contour | Shared Boundary | Non-Shared Boundary | 
         | ------------------- | -------------- | ------------------ | --------------- | ------------------- |
@@ -454,9 +456,37 @@ Just pick one option to prepare dataset
         | Shared Boundary     | -              | -                  |    0.6363       |    0.6448           |
         | Non-Shared Boundary | -              | -                  | -               |    0.6382           |
 
-        Note: Data leak. Best ensemble sported 0.546 on stage 2 
+        Note: Best ensemble sported 0.546 on stage 2 
 
-    - Evaluate Kaggle stage 1 test data, trained with v9+BBBC dataset, 0% CV, TTA applied, 400 epoch, Resnet 34 as pretrained model.
+* Resnet_34 as pre-trained encoder, trained with v1 dataset (no data leak), 0% CV, TTA applied, 400 epoch. Non-Shared Contour single model scored 0.5488 and 0.559 in v1 and v2 test.
+
+* Resnet_34 as pre-trained encoder, trained with v9 dataset (no data leak), 0% CV, 
+
+    - 200 epoch
+
+        | Ensemble            | Shared Contour | Non-Shared Contour | Shared Boundary | Non-Shared Boundary | 
+        | ------------------- | -------------- | ------------------ | --------------- | ------------------- |
+        | Shared Contour      |    0.6176      |    0.6063          |    0.5987       |    0.6038           |
+        | Non-Shared Contour  | -              |    0.5962          |    0.6100       |  **0.6143**         |
+        | Shared Boundary     | -              | -                  |    0.5633       |    0.5767           |
+        | Non-Shared Boundary | -              | -                  | -               |    0.5798           |
+
+        Note: Best ensemble sported 0.520 on stage 2
+
+* Resnet_34 as pre-trained encoder, trained with v9+BBBC dataset (no data leak), 0% CV, 
+
+    - 200 epoch, freeze encoder weights (TO_BE_UPDATED)
+
+        | Ensemble            | Shared Contour | Non-Shared Contour | Shared Boundary | Non-Shared Boundary | 
+        | ------------------- | -------------- | ------------------ | --------------- | ------------------- |
+        | Shared Contour      |    -           |    -               |    -       |    -           |
+        | Non-Shared Contour  | -              |    -               |    -       |  -         |
+        | Shared Boundary     | -              | -                  |    -       |    -           |
+        | Non-Shared Boundary | -              | -                  | -               |    -           |
+
+        Note: Best ensemble sported ? on stage 2.
+
+    - 400 epoch, freeze encoder weights
 
         | Ensemble            | Shared Contour | Non-Shared Contour | Shared Boundary | Non-Shared Boundary | 
         | ------------------- | -------------- | ------------------ | --------------- | ------------------- |
@@ -465,9 +495,9 @@ Just pick one option to prepare dataset
         | Shared Boundary     | -              | -                  |    0.5782       |    0.5770           |
         | Non-Shared Boundary | -              | -                  | -               |    0.5467           |
 
-        Note: There were NO data leak in CV (stage 1 test data). Best ensemble sported 0.623 on stage 2. 
+        Note: Best ensemble sported 0.623 on stage 2
 
-    - Evaluate Kaggle stage 1 test data, trained with v9+BBBC dataset, 0% CV, TTA applied, 600 epoch, Resnet 34 as pretrained model, finetune after 400 epoch. No data leak.
+    - 600 epoch, un-freeze encoder weights after 400 epoch.
 
         | Ensemble            | Shared Contour | Non-Shared Contour | Shared Boundary | Non-Shared Boundary | 
         | ------------------- | -------------- | ------------------ | --------------- | ------------------- |
@@ -476,7 +506,23 @@ Just pick one option to prepare dataset
         | Shared Boundary     | -              | -                  |    0.5690       |    0.5848           |
         | Non-Shared Boundary | -              | -                  | -               |    0.5773           |
 
-        Note: No data leak. Best ensemble sported 0.593 on stage 2.
+        Note: Best ensemble sported 0.593 on stage 2
+
+    - 800 epoch, un-freeze encoder weights after 400 epoch.
+
+        | Ensemble            | Shared Contour | Non-Shared Contour | Shared Boundary | Non-Shared Boundary | 
+        | ------------------- | -------------- | ------------------ | --------------- | ------------------- |
+        | Shared Contour      |    0.5978      |    0.6009          |    0.6214       |    0.6113           |
+        | Non-Shared Contour  | -              |    0.5961          |  **0.6262**     |    0.6175           |
+        | Shared Boundary     | -              | -                  |    0.5991       |    0.6060           |
+        | Non-Shared Boundary | -              | -                  | -               |    0.5893           |
+
+        Note: Best ensemble sported 0.577 on stage 2
+    
+    - Learning curve of CV (stage 1 test) and Test (stage 2 test)
+
+        TO_BE_UPDATED
+
 
 ### Intermediate Model Checkpoints
 
