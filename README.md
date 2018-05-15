@@ -534,6 +534,11 @@ Just pick one option to prepare dataset
 
         ![stage2_overfit](docs/overfit-stage-2.jpg)
 
+        There was a sweet spot/epoch for stage 2 submit but still underfit stage 1 CV. The curve told us few critical things:
+        
+        + Overfit train and cross-valid dataset
+        + Wide variety gap between training and (stage 2) test data
+        + It's a gamble to decide sweet spot without meaningful indicator (CV not work well in the case)
 
 ### Intermediate Model Checkpoints
 
