@@ -475,16 +475,27 @@ Just pick one option to prepare dataset
 
 * Resnet_34 as pre-trained encoder, trained with v9+BBBC dataset (no data leak), 0% CV, 
 
-    - 200 epoch, freeze encoder weights (TO_BE_UPDATED)
+    - 100 epoch, freeze encoder weights
 
         | Ensemble            | Shared Contour | Non-Shared Contour | Shared Boundary | Non-Shared Boundary | 
         | ------------------- | -------------- | ------------------ | --------------- | ------------------- |
-        | Shared Contour      |    -           |    -               |    -       |    -           |
-        | Non-Shared Contour  | -              |    -               |    -       |  -         |
-        | Shared Boundary     | -              | -                  |    -       |    -           |
-        | Non-Shared Boundary | -              | -                  | -               |    -           |
+        | Shared Contour      |    0.5262      |  **0.5441**        |    0.5429       |    0.5254           |
+        | Non-Shared Contour  | -              |    0.5394          |    0.5397       |    0.5320           |
+        | Shared Boundary     | -              | -                  |    0.5186       |    0.5128           |
+        | Non-Shared Boundary | -              | -                  | -               |    0.5067           |
 
-        Note: Best ensemble sported ? on stage 2.
+        Note: Best ensemble sported 0.576 on stage 2
+
+    - 200 epoch, freeze encoder weights
+
+        | Ensemble            | Shared Contour | Non-Shared Contour | Shared Boundary | Non-Shared Boundary | 
+        | ------------------- | -------------- | ------------------ | --------------- | ------------------- |
+        | Shared Contour      |    0.5283      |    0.5420          |    0.5534       |    0.5373           |
+        | Non-Shared Contour  | -              |    0.5446          |  **0.5577**     |    0.5507           |
+        | Shared Boundary     | -              | -                  |    0.5361       |    0.5392           |
+        | Non-Shared Boundary | -              | -                  | -               |    0.5164           |
+
+        Note: Best ensemble sported 0.616 on stage 2
 
     - 400 epoch, freeze encoder weights
 
@@ -521,7 +532,7 @@ Just pick one option to prepare dataset
     
     - Learning curve of CV (stage 1 test) and Test (stage 2 test)
 
-        TO_BE_UPDATED
+        ![stage2_overfit](docs/overfit-stage-2.jpg)
 
 
 ### Intermediate Model Checkpoints
