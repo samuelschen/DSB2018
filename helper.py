@@ -189,11 +189,30 @@ def is_best_ckpt(epoch, iou_tr, iou_cv):
         return True
     return False
 
+# DataParallel will change model's class name to 'dataparallel' & prefix 'module.' to existing parameters.
+# Here the saved checkpoint might or might not be 'DataParallel' model (e.g. might be trained with multi-GPUs or single GPU),
+# handle this variation while loading checkpoint.
+# Refer to:
+#   https://github.com/pytorch/pytorch/issues/4361
+#   https://github.com/pytorch/pytorch/issues/3805
+#   https://stackoverflow.com/questions/44230907/keyerror-unexpected-key-module-encoder-embedding-weight-in-state-dict
+def _extract_state_from_dataparallel(checkpoint_dict):
+    from collections import OrderedDict
+    new_state_dict = OrderedDict()
+    for k, v in checkpoint_dict.items():
+        if k.startswith('module.'):
+            name = k[7:] # remove 'module.'
+        else:
+            name = k
+        new_state_dict[name] = v
+    return new_state_dict
+
+
 def save_ckpt(model, optimizer, epoch, iou_tr, iou_cv):
     def do_save(filepath):
         torch.save({
             'epoch': epoch,
-            'name': type(model).__name__.lower(),
+            'name': config['param']['model'],
             'model': model.state_dict(),
             'optimizer': optimizer.state_dict(),
         }, filepath)
@@ -206,6 +225,7 @@ def save_ckpt(model, optimizer, epoch, iou_tr, iou_cv):
     if epoch % n_ckpt_epoch == 0:
         filepath = ckpt_path(epoch)
         do_save(filepath)
+
 
 def load_ckpt(model=None, optimizer=None, filepath=None):
     if filepath is None:
@@ -226,8 +246,9 @@ def load_ckpt(model=None, optimizer=None, filepath=None):
         except ValueError as err:
             print('[WARNING]', err)
             print('[WARNING] optimizer not restored from last checkpoint, continue without previous state')
+
     if model:
-        model.load_state_dict(checkpoint['model'])
+        model.load_state_dict(_extract_state_from_dataparallel(checkpoint['model']))
         return epoch
     else:
         # build model based on checkpoint
@@ -235,7 +256,8 @@ def load_ckpt(model=None, optimizer=None, filepath=None):
         assert 'name' in checkpoint, "Abort! No model name in checkpoint, use ckpt.py to convert first"
         model_name = checkpoint['name']
         model = build_model(model_name)
-        model.load_state_dict(checkpoint['model'])
+
+        model.load_state_dict(_extract_state_from_dataparallel(checkpoint['model']))
         return model
 
 # Evaluate the average nucleus size.

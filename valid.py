@@ -30,9 +30,12 @@ def main(ckpt, tocsv=False, save=False, mask=False, target='test', toiou=False):
         # Sets the model in evaluation mode.
         model.eval()
         # put model to GPU
-        if torch.cuda.device_count() > 1:
-            print("Let's use", torch.cuda.device_count(), "GPUs!")
-            model = nn.DataParallel(model)
+        # Note: Comment out DataParallel due to
+        #       (1) we won't need it in our inference scenario
+        #       (2) it will change model's class name to 'dataparallel'
+        # if torch.cuda.device_count() > 1:
+        #     print("Let's use", torch.cuda.device_count(), "GPUs!")
+        #     model = nn.DataParallel(model)
         model = model.to(device)
         # append to model list
         models.append(model)
