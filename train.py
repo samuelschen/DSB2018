@@ -34,10 +34,6 @@ def main(resume=True, n_epoch=None, learn_rate=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = build_model(model_name)
-    # put model to GPU
-    if torch.cuda.device_count() > 1:
-        print("Let's use", torch.cuda.device_count(), "GPUs!")
-        model = nn.DataParallel(model)
     model = model.to(device)
 
     # define optimizer
@@ -88,6 +84,11 @@ def main(resume=True, n_epoch=None, learn_rate=None):
         start_epoch = load_ckpt(model, optimizer)
     if start_epoch == 0:
         print('Grand new training ...')
+
+    # put model to GPU
+    if torch.cuda.device_count() > 1:
+        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        model = nn.DataParallel(model)
 
     # decide log directory name
     log_dir = os.path.join(
